@@ -1,0 +1,37 @@
+# Excel一時ファイル
+~$*.xlsm
+~$*.xlsx
+~$*.xls
+
+# Windowsシステムファイル
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# macOSシステムファイル
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# 一時ファイル
+*.tmp
+*.bak
+*.swp
+*~
+
+# ログファイル
+*.log
+
+# VBA Export 一時ファイル
+*.frx
+*.dca
+
+# IDEファイル
+.vscode/
+.idea/
+*.suo
+*.user
+
+# その他
+.env
+.env.local
