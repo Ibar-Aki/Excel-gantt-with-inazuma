@@ -40,18 +40,18 @@ Public Const CELL_DISPLAY_WEEK As String = "K4"
 Public Const CELL_TODAY As String = "M3"
 
 ' 色設定
-Public Const COLOR_PLAN As Long = 15132390
-Public Const COLOR_PROGRESS As Long = 7949599
-Public Const COLOR_HOLIDAY As Long = 15921906
+Public Const COLOR_PLAN As Long = 16119285       ' RGB(245,245,245) 限りなく白に近い灰色
+Public Const COLOR_PROGRESS As Long = 10921638   ' RGB(91,155,213) 青色
+Public Const COLOR_HOLIDAY As Long = 15790320    ' RGB(240,240,240) 薄い灰色（休日祝日）
 Public Const COLOR_ROW_BAND As Long = 16316664
-Public Const COLOR_ACTUAL As Long = 5288960
-Public Const COLOR_TODAY As Long = 255
+Public Const COLOR_ACTUAL As Long = 5287936      ' RGB(0,176,80) 緑色
+Public Const COLOR_TODAY As Long = 255           ' RGB(255,0,0) 赤
 Public Const COLOR_WARN As Long = 13434879
 Public Const COLOR_ERROR As Long = 13553151
-Public Const COLOR_INAZUMA As Long = 42495
+Public Const COLOR_INAZUMA As Long = 42495       ' RGB(255,165,0) オレンジ
 Public Const COLOR_HEADER_BG As Long = 12874308
 Public Const COLOR_GANTT_HEADER As Long = 8421504
-Public Const COLOR_WEEKEND As Long = 15790320  ' 薄い灰色 RGB(240,240,240)
+Public Const COLOR_WEEKEND As Long = 15790320    ' RGB(240,240,240) 薄い灰色
 Public Const TODAY_LINE_WEIGHT As Double = 2
 Public Const ACTUAL_LINE_WEIGHT As Double = 4
 
@@ -370,7 +370,7 @@ Private Sub DrawWeekSeparators(ByVal ws As Worksheet, ByVal lastRow As Long)
 End Sub
 
 ' ==========================================
-'  土日列の色塗り（データ行を含む）
+'  土日列の色塗り（曜日・日付行とデータ行を含む）
 ' ==========================================
 Private Sub ApplyWeekendColors(ByVal ws As Worksheet, ByVal lastRow As Long, ByVal ganttStartDate As Date, ByVal ganttStartCol As Long)
     Dim colIndex As Long
@@ -381,9 +381,9 @@ Private Sub ApplyWeekendColors(ByVal ws As Worksheet, ByVal lastRow As Long, ByV
         colIndex = ganttStartCol + i - 1
         currentDate = ganttStartDate + i - 1
         
-        ' 土日（土=6, 日=7）のデータ行を薄い灰色で塗りつぶす
+        ' 土日（土=6, 日=7）の列を薄い灰色で塗りつぶす（日付行、曜日行、データ行すべて）
         If Weekday(currentDate, vbMonday) >= 6 Then
-            ws.Range(ws.Cells(ROW_DATA_START, colIndex), ws.Cells(lastRow, colIndex)).Interior.Color = COLOR_WEEKEND
+            ws.Range(ws.Cells(ROW_DATE_HEADER, colIndex), ws.Cells(lastRow, colIndex)).Interior.Color = COLOR_HOLIDAY
         End If
     Next i
 End Sub
@@ -462,17 +462,20 @@ Sub DrawGanttBars()
             If startCol >= ganttStartCol And startCol <= ganttStartCol + GANTT_DAYS - 1 Then
                 If endCol > ganttStartCol + GANTT_DAYS - 1 Then endCol = ganttStartCol + GANTT_DAYS - 1
                 If endCol >= startCol Then
-                    cellTop = ws.Cells(r, startCol).Top + (ws.Cells(r, startCol).Height - barHeight) / 2
+                    cellTop = ws.Cells(r, startCol).Top + 2
                     cellLeft = ws.Cells(r, startCol).Left
                     cellWidth = ws.Cells(r, endCol).Left + ws.Cells(r, endCol).Width - cellLeft
+                    barHeight = 10  ' 予定バーの高さ
                     
-                    ' 予定バー（灰色）
+                    ' 予定バー（薄い灰色 + 黒枠線）
                     Set shp = ws.Shapes.AddShape(msoShapeRectangle, cellLeft, cellTop, cellWidth, barHeight)
                     shp.Name = "Bar_Plan_" & r
                     shp.Fill.ForeColor.RGB = COLOR_PLAN
-                    shp.Line.Visible = msoFalse
+                    shp.Line.Visible = msoTrue
+                    shp.Line.ForeColor.RGB = RGB(0, 0, 0)  ' 黒枠線
+                    shp.Line.Weight = 1
                     
-                    ' 進捗バー（緑色）
+                    ' 進捗バー（青色）
                     If progress > 0 Then
                         progressCol = startCol + CLng((endCol - startCol + 1) * progress) - 1
                         If progressCol >= startCol Then
@@ -500,7 +503,7 @@ Sub DrawGanttBars()
             End If
         End If
         
-        ' 実績バー（太い緑線）
+        ' 実績バー（緑色の塗りつぶしバー、予定の下に配置）
         If IsDate(startActual) Then
             Dim actualEndDate As Date
             If IsDate(endActual) Then
@@ -515,14 +518,16 @@ Sub DrawGanttBars()
             If startCol >= ganttStartCol And startCol <= ganttStartCol + GANTT_DAYS - 1 Then
                 If endCol > ganttStartCol + GANTT_DAYS - 1 Then endCol = ganttStartCol + GANTT_DAYS - 1
                 If endCol >= startCol Then
-                    cellTop = ws.Cells(r, startCol).Top + ws.Cells(r, startCol).Height / 2
+                    Dim actualBarHeight As Double
+                    actualBarHeight = 6  ' 実績バーの高さ（予定より細め）
+                    cellTop = ws.Cells(r, startCol).Top + 14  ' 予定バーの下に配置
                     cellLeft = ws.Cells(r, startCol).Left
                     cellWidth = ws.Cells(r, endCol).Left + ws.Cells(r, endCol).Width - cellLeft
                     
-                    Set shp = ws.Shapes.AddLine(cellLeft, cellTop, cellLeft + cellWidth, cellTop)
+                    Set shp = ws.Shapes.AddShape(msoShapeRectangle, cellLeft, cellTop, cellWidth, actualBarHeight)
                     shp.Name = "Bar_Actual_" & r
-                    shp.Line.ForeColor.RGB = COLOR_ACTUAL
-                    shp.Line.Weight = ACTUAL_LINE_WEIGHT
+                    shp.Fill.ForeColor.RGB = COLOR_ACTUAL
+                    shp.Line.Visible = msoFalse
                 End If
             End If
         End If
