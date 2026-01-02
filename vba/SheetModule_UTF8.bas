@@ -43,12 +43,34 @@ Private Sub Worksheet_Change(ByVal Target As Range)
     
     Application.EnableEvents = False
     
-    ' タスク入力列（C～F列）に変更があった場合、階層を自動判定
+    ' タスク入力列（C～F列）に変更があった場合
     If Not Intersect(Target, Me.Range("C:F")) Is Nothing Then
         Dim cell As Range
         For Each cell In Intersect(Target, Me.Range("C:F"))
             If cell.Row >= ROW_DATA_START Then
-                InazumaGantt_v2.AutoDetectTaskLevel cell.Row
+                ' タスクが入力された場合
+                If Trim$(CStr(cell.Value)) <> "" Then
+                    ' 階層を自動判定
+                    InazumaGantt_v2.AutoDetectTaskLevel cell.Row
+                    
+                    ' No.が空なら自動入力
+                    If Trim$(CStr(Me.Cells(cell.Row, "B").Value)) = "" Then
+                        Me.Cells(cell.Row, "B").Value = GetNextNo()
+                    End If
+                    
+                    ' 進捗率が空なら0%を入力
+                    If Trim$(CStr(Me.Cells(cell.Row, "I").Value)) = "" Then
+                        Me.Cells(cell.Row, "I").Value = 0
+                    End If
+                    
+                    ' 状況が空なら「未着手」を入力
+                    If Trim$(CStr(Me.Cells(cell.Row, "H").Value)) = "" Then
+                        Me.Cells(cell.Row, "H").Value = "未着手"
+                    End If
+                Else
+                    ' タスクが削除された場合も階層を更新
+                    InazumaGantt_v2.AutoDetectTaskLevel cell.Row
+                End If
             End If
         Next cell
     End If
@@ -106,3 +128,26 @@ Private Sub UpdateStatusByProgress(ByVal targetRow As Long)
         Me.Cells(targetRow, "H").Value = "進行中"
     End If
 End Sub
+
+' ==========================================
+'  次のNo.を取得
+' ==========================================
+Private Function GetNextNo() As Long
+    Dim lastNo As Long
+    Dim r As Long
+    Dim cellValue As Variant
+    
+    lastNo = 0
+    
+    ' B列から最大のNo.を探す
+    For r = ROW_DATA_START To Me.Cells(Me.Rows.Count, "B").End(xlUp).Row
+        cellValue = Me.Cells(r, "B").Value
+        If IsNumeric(cellValue) Then
+            If CLng(cellValue) > lastNo Then
+                lastNo = CLng(cellValue)
+            End If
+        End If
+    Next r
+    
+    GetNextNo = lastNo + 1
+End Function

@@ -407,19 +407,159 @@ Sub DrawGanttBars()
     Dim ganttStartCol As Long
     ganttStartCol = Columns(COL_GANTT_START).Column
     
-    Dim ganttRange As Range
-    Set ganttRange = ws.Range(ws.Cells(ROW_DATA_START, ganttStartCol), ws.Cells(lastRow, ganttStartCol + GANTT_DAYS - 1))
+    Dim ganttStartDate As Date
+    If IsDate(ws.Range(CELL_PROJECT_START).Value) Then
+        ganttStartDate = CDate(ws.Range(CELL_PROJECT_START).Value)
+    Else
+        ganttStartDate = Date
+    End If
     
-    ' 既存の書式をクリア
-    ganttRange.Interior.ColorIndex = xlNone
-    ganttRange.FormatConditions.Delete
+    ' 既存のシェイプを削除
+    Dim shp As Shape
+    For Each shp In ws.Shapes
+        If Left(shp.Name, 4) = "Bar_" Or Left(shp.Name, 6) = "Today_" Or Left(shp.Name, 8) = "Inazuma_" Then
+            shp.Delete
+        End If
+    Next shp
     
-    ' 条件付き書式: 土日・祝日
-    Dim cfHoliday As FormatCondition
-    Set cfHoliday = ganttRange.FormatConditions.Add(Type:=xlExpression, _
-        Formula1:="=OR(WEEKDAY(" & COL_GANTT_START & "$" & ROW_DATE_HEADER & ",2)>=6,COUNTIF('" & HOLIDAY_SHEET_NAME & "'!$A:$A," & COL_GANTT_START & "$" & ROW_DATE_HEADER & ")>0)")
-    cfHoliday.Interior.Color = COLOR_HOLIDAY
-    cfHoliday.StopIfTrue = False
+    ' 各行のバーを描画
+    Dim r As Long
+    Dim startPlan As Variant, endPlan As Variant
+    Dim startActual As Variant, endActual As Variant
+    Dim progress As Double
+    Dim startCol As Long, endCol As Long, progressCol As Long
+    Dim cellTop As Double, cellLeft As Double, cellWidth As Double, cellHeight As Double
+    Dim barHeight As Double
+    
+    barHeight = 12  ' バーの高さ
+    
+    Dim inazumaPoints() As Variant
+    ReDim inazumaPoints(1 To lastRow - ROW_DATA_START + 1, 1 To 2)
+    Dim inazumaCount As Long
+    inazumaCount = 0
+    
+    For r = ROW_DATA_START To lastRow
+        ' 日付を取得
+        startPlan = ws.Cells(r, COL_START_PLAN).Value
+        endPlan = ws.Cells(r, COL_END_PLAN).Value
+        startActual = ws.Cells(r, COL_START_ACTUAL).Value
+        endActual = ws.Cells(r, COL_END_ACTUAL).Value
+        
+        ' 進捗率を取得
+        progress = 0
+        If IsNumeric(ws.Cells(r, COL_PROGRESS).Value) Then
+            progress = CDbl(ws.Cells(r, COL_PROGRESS).Value)
+            If progress > 1 Then progress = progress / 100
+            If progress < 0 Then progress = 0
+            If progress > 1 Then progress = 1
+        End If
+        
+        ' 予定バーを描画
+        If IsDate(startPlan) And IsDate(endPlan) Then
+            startCol = DateToColumn(ganttStartDate, CDate(startPlan), ganttStartCol)
+            endCol = DateToColumn(ganttStartDate, CDate(endPlan), ganttStartCol)
+            
+            If startCol >= ganttStartCol And startCol <= ganttStartCol + GANTT_DAYS - 1 Then
+                If endCol > ganttStartCol + GANTT_DAYS - 1 Then endCol = ganttStartCol + GANTT_DAYS - 1
+                If endCol >= startCol Then
+                    cellTop = ws.Cells(r, startCol).Top + (ws.Cells(r, startCol).Height - barHeight) / 2
+                    cellLeft = ws.Cells(r, startCol).Left
+                    cellWidth = ws.Cells(r, endCol).Left + ws.Cells(r, endCol).Width - cellLeft
+                    
+                    ' 予定バー（灰色）
+                    Set shp = ws.Shapes.AddShape(msoShapeRectangle, cellLeft, cellTop, cellWidth, barHeight)
+                    shp.Name = "Bar_Plan_" & r
+                    shp.Fill.ForeColor.RGB = COLOR_PLAN
+                    shp.Line.Visible = msoFalse
+                    
+                    ' 進捗バー（緑色）
+                    If progress > 0 Then
+                        progressCol = startCol + CLng((endCol - startCol + 1) * progress) - 1
+                        If progressCol >= startCol Then
+                            Dim progressWidth As Double
+                            progressWidth = ws.Cells(r, progressCol).Left + ws.Cells(r, progressCol).Width - cellLeft
+                            If progress >= 1 Then progressWidth = cellWidth
+                            
+                            Set shp = ws.Shapes.AddShape(msoShapeRectangle, cellLeft, cellTop, progressWidth, barHeight)
+                            shp.Name = "Bar_Progress_" & r
+                            shp.Fill.ForeColor.RGB = COLOR_PROGRESS
+                            shp.Line.Visible = msoFalse
+                            
+                            ' イナズマ線用のポイントを記録
+                            inazumaCount = inazumaCount + 1
+                            inazumaPoints(inazumaCount, 1) = cellLeft + progressWidth
+                            inazumaPoints(inazumaCount, 2) = cellTop + barHeight / 2
+                        End If
+                    Else
+                        ' 進捗0%の場合も開始位置を記録
+                        inazumaCount = inazumaCount + 1
+                        inazumaPoints(inazumaCount, 1) = cellLeft
+                        inazumaPoints(inazumaCount, 2) = cellTop + barHeight / 2
+                    End If
+                End If
+            End If
+        End If
+        
+        ' 実績バー（太い緑線）
+        If IsDate(startActual) Then
+            Dim actualEndDate As Date
+            If IsDate(endActual) Then
+                actualEndDate = CDate(endActual)
+            Else
+                actualEndDate = Date
+            End If
+            
+            startCol = DateToColumn(ganttStartDate, CDate(startActual), ganttStartCol)
+            endCol = DateToColumn(ganttStartDate, actualEndDate, ganttStartCol)
+            
+            If startCol >= ganttStartCol And startCol <= ganttStartCol + GANTT_DAYS - 1 Then
+                If endCol > ganttStartCol + GANTT_DAYS - 1 Then endCol = ganttStartCol + GANTT_DAYS - 1
+                If endCol >= startCol Then
+                    cellTop = ws.Cells(r, startCol).Top + ws.Cells(r, startCol).Height / 2
+                    cellLeft = ws.Cells(r, startCol).Left
+                    cellWidth = ws.Cells(r, endCol).Left + ws.Cells(r, endCol).Width - cellLeft
+                    
+                    Set shp = ws.Shapes.AddLine(cellLeft, cellTop, cellLeft + cellWidth, cellTop)
+                    shp.Name = "Bar_Actual_" & r
+                    shp.Line.ForeColor.RGB = COLOR_ACTUAL
+                    shp.Line.Weight = ACTUAL_LINE_WEIGHT
+                End If
+            End If
+        End If
+    Next r
+    
+    ' 今日線を描画
+    Dim todayCol As Long
+    todayCol = DateToColumn(ganttStartDate, Date, ganttStartCol)
+    
+    If todayCol >= ganttStartCol And todayCol <= ganttStartCol + GANTT_DAYS - 1 Then
+        Dim todayLeft As Double, todayTop As Double, todayBottom As Double
+        todayLeft = ws.Cells(ROW_DATE_HEADER, todayCol).Left + ws.Cells(ROW_DATE_HEADER, todayCol).Width / 2
+        todayTop = ws.Cells(ROW_DATE_HEADER, todayCol).Top
+        todayBottom = ws.Cells(lastRow, todayCol).Top + ws.Cells(lastRow, todayCol).Height
+        
+        Set shp = ws.Shapes.AddLine(todayLeft, todayTop, todayLeft, todayBottom)
+        shp.Name = "Today_Line"
+        shp.Line.ForeColor.RGB = COLOR_TODAY
+        shp.Line.Weight = TODAY_LINE_WEIGHT
+    End If
+    
+    ' イナズマ線を描画（複数ポイントがある場合）
+    If inazumaCount >= 2 Then
+        Dim freeformBuilder As FreeformBuilder
+        Set freeformBuilder = ws.Shapes.BuildFreeform(msoEditingAuto, inazumaPoints(1, 1), inazumaPoints(1, 2))
+        
+        Dim p As Long
+        For p = 2 To inazumaCount
+            freeformBuilder.AddNodes msoSegmentLine, msoEditingAuto, inazumaPoints(p, 1), inazumaPoints(p, 2)
+        Next p
+        
+        Set shp = freeformBuilder.ConvertToShape
+        shp.Name = "Inazuma_Line"
+        shp.Line.ForeColor.RGB = COLOR_INAZUMA
+        shp.Line.Weight = 2
+        shp.Fill.Visible = msoFalse
+    End If
     
     Application.Calculation = xlCalculationAutomatic
     Application.ScreenUpdating = True
@@ -430,6 +570,15 @@ ErrorHandler:
     Application.ScreenUpdating = True
     MsgBox "DrawGanttBars エラー: " & Err.Description, vbCritical, "エラー"
 End Sub
+
+' ==========================================
+'  日付から列番号を計算
+' ==========================================
+Private Function DateToColumn(ByVal ganttStartDate As Date, ByVal targetDate As Date, ByVal ganttStartCol As Long) As Long
+    Dim daysDiff As Long
+    daysDiff = targetDate - ganttStartDate
+    DateToColumn = ganttStartCol + daysDiff
+End Function
 
 ' ==========================================
 '  全描画実行
