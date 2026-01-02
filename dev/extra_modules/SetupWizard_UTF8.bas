@@ -95,20 +95,32 @@ End Sub
 '  必須モジュールの存在チェック
 ' ==========================================
 Private Function CheckRequiredModules() As Boolean
-    On Error Resume Next
-    
     Dim result As Boolean
     result = True
-    
-    ' InazumaGantt_v2 モジュールのチェック
-    Dim testVar As Long
-    testVar = InazumaGantt_v2.ROW_DATA_START
-    If Err.Number <> 0 Then
-        result = False
-        Err.Clear
-    End If
-    
+
+    If Not ModuleExists("InazumaGantt_v2") Then result = False
+    If Not ModuleExists("HierarchyColor") Then result = False
+
     CheckRequiredModules = result
+End Function
+
+Private Function ModuleExists(ByVal moduleName As String) As Boolean
+    On Error GoTo Fallback
+
+    Dim vbComp As Object
+    For Each vbComp In ThisWorkbook.VBProject.VBComponents
+        If StrComp(vbComp.Name, moduleName, vbTextCompare) = 0 Then
+            ModuleExists = True
+            Exit Function
+        End If
+    Next vbComp
+
+    ModuleExists = False
+    Exit Function
+
+Fallback:
+    ' VBProject?????????????????????
+    ModuleExists = True
 End Function
 
 ' ==========================================

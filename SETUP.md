@@ -1,106 +1,95 @@
-# 🚀 InazumaGantt v2 セットアップガイド
+# 🚀 セットアップガイド
 
-## 📋 目次
-1. [必要なファイル](#必要なファイル)
-2. [セットアップ手順](#セットアップ手順)
-3. [初回起動](#初回起動)
-4. [データ移管（既存データがある場合）](#データ移管)
+InazumaGantt v2 のセットアップ手順です。
+
+> [!IMPORTANT]
+> **Excelファイル名は自由に変更可能です**  
+> ただし、**シート名**（`InazumaGantt_v2`、`祝日マスタ`）は変更しないでください。
 
 ---
 
 ## 必要なファイル
 
-### メインファイル
-- ✅ `Ganto2026_v2仕様.xlsm` - Excelファイル
+### VBAモジュール（`vba/` フォルダ内）
 
-### VBAモジュール（インポート用）
-すべて `vba_modules/import/` フォルダ内：
-- ✅ `InazumaGantt_v2_SJIS.bas` - メイン機能
-- ✅ `HierarchyColor_SJIS.bas` - 階層色分け
-- ✅ `DataMigration_SJIS.bas` - データ移管（任意）
-- ✅ `InazumaGantt_v2_SheetModule.bas` - シートモジュール用
+| ファイル | 用途 | 必須度 |
+|----------|------|--------|
+| `InazumaGantt_v2.bas` | メイン機能 | ⭐ 必須 |
+| `HierarchyColor.bas` | 階層色分け | ⭐ 必須 |
+| `SheetModule.bas` | シートイベント | ⭐ 必須 |
+| `DataMigration.bas` | データ移管 | 任意 |
 
 ---
 
 ## セットアップ手順
 
-### ステップ1: Excelファイルを開く
+### ステップ1: VBAモジュールをインポート
 
-1. `Ganto2026_v2仕様.xlsm` を開く
-2. マクロを有効にする
+1. **Excelファイル（.xlsm）を開く**
 
-### ステップ2: VBAモジュールをインポート
-
-1. **VBAエディタを開く**
+2. **VBAエディタを開く**
    ```
    Alt + F11
    ```
 
-2. **標準モジュールとしてインポート**
-   
-   以下のファイルを順番にインポート：
-   
-   **File → Import File** （または ファイル → ファイルのインポート）
-   
-   - ✅ `vba_modules/import/InazumaGantt_v2_SJIS.bas`
-   - ✅ `vba_modules/import/HierarchyColor_SJIS.bas`
-   - ✅ `vba_modules/import/DataMigration_SJIS.bas` **（任意）**
-
-3. **インポート確認**
-   
-   VBAエディタの左側「プロジェクトエクスプローラー」に以下が表示されればOK：
+3. **モジュールをインポート**
    ```
-   VBAProject (Ganto2026_v2仕様.xlsm)
-   ├─ 標準モジュール
-   │  ├─ InazumaGantt_v2
-   │  ├─ HierarchyColor
-   │  └─ DataMigration （インポートした場合）
-   └─ ...
+   ファイル → ファイルのインポート
+   ```
+   
+   以下を順番にインポート：
+   - ✅ `vba/InazumaGantt_v2.bas`
+   - ✅ `vba/HierarchyColor.bas`
+
+4. **確認**
+   
+   「標準モジュール」に以下が表示されればOK：
+   ```
+   標準モジュール
+   ├─ InazumaGantt_v2
+   └─ HierarchyColor
    ```
 
-### ステップ3: シートモジュールを設定
+### ステップ2: シートモジュールを設定
 
-1. **VBAエディタで、プロジェクトエクスプローラーの「InazumaGantt_v2」シートをダブルクリック**
+1. **VBAエディタで「InazumaGantt_v2」シートをダブルクリック**
+   
+   （まだシートがない場合はステップ3の後に設定）
 
-2. **コードウィンドウが開いたら、以下のファイルの内容を全てコピー&貼り付け**
+2. **コードを貼り付け**
+   
+   `vba/SheetModule.bas` の内容を全てコピー＆貼り付け
+
+3. **保存して閉じる**
    ```
-   vba_modules/import/InazumaGantt_v2_SheetModule.bas
+   Ctrl + S → Alt + Q
    ```
 
-3. **VBAエディタを閉じる**
-
-### ステップ4: 初回セットアップマクロを実行
+### ステップ3: 初回セットアップを実行
 
 1. **Excelに戻る**
+
 2. **マクロを実行**
    ```
-   Alt + F8
+   Alt + F8 → SetupInazumaGantt → 実行
    ```
-3. **「SetupInazumaGantt」を選択 → 実行**
-4. **ガントチャートの開始日を入力**（例: 26/01/01）
-5. **セットアップ完了！**
+
+3. **開始日を入力**（例: `26/01/01`）
+
+4. **完了！**
 
 ---
 
-## 初回起動
+## 次のステップ
 
-### タスクを入力する
+### タスクを入力
 
-1. **C～F列のいずれかにタスク名を入力**
-   - C列 → LV1（大項目）
-   - D列 → LV2（中項目）
-   - E列 → LV3（小項目）
-   - F列 → LV4（詳細項目）
-
-2. **G～N列にデータを入力**
-   - G列: タスク詳細
-   - H列: 状況（自動設定）
-   - I列: 進捗率（0～1 または 0～100%）
-   - J列: 担当者
-   - K列: 開始予定
-   - L列: 完了予定
-   - M列: 開始実績
-   - N列: 完了実績
+| 列 | 内容 |
+|----|------|
+| C〜F列 | タスク名（入力位置で階層が決まる） |
+| K列 | 開始予定日 |
+| L列 | 完了予定日 |
+| I列 | 進捗率（0〜1 または 0〜100%） |
 
 ### ガントチャートを更新
 
@@ -108,7 +97,7 @@
 Alt + F8 → RefreshInazumaGantt → 実行
 ```
 
-### 階層色分けを適用（任意）
+### 色分けを適用（任意）
 
 ```
 Alt + F8 → ApplyHierarchyColors → 実行
@@ -116,46 +105,24 @@ Alt + F8 → ApplyHierarchyColors → 実行
 
 ---
 
-## データ移管
+## データ移管（既存データがある場合）
 
-既存のガントチャートデータがある場合：
+既存のガントチャートからデータを移行する場合：
 
-1. **既存シートを開く**
-2. **移管マクロを実行**
-   ```
-   Alt + F8 → MigrateToV2Format → 実行
-   ```
-3. **InazumaGantt_v2シートに自動的にデータが移管されます**
-
-詳細は [`docs/DataMigration_README.md`](docs/DataMigration_README.md) を参照。
+1. `vba/DataMigration.bas` をインポート
+2. 既存シートで `Alt + F8 → MigrateToV2Format → 実行`
 
 ---
 
-## 🎯 次のステップ
+## トラブルシューティング
 
-- 📚 [機能の詳細](docs/InazumaGantt_README.md)
-- 🎨 [階層色分け機能](docs/HierarchyColor_README.md)
-- 🔧 [カスタマイズ方法](docs/CUSTOMIZE.md)
-- ❓ [トラブルシューティング](docs/TROUBLESHOOTING.md)
+問題が発生した場合は [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) を参照。
 
 ---
 
-## 💡 ヒント
+## 開発者向け
 
-### 自動機能
-- タスク入力時に**LVが自動設定**されます
-- 進捗率入力時に**状況が自動更新**されます
-  - 0% → 未着手
-  - 1～99% → 進行中
-  - 100% → 完了
+追加のモジュールやドキュメントは `dev/` フォルダにあります：
 
-### ダブルクリック完了
-タスク行をダブルクリックすると、そのタスクを一発で完了にできます。
-
-### キーボードショートカット
-- `Alt + F8`: マクロ一覧を開く
-- `Alt + F11`: VBAエディタを開く
-
----
-
-セットアップが完了したら、[README.md](README.md) に戻って機能を確認してください！
+- `dev/extra_modules/` - SetupWizard, ErrorHandler, テスト
+- `dev/docs/` - システム構成、コード品質ガイド
