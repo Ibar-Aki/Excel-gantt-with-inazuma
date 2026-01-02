@@ -27,7 +27,7 @@ $RECYCLE.BIN/
 *.dca
 
 # IDEファイル
-.vscode/
+# .vscode/  # プロジェクト設定を共有するため含める
 .idea/
 *.suo
 *.user
