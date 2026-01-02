@@ -17,13 +17,13 @@ Alt + F11 → ファイル → ファイルのインポート
 ```
 
 `vba/` フォルダから以下をインポート：
-- ✅ `InazumaGantt_v2.bas` （必須）
-- ✅ `HierarchyColor.bas` （必須）
+- ✅ `InazumaGantt_v2_SJIS.bas` （必須）
+- ✅ `HierarchyColor_SJIS.bas` （必須）
 
 ### 2. シートモジュールを設定
 
 1. VBAエディタで「InazumaGantt_v2」シートをダブルクリック
-2. `vba/SheetModule.bas` の内容を貼り付け
+2. `vba/SheetModule_SJIS.bas` の内容を貼り付け
 3. 保存して閉じる
 
 ### 3. セットアップ実行
@@ -40,18 +40,18 @@ Alt + F8 → SetupInazumaGantt → 実行
 
 | 機能 | 説明 |
 |------|------|
-| 📊 ガントチャート | 予定・進捗・実績バーを表示 |
-| ⚡ イナズマ線 | 進捗の遅れを視覚化 |
-| 🎨 階層色分け | LVに応じた自動色分け |
+| 📊 ガントチャート | 予定バー（薄灰+黒枠）、進捗バー（紺色）、実績バー（緑色） |
+| ⚡ イナズマ線 | 今日基準型で進捗の遅れを視覚化（オレンジ） |
+| 🎨 階層色分け | 条件付き書式でLVに応じた自動色分け |
 | 🖱️ ダブルクリック完了 | タスクを即座に完了 |
-| 🔄 自動機能 | 階層・状況の自動設定 |
+| 🔄 自動機能 | No.・階層・状況・進捗率の自動設定 |
 
 ---
 
 ## ファイル構成
 
 ```
-📁 vba/               ← VBAモジュール（インポート用）
+📁 vba/               ← VBAモジュール（_SJIS.bas をインポート）
 📁 docs/              ← ドキュメント
 📁 dev/               ← 開発者用（通常は不要）
 ```
@@ -74,18 +74,17 @@ Alt + F8 → SetupInazumaGantt → 実行
 
 ### 基本フロー
 
-1. **タスクを入力**（C〜F列）
+1. **タスクを入力**（C〜F列）→ No.・進捗率・状況が自動入力
 2. **日付を入力**（K〜N列）
 3. **`RefreshInazumaGantt`** でガント更新
-4. **`ApplyHierarchyColors`** で色分け（任意）
 
 ### よく使うマクロ
 
 | マクロ | 機能 |
 |--------|------|
 | `SetupInazumaGantt` | 初回セットアップ |
-| `RefreshInazumaGantt` | ガント更新 |
-| `ApplyHierarchyColors` | 色分け適用 |
+| `RefreshInazumaGantt` | ガント更新（バー・イナズマ線描画） |
+| `SetupHierarchyColors` | 階層色分け（条件付き書式設定） |
 
 ---
 

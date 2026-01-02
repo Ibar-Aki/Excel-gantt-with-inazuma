@@ -14,10 +14,12 @@ InazumaGantt v2 のセットアップ手順です。
 
 | ファイル | 用途 | 必須度 |
 |----------|------|--------|
-| `InazumaGantt_v2.bas` | メイン機能 | ⭐ 必須 |
-| `HierarchyColor.bas` | 階層色分け | ⭐ 必須 |
-| `SheetModule.bas` | シートイベント | ⭐ 必須 |
-| `DataMigration.bas` | データ移管 | 任意 |
+| `InazumaGantt_v2_SJIS.bas` | メイン機能 | ⭐ 必須 |
+| `HierarchyColor_SJIS.bas` | 階層色分け（条件付き書式） | ⭐ 必須 |
+| `SheetModule_SJIS.bas` | シートイベント | ⭐ 必須 |
+| `DataMigration_SJIS.bas` | データ移管 | 任意 |
+
+> **注意**: 必ず `_SJIS.bas` 版をインポートしてください。`_UTF8.bas` は編集用です。
 
 ---
 
@@ -38,8 +40,8 @@ InazumaGantt v2 のセットアップ手順です。
    ```
    
    以下を順番にインポート：
-   - ✅ `vba/InazumaGantt_v2.bas`
-   - ✅ `vba/HierarchyColor.bas`
+   - ✅ `vba/InazumaGantt_v2_SJIS.bas`
+   - ✅ `vba/HierarchyColor_SJIS.bas`
 
 4. **確認**
    
@@ -58,7 +60,7 @@ InazumaGantt v2 のセットアップ手順です。
 
 2. **コードを貼り付け**
    
-   `vba/SheetModule.bas` の内容を全てコピー＆貼り付け
+   `vba/SheetModule_SJIS.bas` の内容を全てコピー＆貼り付け
 
 3. **保存して閉じる**
    ```
@@ -76,7 +78,12 @@ InazumaGantt v2 のセットアップ手順です。
 
 3. **開始日を入力**（例: `26/01/01`）
 
-4. **完了！**
+4. **階層色分けを設定**
+   ```
+   Alt + F8 → SetupHierarchyColors → 実行
+   ```
+
+5. **完了！**
 
 ---
 
@@ -89,18 +96,16 @@ InazumaGantt v2 のセットアップ手順です。
 | C〜F列 | タスク名（入力位置で階層が決まる） |
 | K列 | 開始予定日 |
 | L列 | 完了予定日 |
-| I列 | 進捗率（0〜1 または 0〜100%） |
+
+**自動入力される項目:**
+- B列（No.）: 連番を自動入力
+- H列（状況）: 「未着手」を自動入力
+- I列（進捗率）: 0% を自動入力
 
 ### ガントチャートを更新
 
 ```
 Alt + F8 → RefreshInazumaGantt → 実行
-```
-
-### 色分けを適用（任意）
-
-```
-Alt + F8 → ApplyHierarchyColors → 実行
 ```
 
 ---
@@ -109,8 +114,23 @@ Alt + F8 → ApplyHierarchyColors → 実行
 
 既存のガントチャートからデータを移行する場合：
 
-1. `vba/DataMigration.bas` をインポート
+1. `vba/DataMigration_SJIS.bas` をインポート
 2. 既存シートで `Alt + F8 → MigrateToV2Format → 実行`
+
+---
+
+## セットアップウィザード（簡単セットアップ）
+
+対話形式でセットアップを進めたい場合：
+
+1. `dev/extra_modules/SetupWizard_SJIS.bas` をインポート
+2. `Alt + F8 → RunSetupWizard → 実行`
+
+ウィザードは以下を自動実行します：
+- シート作成
+- サンプルデータ追加（任意）
+- 階層色分け設定
+- ガントチャート描画
 
 ---
 
