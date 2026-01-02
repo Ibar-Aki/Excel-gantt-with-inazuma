@@ -494,49 +494,63 @@ Sub DrawGanttBars()
                     
                     ' イナズマ線用のポイントを記録（今日基準型）
                     ' 条件: 開始予定日が今日以前のタスクのみ対象
+                    ' 例外: 完了済みで完了予定日が今日より前の場合は除外
                     If CDate(startPlan) <= Date Then
-                        Dim inazumaX As Double
-                        
-                        If progress >= 1 Then
-                            ' 完了済み: 完了予定位置で結ぶ
-                            inazumaX = ws.Cells(r, endCol).Left + ws.Cells(r, endCol).Width
-                        Else
-                            ' 進行中または未着手: 進捗率に応じた位置
-                            Dim progressPosition As Long
-                            progressPosition = startCol + CLng((endCol - startCol + 1) * progress) - 1
-                            If progressPosition < startCol Then progressPosition = startCol
-                            inazumaX = ws.Cells(r, progressPosition).Left + ws.Cells(r, progressPosition).Width * progress
-                            If progress = 0 Then inazumaX = cellLeft
+                        ' 完了済みで完了予定日が今日より前の場合はイナズマ線に含めない
+                        If Not (progress >= 1 And CDate(endPlan) < Date) Then
+                            Dim inazumaX As Double
+                            
+                            If progress >= 1 Then
+                                ' 完了済み: 完了予定位置で結ぶ
+                                inazumaX = ws.Cells(r, endCol).Left + ws.Cells(r, endCol).Width
+                            Else
+                                ' 進行中または未着手: 進捗率に応じた位置
+                                Dim progressPosition As Long
+                                progressPosition = startCol + CLng((endCol - startCol + 1) * progress) - 1
+                                If progressPosition < startCol Then progressPosition = startCol
+                                inazumaX = ws.Cells(r, progressPosition).Left + ws.Cells(r, progressPosition).Width * progress
+                                If progress = 0 Then inazumaX = cellLeft
+                            End If
+                            
+                            inazumaCount = inazumaCount + 1
+                            inazumaPoints(inazumaCount, 1) = inazumaX
+                            inazumaPoints(inazumaCount, 2) = cellTop + barHeight / 2
                         End If
-                        
-                        inazumaCount = inazumaCount + 1
-                        inazumaPoints(inazumaCount, 1) = inazumaX
-                        inazumaPoints(inazumaCount, 2) = cellTop + barHeight / 2
                     End If
                 End If
             End If
         End If
         
-        ' 実績バー（緑色の塗りつぶしバー、予定の下に配置）
-        If IsDate(startActual) Then
-            Dim actualEndDate As Date
-            If IsDate(endActual) Then
-                actualEndDate = CDate(endActual)
+        ' 実績バー（緑色の塗りつぶしバー、予定の下に配置、右端は進捗バーと揃える）
+        If IsDate(startActual) And IsDate(startPlan) And IsDate(endPlan) Then
+            ' 実績バーの右端は進捗バーの右端と揃える
+            Dim actualStartCol As Long
+            Dim actualEndCol As Long
+            Dim planStartCol As Long
+            Dim planEndCol As Long
+            
+            actualStartCol = DateToColumn(ganttStartDate, CDate(startActual), ganttStartCol)
+            planStartCol = DateToColumn(ganttStartDate, CDate(startPlan), ganttStartCol)
+            planEndCol = DateToColumn(ganttStartDate, CDate(endPlan), ganttStartCol)
+            
+            ' 進捗バーの右端位置を計算
+            Dim progressEndCol As Long
+            If progress >= 1 Then
+                progressEndCol = planEndCol
             Else
-                actualEndDate = Date
+                progressEndCol = planStartCol + CLng((planEndCol - planStartCol + 1) * progress) - 1
+                If progressEndCol < planStartCol Then progressEndCol = planStartCol
             End If
             
-            startCol = DateToColumn(ganttStartDate, CDate(startActual), ganttStartCol)
-            endCol = DateToColumn(ganttStartDate, actualEndDate, ganttStartCol)
-            
-            If startCol >= ganttStartCol And startCol <= ganttStartCol + GANTT_DAYS - 1 Then
-                If endCol > ganttStartCol + GANTT_DAYS - 1 Then endCol = ganttStartCol + GANTT_DAYS - 1
-                If endCol >= startCol Then
+            If actualStartCol >= ganttStartCol And actualStartCol <= ganttStartCol + GANTT_DAYS - 1 Then
+                If progressEndCol > ganttStartCol + GANTT_DAYS - 1 Then progressEndCol = ganttStartCol + GANTT_DAYS - 1
+                If progressEndCol >= actualStartCol Then
                     Dim actualBarHeight As Double
                     actualBarHeight = 6  ' 実績バーの高さ（予定より細め）
-                    cellTop = ws.Cells(r, startCol).Top + 10  ' 予定バーの下に配置
-                    cellLeft = ws.Cells(r, startCol).Left
-                    cellWidth = ws.Cells(r, endCol).Left + ws.Cells(r, endCol).Width - cellLeft
+                    cellTop = ws.Cells(r, actualStartCol).Top + 10  ' 予定バーの下に配置
+                    cellLeft = ws.Cells(r, actualStartCol).Left
+                    ' 右端は進捗バーの右端と揃える
+                    cellWidth = ws.Cells(r, progressEndCol).Left + ws.Cells(r, progressEndCol).Width - cellLeft
                     
                     Set shp = ws.Shapes.AddShape(msoShapeRectangle, cellLeft, cellTop, cellWidth, actualBarHeight)
                     shp.Name = "Bar_Actual_" & r
