@@ -51,6 +51,7 @@ Public Const COLOR_ERROR As Long = 13553151
 Public Const COLOR_INAZUMA As Long = 42495
 Public Const COLOR_HEADER_BG As Long = 12874308
 Public Const COLOR_GANTT_HEADER As Long = 8421504
+Public Const COLOR_WEEKEND As Long = 15790320  ' 薄い灰色 RGB(240,240,240)
 Public Const TODAY_LINE_WEIGHT As Double = 2
 Public Const ACTUAL_LINE_WEIGHT As Double = 4
 
@@ -153,27 +154,19 @@ Sub SetupInazumaGantt()
         colIndex = ganttStartCol + i - 1
         currentDate = ganttStartDate + i - 1
         
-        ' 7行目: 日付（日のみ）
+        ' 7行目: 日付（日のみ）- ヘッダーと同じ色
         ws.Cells(ROW_DATE_HEADER, colIndex).Value = Day(currentDate)
         ws.Cells(ROW_DATE_HEADER, colIndex).Font.Size = 9
         ws.Cells(ROW_DATE_HEADER, colIndex).HorizontalAlignment = xlCenter
-        ws.Cells(ROW_DATE_HEADER, colIndex).Interior.Color = COLOR_GANTT_HEADER
+        ws.Cells(ROW_DATE_HEADER, colIndex).Interior.Color = COLOR_HEADER_BG
         ws.Cells(ROW_DATE_HEADER, colIndex).Font.Color = RGB(255, 255, 255)
         
-        ' 8行目: 曜日
+        ' 8行目: 曜日 - ヘッダーと同じ色
         ws.Cells(ROW_HEADER, colIndex).Value = Format$(currentDate, "aaa")
         ws.Cells(ROW_HEADER, colIndex).Font.Size = 8
         ws.Cells(ROW_HEADER, colIndex).HorizontalAlignment = xlCenter
-        ws.Cells(ROW_HEADER, colIndex).Interior.Color = COLOR_GANTT_HEADER
+        ws.Cells(ROW_HEADER, colIndex).Interior.Color = COLOR_HEADER_BG
         ws.Cells(ROW_HEADER, colIndex).Font.Color = RGB(255, 255, 255)
-        
-        ' 土日の色分け
-        If Weekday(currentDate, vbMonday) >= 6 Then
-            ws.Cells(ROW_DATE_HEADER, colIndex).Interior.Color = COLOR_HOLIDAY
-            ws.Cells(ROW_DATE_HEADER, colIndex).Font.Color = RGB(128, 128, 128)
-            ws.Cells(ROW_HEADER, colIndex).Interior.Color = COLOR_HOLIDAY
-            ws.Cells(ROW_HEADER, colIndex).Font.Color = RGB(128, 128, 128)
-        End If
         
         ' 列幅を設定
         ws.Columns(colIndex).ColumnWidth = 3
@@ -202,6 +195,7 @@ Sub SetupInazumaGantt()
 
     ApplyGanttBorders ws, lastRow
     DrawWeekSeparators ws, lastRow
+    ApplyWeekendColors ws, lastRow, ganttStartDate, ganttStartCol
     ApplyDataValidationAndFormats ws, lastRow
     
     Application.Calculation = xlCalculationAutomatic
@@ -373,6 +367,25 @@ Private Sub DrawWeekSeparators(ByVal ws As Worksheet, ByVal lastRow As Long)
             .Color = RGB(191, 191, 191)
         End With
     Next colIndex
+End Sub
+
+' ==========================================
+'  土日列の色塗り（データ行を含む）
+' ==========================================
+Private Sub ApplyWeekendColors(ByVal ws As Worksheet, ByVal lastRow As Long, ByVal ganttStartDate As Date, ByVal ganttStartCol As Long)
+    Dim colIndex As Long
+    Dim currentDate As Date
+    Dim i As Long
+    
+    For i = 1 To GANTT_DAYS
+        colIndex = ganttStartCol + i - 1
+        currentDate = ganttStartDate + i - 1
+        
+        ' 土日（土=6, 日=7）のデータ行を薄い灰色で塗りつぶす
+        If Weekday(currentDate, vbMonday) >= 6 Then
+            ws.Range(ws.Cells(ROW_DATA_START, colIndex), ws.Cells(lastRow, colIndex)).Interior.Color = COLOR_WEEKEND
+        End If
+    Next i
 End Sub
 
 ' ==========================================

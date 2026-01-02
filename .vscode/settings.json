@@ -4,11 +4,8 @@
         "utf8",
         "shiftjis"
     ],
-    "[vba]": {
-        "files.encoding": "shiftjis"
-    },
     "files.associations": {
-        "*_SJIS.bas": "vba",
-        "*_UTF8.bas": "vba"
+        "*_UTF8.bas": "vb",
+        "*_SJIS.bas": "vb"
     }
 }
