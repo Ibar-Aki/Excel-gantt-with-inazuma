@@ -522,7 +522,7 @@ Sub DrawGanttBars()
                 If endCol >= startCol Then
                     Dim actualBarHeight As Double
                     actualBarHeight = 6  ' 実績バーの高さ（予定より細め）
-                    cellTop = ws.Cells(r, startCol).Top + 14  ' 予定バーの下に配置
+                    cellTop = ws.Cells(r, startCol).Top + 10  ' 予定バーの下に配置
                     cellLeft = ws.Cells(r, startCol).Left
                     cellWidth = ws.Cells(r, endCol).Left + ws.Cells(r, endCol).Width - cellLeft
                     
