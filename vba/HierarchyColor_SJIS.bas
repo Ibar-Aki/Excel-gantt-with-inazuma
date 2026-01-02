@@ -2,22 +2,22 @@ Attribute VB_Name = "HierarchyColor"
 Option Explicit
 
 ' ==========================================
-'  髫主ｱ､濶ｲ蛻・￠繝｢繧ｸ繝･繝ｼ繝ｫ
+'  階層色分けモジュール
 ' ==========================================
 
-' 髫主ｱ､蛻･縺ｮ濶ｲ螳夂ｾｩ
-Public Const COLOR_LV1 As Long = 252& + 228& * 256& + 214& * 65536&  ' RGB(252,228,214) 繧ｵ繝ｼ繝｢繝ｳ
-Public Const COLOR_LV2 As Long = 218& + 227& * 256& + 243& * 65536&  ' RGB(218,227,243) 阮・＞髱・
-Public Const COLOR_LV3 As Long = 226& + 239& * 256& + 218& * 65536&  ' RGB(226,239,218) 阮・＞邱・
-Public Const COLOR_LV4 As Long = 255& + 242& * 256& + 204& * 65536&  ' RGB(255,242,204) 阮・＞鮟・牡
+' 階層別の色定義
+Public Const COLOR_LV1 As Long = 14083324  ' RGB(252,228,214) サーモン
+Public Const COLOR_LV2 As Long = 15983322  ' RGB(218,227,243) 薄い青
+Public Const COLOR_LV3 As Long = 14348514  ' RGB(226,239,218) 薄い緑
+Public Const COLOR_LV4 As Long = 13434879  ' RGB(255,242,204) 薄い黄色
 
-' 濶ｲ蝪励ｊ髢句ｧ句・・・o.蛻暦ｼ・
+' 色塗り開始列（No.列）
 Public Const COL_COLOR_START As String = "B"
-' 濶ｲ蝪励ｊ邨ゆｺ・・・医ぎ繝ｳ繝磯幕蟋句・縺ｮ謇句燕・・
+' 色塗り終了列（ガント開始列の手前）
 Public Const COL_COLOR_END As String = "N"
 
 ' ==========================================
-'  髫主ｱ､濶ｲ蛻・￠繧帝←逕ｨ
+'  階層色分けを適用
 ' ==========================================
 Sub ApplyHierarchyColors()
     On Error GoTo ErrorHandler
@@ -40,7 +40,7 @@ Sub ApplyHierarchyColors()
         lastRow = InazumaGantt_v2.ROW_DATA_START + 199
     End If
     
-    ' 譌｢蟄倥・蝪励ｊ繧偵け繝ｪ繧｢
+    ' 既存の塗りをクリア
     ws.Range(COL_COLOR_START & InazumaGantt_v2.ROW_DATA_START & ":" & COL_COLOR_END & lastRow).Interior.ColorIndex = xlNone
     
     Dim r As Long
@@ -83,17 +83,17 @@ Sub ApplyHierarchyColors()
     Application.Calculation = xlCalculationAutomatic
     Application.ScreenUpdating = True
     
-    MsgBox "髫主ｱ､濶ｲ蛻・￠繧帝←逕ｨ縺励∪縺励◆・・, vbInformation, "髫主ｱ､濶ｲ蛻・￠"
+    MsgBox "階層色分けを適用しました！", vbInformation, "階層色分け"
     Exit Sub
     
 ErrorHandler:
     Application.Calculation = xlCalculationAutomatic
     Application.ScreenUpdating = True
-    MsgBox "濶ｲ蛻・￠繧ｨ繝ｩ繝ｼ: " & Err.Description, vbCritical, "繧ｨ繝ｩ繝ｼ"
+    MsgBox "色分けエラー: " & Err.Description, vbCritical, "エラー"
 End Sub
 
 ' ==========================================
-'  濶ｲ蛻・￠繧偵け繝ｪ繧｢
+'  色分けをクリア
 ' ==========================================
 Sub ClearHierarchyColors()
     On Error GoTo ErrorHandler
@@ -107,11 +107,11 @@ Sub ClearHierarchyColors()
     
     ws.Range(COL_COLOR_START & InazumaGantt_v2.ROW_DATA_START & ":" & COL_COLOR_END & lastRow).Interior.ColorIndex = xlNone
     
-    MsgBox "濶ｲ蛻・￠繧偵け繝ｪ繧｢縺励∪縺励◆・・, vbInformation, "髫主ｱ､濶ｲ蛻・￠"
+    MsgBox "色分けをクリアしました！", vbInformation, "階層色分け"
     Exit Sub
     
 ErrorHandler:
-    MsgBox "繧ｯ繝ｪ繧｢繧ｨ繝ｩ繝ｼ: " & Err.Description, vbCritical, "繧ｨ繝ｩ繝ｼ"
+    MsgBox "クリアエラー: " & Err.Description, vbCritical, "エラー"
 End Sub
 
 Private Function MaxRow(ByVal a As Long, ByVal b As Long) As Long
