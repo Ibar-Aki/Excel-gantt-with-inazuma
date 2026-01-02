@@ -49,12 +49,24 @@ Sub RunSetupWizard()
         AddSampleData
     End If
     
-    ' ステップ4: 完了
+    ' ステップ4: 階層色分けとガント描画を自動実行
+    Application.ScreenUpdating = False
+    
+    ' 階層色分けの条件付き書式を設定
+    HierarchyColor.SetupHierarchyColors
+    
+    ' ガントチャートを描画
+    InazumaGantt_v2.RefreshInazumaGantt
+    
+    Application.ScreenUpdating = True
+    
+    ' ステップ5: 完了
     MsgBox "セットアップウィザードが完了しました！" & vbCrLf & vbCrLf & _
-           "次のステップ:" & vbCrLf & _
-           "1. タスクを入力（C-F列）" & vbCrLf & _
-           "2. 日付を入力（K-N列）" & vbCrLf & _
-           "3. RefreshInazumaGantt を実行", _
+           "以下の設定が完了しました:" & vbCrLf & _
+           "- シート作成" & vbCrLf & _
+           "- 階層色分け（条件付き書式）" & vbCrLf & _
+           "- ガントチャート描画" & vbCrLf & vbCrLf & _
+           "タスクを入力して RefreshInazumaGantt を実行してください。", _
            vbInformation, "セットアップ完了"
     Exit Sub
     

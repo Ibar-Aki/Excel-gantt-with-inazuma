@@ -42,7 +42,7 @@ Public Const CELL_TODAY As String = "M3"
 ' 色設定
 Public Const COLOR_PLAN As Long = 16119285       ' RGB(245,245,245) 限りなく白に近い灰色
 Public Const COLOR_PROGRESS As Long = 9851952    ' RGB(48,84,150) 紺色
-Public Const COLOR_HOLIDAY As Long = 13421772    ' RGB(204,204,204) 濃い灰色（休日祝日）
+Public Const COLOR_HOLIDAY As Long = 5263430     ' RGB(70,70,80) 濃い灰色（休日祝日）
 Public Const COLOR_ROW_BAND As Long = 16316664
 Public Const COLOR_ACTUAL As Long = 5287936      ' RGB(0,176,80) 緑色
 Public Const COLOR_TODAY As Long = 255           ' RGB(255,0,0) 赤
@@ -51,7 +51,7 @@ Public Const COLOR_ERROR As Long = 13553151
 Public Const COLOR_INAZUMA As Long = 42495       ' RGB(255,165,0) オレンジ
 Public Const COLOR_HEADER_BG As Long = 12874308
 Public Const COLOR_GANTT_HEADER As Long = 8421504
-Public Const COLOR_WEEKEND As Long = 13421772    ' RGB(204,204,204) 濃い灰色
+Public Const COLOR_WEEKEND As Long = 5263430     ' RGB(70,70,80) 濃い灰色
 Public Const TODAY_LINE_WEIGHT As Double = 2
 Public Const ACTUAL_LINE_WEIGHT As Double = 4
 
@@ -465,7 +465,7 @@ Sub DrawGanttBars()
                     cellTop = ws.Cells(r, startCol).Top + 2
                     cellLeft = ws.Cells(r, startCol).Left
                     cellWidth = ws.Cells(r, endCol).Left + ws.Cells(r, endCol).Width - cellLeft
-                    barHeight = 7  ' 予定バーの高さ（3割減）
+                    barHeight = 6  ' 予定バーの高さ
                     
                     ' 予定バー（薄い灰色 + 黒枠線）
                     Set shp = ws.Shapes.AddShape(msoShapeRectangle, cellLeft, cellTop, cellWidth, barHeight)
@@ -475,7 +475,7 @@ Sub DrawGanttBars()
                     shp.Line.ForeColor.RGB = RGB(0, 0, 0)  ' 黒枠線
                     shp.Line.Weight = 1
                     
-                    ' 進捗バー（青色）
+                    ' 進捗バー（紺色 + 黒枠線）
                     If progress > 0 Then
                         progressCol = startCol + CLng((endCol - startCol + 1) * progress) - 1
                         If progressCol >= startCol Then
@@ -486,7 +486,9 @@ Sub DrawGanttBars()
                             Set shp = ws.Shapes.AddShape(msoShapeRectangle, cellLeft, cellTop, progressWidth, barHeight)
                             shp.Name = "Bar_Progress_" & r
                             shp.Fill.ForeColor.RGB = COLOR_PROGRESS
-                            shp.Line.Visible = msoFalse
+                            shp.Line.Visible = msoTrue
+                            shp.Line.ForeColor.RGB = RGB(0, 0, 0)  ' 黒枠線
+                            shp.Line.Weight = 1
                             
                             ' イナズマ線用のポイントを記録
                             inazumaCount = inazumaCount + 1
