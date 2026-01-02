@@ -41,8 +41,8 @@ Public Const CELL_TODAY As String = "M3"
 
 ' 色設定
 Public Const COLOR_PLAN As Long = 16119285       ' RGB(245,245,245) 限りなく白に近い灰色
-Public Const COLOR_PROGRESS As Long = 10921638   ' RGB(91,155,213) 青色
-Public Const COLOR_HOLIDAY As Long = 15790320    ' RGB(240,240,240) 薄い灰色（休日祝日）
+Public Const COLOR_PROGRESS As Long = 9851952    ' RGB(48,84,150) 紺色
+Public Const COLOR_HOLIDAY As Long = 13421772    ' RGB(204,204,204) 濃い灰色（休日祝日）
 Public Const COLOR_ROW_BAND As Long = 16316664
 Public Const COLOR_ACTUAL As Long = 5287936      ' RGB(0,176,80) 緑色
 Public Const COLOR_TODAY As Long = 255           ' RGB(255,0,0) 赤
@@ -51,7 +51,7 @@ Public Const COLOR_ERROR As Long = 13553151
 Public Const COLOR_INAZUMA As Long = 42495       ' RGB(255,165,0) オレンジ
 Public Const COLOR_HEADER_BG As Long = 12874308
 Public Const COLOR_GANTT_HEADER As Long = 8421504
-Public Const COLOR_WEEKEND As Long = 15790320    ' RGB(240,240,240) 薄い灰色
+Public Const COLOR_WEEKEND As Long = 13421772    ' RGB(204,204,204) 濃い灰色
 Public Const TODAY_LINE_WEIGHT As Double = 2
 Public Const ACTUAL_LINE_WEIGHT As Double = 4
 
@@ -465,7 +465,7 @@ Sub DrawGanttBars()
                     cellTop = ws.Cells(r, startCol).Top + 2
                     cellLeft = ws.Cells(r, startCol).Left
                     cellWidth = ws.Cells(r, endCol).Left + ws.Cells(r, endCol).Width - cellLeft
-                    barHeight = 10  ' 予定バーの高さ
+                    barHeight = 7  ' 予定バーの高さ（3割減）
                     
                     ' 予定バー（薄い灰色 + 黒枠線）
                     Set shp = ws.Shapes.AddShape(msoShapeRectangle, cellLeft, cellTop, cellWidth, barHeight)
