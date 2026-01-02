@@ -489,16 +489,28 @@ Sub DrawGanttBars()
                             shp.Line.Visible = msoTrue
                             shp.Line.ForeColor.RGB = RGB(0, 0, 0)  ' 黒枠線
                             shp.Line.Weight = 1
-                            
-                            ' イナズマ線用のポイントを記録
-                            inazumaCount = inazumaCount + 1
-                            inazumaPoints(inazumaCount, 1) = cellLeft + progressWidth
-                            inazumaPoints(inazumaCount, 2) = cellTop + barHeight / 2
                         End If
-                    Else
-                        ' 進捗0%の場合も開始位置を記録
+                    End If
+                    
+                    ' イナズマ線用のポイントを記録（今日基準型）
+                    ' 条件: 開始予定日が今日以前のタスクのみ対象
+                    If CDate(startPlan) <= Date Then
+                        Dim inazumaX As Double
+                        
+                        If progress >= 1 Then
+                            ' 完了済み: 完了予定位置で結ぶ
+                            inazumaX = ws.Cells(r, endCol).Left + ws.Cells(r, endCol).Width
+                        Else
+                            ' 進行中または未着手: 進捗率に応じた位置
+                            Dim progressPosition As Long
+                            progressPosition = startCol + CLng((endCol - startCol + 1) * progress) - 1
+                            If progressPosition < startCol Then progressPosition = startCol
+                            inazumaX = ws.Cells(r, progressPosition).Left + ws.Cells(r, progressPosition).Width * progress
+                            If progress = 0 Then inazumaX = cellLeft
+                        End If
+                        
                         inazumaCount = inazumaCount + 1
-                        inazumaPoints(inazumaCount, 1) = cellLeft
+                        inazumaPoints(inazumaCount, 1) = inazumaX
                         inazumaPoints(inazumaCount, 2) = cellTop + barHeight / 2
                     End If
                 End If
