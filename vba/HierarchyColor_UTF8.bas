@@ -2,8 +2,10 @@ Attribute VB_Name = "HierarchyColor"
 Option Explicit
 
 ' ==========================================
-'  階層色分けモジュール
+'  階層色分けモジュール（条件付き書式版）
 ' ==========================================
+' このモジュールは条件付き書式を設定します。
+' 一度実行すれば、以降は自動的に色分けが適用されます。
 
 ' 階層別の色定義
 Public Const COLOR_LV1 As Long = 14083324  ' RGB(252,228,214) サーモン
@@ -17,9 +19,9 @@ Public Const COL_COLOR_START As String = "B"
 Public Const COL_COLOR_END As String = "N"
 
 ' ==========================================
-'  階層色分けを適用
+'  階層色分けの条件付き書式を設定
 ' ==========================================
-Sub ApplyHierarchyColors()
+Sub SetupHierarchyColors()
     On Error GoTo ErrorHandler
     
     Dim ws As Worksheet
@@ -29,71 +31,58 @@ Sub ApplyHierarchyColors()
     Application.Calculation = xlCalculationManual
     
     Dim lastRow As Long
-    lastRow = InazumaGantt_v2.ROW_DATA_START
+    lastRow = InazumaGantt_v2.ROW_DATA_START + InazumaGantt_v2.DATA_ROWS_DEFAULT - 1
     
-    lastRow = MaxRow(lastRow, ws.Cells(ws.Rows.Count, "C").End(xlUp).Row)
-    lastRow = MaxRow(lastRow, ws.Cells(ws.Rows.Count, "D").End(xlUp).Row)
-    lastRow = MaxRow(lastRow, ws.Cells(ws.Rows.Count, "E").End(xlUp).Row)
-    lastRow = MaxRow(lastRow, ws.Cells(ws.Rows.Count, "F").End(xlUp).Row)
+    ' 対象範囲
+    Dim targetRange As Range
+    Set targetRange = ws.Range(COL_COLOR_START & InazumaGantt_v2.ROW_DATA_START & ":" & COL_COLOR_END & lastRow)
     
-    If lastRow < InazumaGantt_v2.ROW_DATA_START Then
-        lastRow = InazumaGantt_v2.ROW_DATA_START + 199
-    End If
+    ' 既存の条件付き書式をクリア（階層色分け用のみ）
+    targetRange.FormatConditions.Delete
     
-    ' 既存の塗りをクリア
-    ws.Range(COL_COLOR_START & InazumaGantt_v2.ROW_DATA_START & ":" & COL_COLOR_END & lastRow).Interior.ColorIndex = xlNone
+    ' LV1: A列が1のとき、その行のB～N列をサーモン色に
+    Dim cf1 As FormatCondition
+    Set cf1 = targetRange.FormatConditions.Add(Type:=xlExpression, _
+        Formula1:="=$A" & InazumaGantt_v2.ROW_DATA_START & "=1")
+    cf1.Interior.Color = COLOR_LV1
+    cf1.StopIfTrue = True
     
-    Dim r As Long
-    Dim lvValue As Variant
-    Dim taskLevel As Long
-    Dim taskCol As String
-    Dim colorValue As Long
-    Dim colorRange As Range
+    ' LV2: A列が2のとき、その行のB～N列を薄い青に
+    Dim cf2 As FormatCondition
+    Set cf2 = targetRange.FormatConditions.Add(Type:=xlExpression, _
+        Formula1:="=$A" & InazumaGantt_v2.ROW_DATA_START & "=2")
+    cf2.Interior.Color = COLOR_LV2
+    cf2.StopIfTrue = True
     
-    For r = InazumaGantt_v2.ROW_DATA_START To lastRow
-        lvValue = ws.Cells(r, InazumaGantt_v2.COL_HIERARCHY).Value
-        
-        If IsNumeric(lvValue) And lvValue <> "" Then
-            taskLevel = CLng(lvValue)
-            
-            Select Case taskLevel
-                Case 1
-                    colorValue = COLOR_LV1
-                    taskCol = "C"
-                Case 2
-                    colorValue = COLOR_LV2
-                    taskCol = "D"
-                Case 3
-                    colorValue = COLOR_LV3
-                    taskCol = "E"
-                Case 4
-                    colorValue = COLOR_LV4
-                    taskCol = "F"
-                Case Else
-                    colorValue = 0
-            End Select
-            
-            If colorValue > 0 Then
-                Set colorRange = ws.Range(taskCol & r & ":" & COL_COLOR_END & r)
-                colorRange.Interior.Color = colorValue
-            End If
-        End If
-    Next r
+    ' LV3: A列が3のとき、その行のB～N列を薄い緑に
+    Dim cf3 As FormatCondition
+    Set cf3 = targetRange.FormatConditions.Add(Type:=xlExpression, _
+        Formula1:="=$A" & InazumaGantt_v2.ROW_DATA_START & "=3")
+    cf3.Interior.Color = COLOR_LV3
+    cf3.StopIfTrue = True
+    
+    ' LV4: A列が4のとき、その行のB～N列を薄い黄色に
+    Dim cf4 As FormatCondition
+    Set cf4 = targetRange.FormatConditions.Add(Type:=xlExpression, _
+        Formula1:="=$A" & InazumaGantt_v2.ROW_DATA_START & "=4")
+    cf4.Interior.Color = COLOR_LV4
+    cf4.StopIfTrue = True
     
     Application.Calculation = xlCalculationAutomatic
     Application.ScreenUpdating = True
     
-    MsgBox "階層色分けを適用しました！", vbInformation, "階層色分け"
+    MsgBox "階層色分けの条件付き書式を設定しました！" & vbCrLf & vbCrLf & _
+           "以降は自動的に色分けが適用されます。", vbInformation, "階層色分け"
     Exit Sub
     
 ErrorHandler:
     Application.Calculation = xlCalculationAutomatic
     Application.ScreenUpdating = True
-    MsgBox "色分けエラー: " & Err.Description, vbCritical, "エラー"
+    MsgBox "条件付き書式設定エラー: " & Err.Description, vbCritical, "エラー"
 End Sub
 
 ' ==========================================
-'  色分けをクリア
+'  階層色分けの条件付き書式をクリア
 ' ==========================================
 Sub ClearHierarchyColors()
     On Error GoTo ErrorHandler
@@ -102,22 +91,22 @@ Sub ClearHierarchyColors()
     Set ws = ActiveSheet
     
     Dim lastRow As Long
-    lastRow = ws.Cells(ws.Rows.Count, "C").End(xlUp).Row
-    If lastRow < InazumaGantt_v2.ROW_DATA_START Then lastRow = InazumaGantt_v2.ROW_DATA_START + 199
+    lastRow = InazumaGantt_v2.ROW_DATA_START + InazumaGantt_v2.DATA_ROWS_DEFAULT - 1
     
-    ws.Range(COL_COLOR_START & InazumaGantt_v2.ROW_DATA_START & ":" & COL_COLOR_END & lastRow).Interior.ColorIndex = xlNone
+    ' 対象範囲の条件付き書式をクリア
+    ws.Range(COL_COLOR_START & InazumaGantt_v2.ROW_DATA_START & ":" & COL_COLOR_END & lastRow).FormatConditions.Delete
     
-    MsgBox "色分けをクリアしました！", vbInformation, "階層色分け"
+    MsgBox "階層色分けの条件付き書式をクリアしました！", vbInformation, "階層色分け"
     Exit Sub
     
 ErrorHandler:
     MsgBox "クリアエラー: " & Err.Description, vbCritical, "エラー"
 End Sub
 
-Private Function MaxRow(ByVal a As Long, ByVal b As Long) As Long
-    If b > a Then
-        MaxRow = b
-    Else
-        MaxRow = a
-    End If
-End Function
+' ==========================================
+'  旧互換: ApplyHierarchyColors
+' ==========================================
+' 旧バージョンとの互換性のため、SetupHierarchyColorsを呼び出す
+Sub ApplyHierarchyColors()
+    Call SetupHierarchyColors
+End Sub
