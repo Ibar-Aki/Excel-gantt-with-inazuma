@@ -17,6 +17,7 @@ Alt + F11 → ファイル → ファイルのインポート
 ```
 
 `vba/` フォルダから以下をインポート：
+
 - ✅ `InazumaGantt_v2_SJIS.bas` （必須）
 - ✅ `HierarchyColor_SJIS.bas` （必須）
 
@@ -52,21 +53,32 @@ Alt + F8 → SetupInazumaGantt → 実行
 
 ```
 📁 vba/               ← VBAモジュール（_SJIS.bas をインポート）
-📁 docs/              ← ドキュメント
-📁 dev/               ← 開発者用（通常は不要）
+📁 docs/              ← 利用者向けドキュメント
+📁 dev/               ← 開発者用ドキュメント・仕様
 ```
 
 ---
 
 ## ドキュメント
 
+### 利用者向け
+
 | ファイル | 内容 |
 |----------|------|
 | [SETUP.md](SETUP.md) | セットアップ手順 |
+| [dev/docs/利用者ガイド.md](dev/docs/利用者ガイド.md) | **操作マニュアル** |
 | [docs/FEATURES.md](docs/FEATURES.md) | 機能詳細 |
 | [docs/CUSTOMIZE.md](docs/CUSTOMIZE.md) | カスタマイズ方法 |
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | 問題解決 |
 | [CHANGELOG.md](CHANGELOG.md) | 更新履歴 |
+
+### 開発者向け
+
+| ファイル | 内容 |
+|----------|------|
+| [dev/docs/ARCHITECTURE.md](dev/docs/ARCHITECTURE.md) | アーキテクチャ |
+| [dev/docs/ganttマクロ改善メモ.md](dev/docs/ganttマクロ改善メモ.md) | 改善仕様 |
+| [vba/README.md](vba/README.md) | VBAモジュール説明 |
 
 ---
 
