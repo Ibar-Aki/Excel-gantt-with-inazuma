@@ -50,6 +50,9 @@ Sub RunSetupWizard()
     End If
     
     ' ステップ4: 階層色分けとガント描画を自動実行
+    ' まずメインシートをアクティブにする
+    ThisWorkbook.Worksheets(InazumaGantt_v2.MAIN_SHEET_NAME).Activate
+    
     Application.ScreenUpdating = False
     
     ' 階層色分けの条件付き書式を設定
