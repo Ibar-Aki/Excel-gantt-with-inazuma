@@ -16,7 +16,7 @@ Private Const ROW_DATA_START As Long = 9
 
 Private Sub Worksheet_BeforeDoubleClick(ByVal Target As Range, Cancel As Boolean)
     ' タスク行のダブルクリックで完了処理を実行
-    ' ※ No.列(B)またはLV列(A)のみ有効
+    ' ※ No.列(B)またはLV列(A)のみ有効（誤操作防止）
     On Error GoTo ErrorHandler
     
     If Target.Row < ROW_DATA_START Then Exit Sub
@@ -24,7 +24,7 @@ Private Sub Worksheet_BeforeDoubleClick(ByVal Target As Range, Cancel As Boolean
     ' A列(1) or B列(2) のみ対象
     If Target.Column <> 1 And Target.Column <> 2 Then Exit Sub
     
-    ' 既に完了済みの場合は変えない（誤操作防止）
+    ' 既に完了済みの場合は変更しない（誤操作防止）
     If Me.Cells(Target.Row, "H").Value = "完了" Then Exit Sub
     
     ' 進捗率を100%に
@@ -33,9 +33,9 @@ Private Sub Worksheet_BeforeDoubleClick(ByVal Target As Range, Cancel As Boolean
     ' 状況を「完了」に
     Me.Cells(Target.Row, "H").Value = "完了"
     
-    ' 開始実績がある場合、完了実績に今日を設定
+    ' 開始実績がある場合、完了実績に今日を設定（空の場合のみ）
     If IsDate(Me.Cells(Target.Row, "M").Value) Then
-        If Trim(Me.Cells(Target.Row, "N").Value) = "" Then
+        If Trim(CStr(Me.Cells(Target.Row, "N").Value)) = "" Then
             Me.Cells(Target.Row, "N").Value = Date
         End If
     End If

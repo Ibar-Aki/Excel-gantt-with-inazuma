@@ -2,18 +2,33 @@
 
 InazumaGantt_v2 シート用のイベントコードです。
 
-## できること
-- ダブルクリックでタスク完了処理を実行
-- 入力変更時に階層レベルを自動判定
+## 機能一覧
+
+1. **ダブルクリック完了処理**: No.列(B)またはLV列(A)のダブルクリックでタスク完了
+2. **階層自動判定**: C-F列のタスク入力時に自動でLV列を更新
+3. **進捗率連動**: 進捗率変更時に状況を自動更新
 
 ## 設定手順
+
 1. ExcelでAlt+F11を押してVBAエディタを開く
-2. プロジェクトエクスプローラーで InazumaGantt_v2 を開く
-3. InazumaGantt_v2_SheetModule.bas を貼り付け
+2. プロジェクトエクスプローラーで「InazumaGantt_v2」シートをダブルクリック
+3. コードウィンドウにSheetModule_SJIS.basの内容を貼り付け
 4. VBAエディタを閉じる
 
 ## 動作詳細
-- Worksheet_BeforeDoubleClick: 完了処理を呼び出し
-  InazumaGantt_v2.CompleteTaskByDoubleClick を実行
-- Worksheet_Change: C-F 列の変更時に階層判定
-  InazumaGantt_v2.AutoDetectTaskLevel を呼び出し
+
+### Worksheet_BeforeDoubleClick
+
+- **対象**: A列(LV)またはB列(No.)のダブルクリック
+- **動作**: 進捗100%、状況「完了」に設定
+- **制限**: 既に完了済みの行は変更しない（誤操作防止）
+
+### Worksheet_Change
+
+- **C-F列変更時**: 階層レベルを自動判定
+- **I列(進捗率)変更時**: 状況を自動更新（0%→未着手、1-99%→進行中、100%→完了）
+
+## 関連ファイル
+
+- `InazumaGantt_v2_UTF8.bas`: メインモジュール（標準モジュール）
+- `SheetModule_UTF8.bas`: シートイベントコード
