@@ -1,41 +1,50 @@
 ' ==========================================
-'  InazumaGantt_v2 �V�[�g���W���[���p�R�[�h
+'  InazumaGantt_v2 シートモジュール用コード
 ' ==========================================
-' ���̃R�[�h�́uInazumaGantt_v2�v�V�[�g�̃V�[�g���W���[���ɓ\��t���Ă�������
+' このコードは「InazumaGantt_v2」シートのシートモジュールに貼り付けてください
 '
-' �y�ݒ���@�z
-' 1. Excel�� Alt+F11 ��������VBA�G�f�B�^���J��
-' 2. �v���W�F�N�g�G�N�X�v���[���[�ŁuInazumaGantt_v2�v�V�[�g���_�u���N���b�N
-' 3. �J�����R�[�h�E�B���h�E�Ɉȉ��̃R�[�h��\��t����
-' 4. VBA�G�f�B�^�����
+' 【設定方法】
+' 1. Excelで Alt+F11 を押してVBAエディタを開く
+' 2. プロジェクトエクスプローラーで「InazumaGantt_v2」シートをダブルクリック
+' 3. 開いたコードウィンドウに以下のコードを貼り付ける
+' 4. VBAエディタを閉じる
 '
 ' ==========================================
 
-' �f�[�^�J�n�s�iInazumaGantt_v2���W���[���Ɠ����j
+' データ開始行（InazumaGantt_v2モジュールと同期）
 Private Const ROW_DATA_START As Long = 9
 
 Private Sub Worksheet_BeforeDoubleClick(ByVal Target As Range, Cancel As Boolean)
-    ' �^�X�N�s�̃_�u���N���b�N�Ŋ������������s
+    ' タスク行のダブルクリックで完了処理を実行
+    ' ※ No.列(B)またはLV列(A)のみ有効
     On Error GoTo ErrorHandler
     
     If Target.Row < ROW_DATA_START Then Exit Sub
     
-    ' �i������100%��
+    ' A列(1) or B列(2) のみ対象
+    If Target.Column <> 1 And Target.Column <> 2 Then Exit Sub
+    
+    ' 既に完了済みの場合は変えない（誤操作防止）
+    If Me.Cells(Target.Row, "H").Value = "完了" Then Exit Sub
+    
+    ' 進捗率を100%に
     Me.Cells(Target.Row, "I").Value = 1
     
-    ' �󋵂��u�����v��
-    Me.Cells(Target.Row, "H").Value = "����"
+    ' 状況を「完了」に
+    Me.Cells(Target.Row, "H").Value = "完了"
     
-    ' �J�n���т�����ꍇ�A�������тɍ�����ݒ�
+    ' 開始実績がある場合、完了実績に今日を設定
     If IsDate(Me.Cells(Target.Row, "M").Value) Then
-        Me.Cells(Target.Row, "N").Value = Date
+        If Trim(Me.Cells(Target.Row, "N").Value) = "" Then
+            Me.Cells(Target.Row, "N").Value = Date
+        End If
     End If
     
     Cancel = True
     Exit Sub
     
 ErrorHandler:
-    ' �G���[�͖���
+    ' エラーは無視
 End Sub
 
 Private Sub Worksheet_Change(ByVal Target As Range)
@@ -43,39 +52,39 @@ Private Sub Worksheet_Change(ByVal Target As Range)
     
     Application.EnableEvents = False
     
-    ' �^�X�N���͗�iC�`F��j�ɕύX���������ꍇ
+    ' タスク入力列（C～F列）に変更があった場合
     If Not Intersect(Target, Me.Range("C:F")) Is Nothing Then
         Dim cell As Range
         For Each cell In Intersect(Target, Me.Range("C:F"))
             If cell.Row >= ROW_DATA_START Then
-                ' �^�X�N�����͂��ꂽ�ꍇ
+                ' タスクが入力された場合
                 If Trim$(CStr(cell.Value)) <> "" Then
-                    ' �K�w����������
+                    ' 階層を自動判定
                     InazumaGantt_v2.AutoDetectTaskLevel cell.Row
                     
-                    ' No.����Ȃ玩������
+                    ' No.が空なら自動入力
                     If Trim$(CStr(Me.Cells(cell.Row, "B").Value)) = "" Then
                         Me.Cells(cell.Row, "B").Value = GetNextNo()
                     End If
                     
-                    ' �i��������Ȃ�0%�����
+                    ' 進捗率が空なら0%を入力
                     If Trim$(CStr(Me.Cells(cell.Row, "I").Value)) = "" Then
                         Me.Cells(cell.Row, "I").Value = 0
                     End If
                     
-                    ' �󋵂���Ȃ�u������v�����
+                    ' 状況が空なら「未着手」を入力
                     If Trim$(CStr(Me.Cells(cell.Row, "H").Value)) = "" Then
-                        Me.Cells(cell.Row, "H").Value = "������"
+                        Me.Cells(cell.Row, "H").Value = "未着手"
                     End If
                 Else
-                    ' �^�X�N���폜���ꂽ�ꍇ���K�w���X�V
+                    ' タスクが削除された場合も階層を更新
                     InazumaGantt_v2.AutoDetectTaskLevel cell.Row
                 End If
             End If
         Next cell
     End If
     
-    ' �i������iI��j�ɕύX���������ꍇ�A�󋵂������X�V
+    ' 進捗率列（I列）に変更があった場合、状況を自動更新
     If Not Intersect(Target, Me.Columns("I")) Is Nothing Then
         Dim progressCell As Range
         For Each progressCell In Intersect(Target, Me.Columns("I"))
@@ -100,7 +109,7 @@ Private Sub UpdateStatusByProgress(ByVal targetRow As Long)
     progressValue = Me.Cells(targetRow, "I").Value
     
     If Trim$(CStr(progressValue)) = "" Then
-        Me.Cells(targetRow, "H").Value = "������"
+        Me.Cells(targetRow, "H").Value = "未着手"
         Exit Sub
     End If
     
@@ -114,23 +123,23 @@ Private Sub UpdateStatusByProgress(ByVal targetRow As Long)
         rate = CDbl(textValue)
     End If
     
-    ' 100���̒l�͊����Ƃ��Ĉ���
+    ' 100超の値は割合として扱う
     If rate > 1 Then rate = rate / 100
     If rate < 0 Then rate = 0
     If rate > 1 Then rate = 1
     
-    ' �󋵂�ݒ�
+    ' 状況を設定
     If rate >= 1 Then
-        Me.Cells(targetRow, "H").Value = "����"
+        Me.Cells(targetRow, "H").Value = "完了"
     ElseIf rate <= 0 Then
-        Me.Cells(targetRow, "H").Value = "������"
+        Me.Cells(targetRow, "H").Value = "未着手"
     Else
-        Me.Cells(targetRow, "H").Value = "�i�s��"
+        Me.Cells(targetRow, "H").Value = "進行中"
     End If
 End Sub
 
 ' ==========================================
-'  ����No.���擾
+'  次のNo.を取得
 ' ==========================================
 Private Function GetNextNo() As Long
     Dim lastNo As Long
@@ -139,7 +148,7 @@ Private Function GetNextNo() As Long
     
     lastNo = 0
     
-    ' B�񂩂�ő��No.��T��
+    ' B列から最大のNo.を探す
     For r = ROW_DATA_START To Me.Cells(Me.Rows.Count, "B").End(xlUp).Row
         cellValue = Me.Cells(r, "B").Value
         If IsNumeric(cellValue) Then
