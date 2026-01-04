@@ -100,7 +100,8 @@ Private Sub AddSampleData()
     On Error GoTo ErrorHandler
     
     Dim ws As Worksheet
-    Set ws = ActiveSheet
+    ' ActiveSheetではなく、明示的にメインシートを指定
+    Set ws = ThisWorkbook.Worksheets(InazumaGantt_v2.MAIN_SHEET_NAME)
     
     Dim startRow As Long
     startRow = InazumaGantt_v2.ROW_DATA_START
