@@ -35,9 +35,9 @@ Public Const HOLIDAY_SHEET_NAME As String = "祝日マスタ"
 Public Const GUIDE_SHEET_NAME As String = "InazumaGantt_説明"
 Public Const MAIN_SHEET_NAME As String = "InazumaGantt_v2"
 Public Const GUIDE_LEGEND_START_CELL As String = "E1"
-Public Const CELL_PROJECT_START As String = "K3"
-Public Const CELL_DISPLAY_WEEK As String = "K4"
-Public Const CELL_TODAY As String = "M3"
+Public Const CELL_PROJECT_START As String = "L2"
+Public Const CELL_DISPLAY_WEEK As String = "L3"
+Public Const CELL_TODAY As String = "L4"
 
 ' 色設定
 Public Const COLOR_PLAN As Long = 16119285       ' RGB(245,245,245) 限りなく白に近い灰色
@@ -80,19 +80,18 @@ Sub SetupInazumaGantt()
     ws.Range("A" & ROW_TITLE).Value = "イナズマガントチャート"
     ws.Range("A" & ROW_TITLE).Font.Bold = True
     ws.Range("A" & ROW_TITLE).Font.Size = 16
-    ws.Range("A2").Value = "会社名"
-    ws.Range("A3").Value = "プロジェクト主任"
-    ws.Range("J3").Value = "プロジェクトの開始:"
-    ws.Range("J4").Value = "週表示:"
-    ws.Range("L3").Value = "今日:"
+    ws.Range("A4").Value = "メモ："
+    
+    ' 情報エリア（K-L列）
+    ws.Range("K2").Value = "開始日："
+    ws.Range("K3").Value = "週表示:"
+    ws.Range("K4").Value = "今日："
     
     ' ヘッダー設定 (ROW_HEADER = 8行目に統一)
     ws.Range(COL_HIERARCHY & ROW_HEADER).Value = "LV"
     ws.Range(COL_NO & ROW_HEADER).Value = "No."
-    ws.Range("C" & ROW_HEADER).Value = "TASK(LV1)"
-    ws.Range("D" & ROW_HEADER).Value = "TASK(LV2)"
-    ws.Range("E" & ROW_HEADER).Value = "TASK(LV3)"
-    ws.Range("F" & ROW_HEADER).Value = "TASK(LV4)"
+    ws.Range("C" & ROW_HEADER).Value = "TASK"
+    ' D-F列はタスク入力用（ヘッダーなし）
     ws.Range(COL_TASK_DETAIL & ROW_HEADER).Value = "タスク詳細"
     ws.Range(COL_STATUS & ROW_HEADER).Value = "状況"
     ws.Range(COL_PROGRESS & ROW_HEADER).Value = "進捗率"
@@ -138,8 +137,12 @@ Sub SetupInazumaGantt()
     
     ' キャンセル処理（ロールバック）
     If startDateInput = False Or VarType(startDateInput) = vbBoolean Then
-        ' シートの内容をクリア（ロールバック）
-        ws.Cells.Clear
+        ' シートの内容をクリア（ロールバック）: 想定範囲のみ
+        Dim rollbackEndCol As Long
+        rollbackEndCol = ws.Columns(COL_GANTT_START).Column + GANTT_DAYS - 1
+        Dim rollbackEndRow As Long
+        rollbackEndRow = ROW_DATA_START + DATA_ROWS_DEFAULT - 1
+        ws.Range(ws.Cells(1, 1), ws.Cells(rollbackEndRow, rollbackEndCol)).Clear
         Application.Calculation = xlCalculationAutomatic
         Application.ScreenUpdating = True
         MsgBox "セットアップがキャンセルされました。", vbInformation, "キャンセル"
@@ -224,6 +227,14 @@ Sub SetupInazumaGantt()
     DrawWeekSeparators ws, lastRow
     ApplyWeekendColors ws, lastRow, ganttStartDate, ganttStartCol
     ApplyDataValidationAndFormats ws, lastRow
+    
+    ' 目盛線をオフ
+    ActiveWindow.DisplayGridlines = False
+    
+    ' フィルタ自動設定 (8行目A-N列)
+    If Not ws.AutoFilterMode Then
+        ws.Range("A" & ROW_HEADER & ":N" & ROW_HEADER).AutoFilter
+    End If
     
     ' No.1〜400の初期採番
     Dim noRow As Long
@@ -387,11 +398,19 @@ Private Sub ApplyGanttBorders(ByVal ws As Worksheet, ByVal lastRow As Long)
     ApplyBorder ws.Range("N6"), xlEdgeRight, xlContinuous, xlThin, xlColorIndexAutomatic
     
     ' --- P5: 7行目 (日付行) ---
+    ' 7行目の背景色をヘッダーと同じ色で塗りつぶし
+    ws.Range(ws.Cells(7, 1), ws.Cells(7, ganttEndCol)).Interior.Color = COLOR_HEADER_BG
+    ws.Range(ws.Cells(7, 1), ws.Cells(7, ganttEndCol)).Font.Color = RGB(255, 255, 255)
+    
     ApplyBorder ws.Range(ws.Cells(7, 1), ws.Cells(7, ganttEndCol)), xlEdgeTop, xlContinuous, xlMedium, xlColorIndexAutomatic
-    ApplyBorder ws.Range(ws.Cells(7, 1), ws.Cells(7, ganttEndCol)), xlEdgeBottom, xlContinuous, xlThin, xlColorIndexAutomatic
+    ' 7行目下部に黒色の太線
+    ApplyBorder ws.Range(ws.Cells(7, 1), ws.Cells(7, ganttEndCol)), xlEdgeBottom, xlContinuous, xlMedium, xlColorIndexAutomatic
     ApplyBorder ws.Range(ws.Cells(7, 14), ws.Cells(7, ganttEndCol)), xlEdgeRight, xlContinuous, xlThin, xlColorIndexAutomatic
     ApplyBorder ws.Range("A7"), xlEdgeLeft, xlContinuous, xlMedium, xlColorIndexAutomatic
     ApplyBorder ws.Range(ws.Cells(7, ganttStartCol), ws.Cells(7, ganttEndCol)), xlEdgeLeft, xlContinuous, xlThin, xlColorIndexAutomatic
+    
+    ' 7行目のO列より右のガントチャート部は太字
+    ws.Range(ws.Cells(7, ganttStartCol), ws.Cells(7, ganttEndCol)).Font.Bold = True
     
     ' --- P6: 8行目 (ヘッダー行) ---
     ApplyBorder ws.Range(ws.Cells(8, 1), ws.Cells(8, ganttEndCol)), xlEdgeTop, xlContinuous, xlThin, xlColorIndexAutomatic
@@ -402,37 +421,32 @@ Private Sub ApplyGanttBorders(ByVal ws As Worksheet, ByVal lastRow As Long)
     ApplyBorder ws.Range("B8:C8"), xlEdgeLeft, xlContinuous, xlThin, xlColorIndexAutomatic
     ApplyBorder ws.Range(ws.Cells(8, 7), ws.Cells(8, ganttEndCol)), xlEdgeLeft, xlContinuous, xlThin, xlColorIndexAutomatic
     
-    ' --- P7: 9行目 (データ開始行、特殊パターン) ---
-    ApplyBorder ws.Range(ws.Cells(9, 1), ws.Cells(9, ganttEndCol)), xlEdgeTop, xlContinuous, xlMedium, xlColorIndexAutomatic
-    ApplyBorderWithColorIndex ws.Range(ws.Cells(9, 1), ws.Cells(9, ganttEndCol)), xlEdgeBottom, xlContinuous, xlThin, 48
-    ApplyBorderWithColorIndex ws.Range("C9:E9"), xlEdgeRight, xlContinuous, xlHairline, 15
-    ApplyBorder ws.Range("A9:B9"), xlEdgeRight, xlContinuous, xlThin, xlColorIndexAutomatic
-    ApplyBorder ws.Range(ws.Cells(9, 6), ws.Cells(9, 14)), xlEdgeRight, xlContinuous, xlThin, xlColorIndexAutomatic
-    ApplyBorderWithColorIndex ws.Range("D9:F9"), xlEdgeLeft, xlContinuous, xlHairline, 15
-    ApplyBorder ws.Range("A9:C9"), xlEdgeLeft, xlContinuous, xlThin, xlColorIndexAutomatic
-    ApplyBorder ws.Range(ws.Cells(9, 7), ws.Cells(9, ganttStartCol)), xlEdgeLeft, xlContinuous, xlThin, xlColorIndexAutomatic
-    
-    ' --- P8: 10行目以降 (データ行パターン) ---
-    If lastRow >= 10 Then
+    ' --- P7/P8: 9行目以降 (データ行パターン、9行目も10行目以降と同じ) ---
+    If lastRow >= ROW_DATA_START Then
         Dim dataRange As Range
-        Set dataRange = ws.Range(ws.Cells(10, 1), ws.Cells(lastRow, ganttEndCol))
+        Set dataRange = ws.Range(ws.Cells(ROW_DATA_START, 1), ws.Cells(lastRow, ganttEndCol))
         
         ' 上下: ColorIndex 48 (薄い灰色)
         ApplyBorderWithColorIndex dataRange, xlEdgeTop, xlContinuous, xlThin, 48
         ApplyBorderWithColorIndex dataRange, xlEdgeBottom, xlContinuous, xlThin, 48
-        ApplyBorderWithColorIndex ws.Range(ws.Cells(10, 1), ws.Cells(lastRow, ganttEndCol)), xlInsideHorizontal, xlContinuous, xlThin, 48
+        ApplyBorderWithColorIndex ws.Range(ws.Cells(ROW_DATA_START, 1), ws.Cells(lastRow, ganttEndCol)), xlInsideHorizontal, xlContinuous, xlThin, 48
         
         ' C-E列: 極細 ColorIndex 15
-        ApplyBorderWithColorIndex ws.Range(ws.Cells(10, 3), ws.Cells(lastRow, 5)), xlEdgeRight, xlContinuous, xlHairline, 15
-        ApplyBorderWithColorIndex ws.Range(ws.Cells(10, 4), ws.Cells(lastRow, 6)), xlEdgeLeft, xlContinuous, xlHairline, 15
-        ApplyBorderWithColorIndex ws.Range(ws.Cells(10, 3), ws.Cells(lastRow, 5)), xlInsideVertical, xlContinuous, xlHairline, 15
+        ApplyBorderWithColorIndex ws.Range(ws.Cells(ROW_DATA_START, 3), ws.Cells(lastRow, 5)), xlEdgeRight, xlContinuous, xlHairline, 15
+        ApplyBorderWithColorIndex ws.Range(ws.Cells(ROW_DATA_START, 4), ws.Cells(lastRow, 6)), xlEdgeLeft, xlContinuous, xlHairline, 15
+        ApplyBorderWithColorIndex ws.Range(ws.Cells(ROW_DATA_START, 3), ws.Cells(lastRow, 5)), xlInsideVertical, xlContinuous, xlHairline, 15
+        
+        ' ガントチャート部(O列以降)にもC-D間と同じ縦罫線
+        ApplyBorderWithColorIndex ws.Range(ws.Cells(ROW_DATE_HEADER, ganttStartCol), ws.Cells(lastRow, ganttEndCol)), xlInsideVertical, xlContinuous, xlHairline, 15
         
         ' A-B, F-N列: 細線 自動
-        ApplyBorder ws.Range(ws.Cells(10, 1), ws.Cells(lastRow, 2)), xlEdgeRight, xlContinuous, xlThin, xlColorIndexAutomatic
-        ApplyBorder ws.Range(ws.Cells(10, 6), ws.Cells(lastRow, 14)), xlEdgeRight, xlContinuous, xlThin, xlColorIndexAutomatic
-        ApplyBorder ws.Range(ws.Cells(10, 6), ws.Cells(lastRow, 14)), xlInsideVertical, xlContinuous, xlThin, xlColorIndexAutomatic
-        ApplyBorder ws.Range(ws.Cells(10, 1), ws.Cells(lastRow, 3)), xlEdgeLeft, xlContinuous, xlThin, xlColorIndexAutomatic
-        ApplyBorder ws.Range(ws.Cells(10, 7), ws.Cells(lastRow, ganttStartCol)), xlEdgeLeft, xlContinuous, xlThin, xlColorIndexAutomatic
+        ApplyBorder ws.Range(ws.Cells(ROW_DATA_START, 1), ws.Cells(lastRow, 2)), xlEdgeRight, xlContinuous, xlThin, xlColorIndexAutomatic
+        ' A列B列間は黒細線
+        ApplyBorder ws.Range(ws.Cells(ROW_DATA_START, 1), ws.Cells(lastRow, 1)), xlEdgeRight, xlContinuous, xlThin, xlColorIndexAutomatic
+        ApplyBorder ws.Range(ws.Cells(ROW_DATA_START, 6), ws.Cells(lastRow, 14)), xlEdgeRight, xlContinuous, xlThin, xlColorIndexAutomatic
+        ApplyBorder ws.Range(ws.Cells(ROW_DATA_START, 6), ws.Cells(lastRow, 14)), xlInsideVertical, xlContinuous, xlThin, xlColorIndexAutomatic
+        ApplyBorder ws.Range(ws.Cells(ROW_DATA_START, 1), ws.Cells(lastRow, 3)), xlEdgeLeft, xlContinuous, xlThin, xlColorIndexAutomatic
+        ApplyBorder ws.Range(ws.Cells(ROW_DATA_START, 7), ws.Cells(lastRow, ganttStartCol)), xlEdgeLeft, xlContinuous, xlThin, xlColorIndexAutomatic
     End If
 End Sub
 
@@ -596,9 +610,11 @@ Sub DrawGanttBars()
                     ' 進捗バー（紺色 + 黒枠線）
                     If progress > 0 Then
                         progressCol = startCol + CLng((endCol - startCol + 1) * progress) - 1
+                        If progressCol < startCol Then progressCol = startCol
                         If progressCol >= startCol Then
                             Dim progressWidth As Double
                             progressWidth = ws.Cells(r, progressCol).Left + ws.Cells(r, progressCol).Width - cellLeft
+                            If progressWidth < ws.Cells(r, startCol).Width Then progressWidth = ws.Cells(r, startCol).Width
                             If progress >= 1 Then progressWidth = cellWidth
                             
                             Set shp = ws.Shapes.AddShape(msoShapeRectangle, cellLeft, cellTop, progressWidth, barHeight)
@@ -612,28 +628,47 @@ Sub DrawGanttBars()
                     
                     ' イナズマ線用のポイントを記録（今日基準型）
                     ' 条件: 開始予定日が今日以前のタスクのみ対象
-                    ' 例外: 完了済みで完了予定日が今日より前の場合は除外
                     If CDate(startPlan) <= Date Then
-                        ' 完了済みで完了予定日が今日より前の場合はイナズマ線に含めない
-                        If Not (progress >= 1 And CDate(endPlan) < Date) Then
-                            Dim inazumaX As Double
-                            
-                            If progress >= 1 Then
-                                ' 完了済み: 完了予定位置で結ぶ
-                                inazumaX = ws.Cells(r, endCol).Left + ws.Cells(r, endCol).Width
-                            Else
-                                ' 進行中または未着手: 進捗率に応じた位置
-                                Dim progressPosition As Long
-                                progressPosition = startCol + CLng((endCol - startCol + 1) * progress) - 1
-                                If progressPosition < startCol Then progressPosition = startCol
-                                inazumaX = ws.Cells(r, progressPosition).Left + ws.Cells(r, progressPosition).Width * progress
-                                If progress = 0 Then inazumaX = cellLeft
-                            End If
-                            
-                            inazumaCount = inazumaCount + 1
-                            inazumaPoints(inazumaCount, 1) = inazumaX
-                            inazumaPoints(inazumaCount, 2) = cellTop + barHeight / 2
+                        Dim inazumaX As Double
+                        Dim useTodayPosition As Boolean
+                        useTodayPosition = False
+                        
+                        ' 今日列のX座標を計算
+                        Dim todayColForInazuma As Long
+                        todayColForInazuma = DateToColumn(ganttStartDate, Date, ganttStartCol)
+                        Dim todayX As Double
+                        If todayColForInazuma >= ganttStartCol And todayColForInazuma <= ganttStartCol + GANTT_DAYS - 1 Then
+                            todayX = ws.Cells(r, todayColForInazuma).Left + ws.Cells(r, todayColForInazuma).Width / 2
+                        Else
+                            todayX = 0
                         End If
+                        
+                        If progress >= 1 Then
+                            ' 完了済み
+                            If CDate(endPlan) < Date Then
+                                ' 完了予定日が今日より前の場合は今日の位置で結ぶ
+                                useTodayPosition = True
+                            Else
+                                ' 完了予定日が今日以降の場合は完了予定位置で結ぶ
+                                inazumaX = ws.Cells(r, endCol).Left + ws.Cells(r, endCol).Width
+                            End If
+                        Else
+                            ' 進行中または未着手: 進捗率に応じた位置
+                            Dim progressPosition As Long
+                            progressPosition = startCol + CLng((endCol - startCol + 1) * progress) - 1
+                            If progressPosition < startCol Then progressPosition = startCol
+                            inazumaX = ws.Cells(r, progressPosition).Left + ws.Cells(r, progressPosition).Width * progress
+                            If progress = 0 Then inazumaX = cellLeft
+                        End If
+                        
+                        ' 今日の位置を使用する場合
+                        If useTodayPosition And todayX > 0 Then
+                            inazumaX = todayX
+                        End If
+                        
+                        inazumaCount = inazumaCount + 1
+                        inazumaPoints(inazumaCount, 1) = inazumaX
+                        inazumaPoints(inazumaCount, 2) = cellTop + barHeight / 2
                     End If
                 End If
             End If
@@ -679,14 +714,18 @@ Sub DrawGanttBars()
         End If
     Next r
     
-    ' 今日線を描画
+    ' 今日線を描画（9行目スタート）
     Dim todayCol As Long
     todayCol = DateToColumn(ganttStartDate, Date, ganttStartCol)
     
     If todayCol >= ganttStartCol And todayCol <= ganttStartCol + GANTT_DAYS - 1 Then
+        ' 今日にあたる日付(7行目)を赤字にする
+        ws.Cells(ROW_DATE_HEADER, todayCol).Font.Color = COLOR_TODAY
+        
+        ' 今日線（9行目から開始）
         Dim todayLeft As Double, todayTop As Double, todayBottom As Double
-        todayLeft = ws.Cells(ROW_DATE_HEADER, todayCol).Left + ws.Cells(ROW_DATE_HEADER, todayCol).Width / 2
-        todayTop = ws.Cells(ROW_DATE_HEADER, todayCol).Top
+        todayLeft = ws.Cells(ROW_DATA_START, todayCol).Left + ws.Cells(ROW_DATA_START, todayCol).Width / 2
+        todayTop = ws.Cells(ROW_DATA_START, todayCol).Top
         todayBottom = ws.Cells(lastRow, todayCol).Top + ws.Cells(lastRow, todayCol).Height
         
         Set shp = ws.Shapes.AddLine(todayLeft, todayTop, todayLeft, todayBottom)
@@ -746,6 +785,7 @@ Sub RefreshInazumaGantt()
     ApplyGanttBorders ws, lastRow
     DrawWeekSeparators ws, lastRow
     ApplyDataValidationAndFormats ws, lastRow
+    ApplyHolidayColors ws, lastRow
     
     Call DrawGanttBars
     
@@ -754,6 +794,46 @@ Sub RefreshInazumaGantt()
     
 ErrorHandler:
     MsgBox "更新中にエラーが発生しました: " & Err.Description, vbCritical, "エラー"
+End Sub
+
+' ==========================================
+'  祝日列の色塗り（祝日マスタ A列）
+' ==========================================
+Private Sub ApplyHolidayColors(ByVal ws As Worksheet, ByVal lastRow As Long)
+    Dim wsHoliday As Worksheet
+    On Error Resume Next
+    Set wsHoliday = ThisWorkbook.Worksheets(HOLIDAY_SHEET_NAME)
+    On Error GoTo 0
+    
+    If wsHoliday Is Nothing Then Exit Sub
+    
+    Dim ganttStartCol As Long
+    ganttStartCol = ws.Columns(COL_GANTT_START).Column
+    
+    Dim ganttStartDate As Date
+    If IsDate(ws.Range(CELL_PROJECT_START).Value) Then
+        ganttStartDate = CDate(ws.Range(CELL_PROJECT_START).Value)
+    Else
+        Exit Sub
+    End If
+    
+    Dim lastHolidayRow As Long
+    lastHolidayRow = wsHoliday.Cells(wsHoliday.Rows.Count, "A").End(xlUp).Row
+    If lastHolidayRow < 2 Then Exit Sub
+    
+    Dim r As Long
+    Dim holidayDate As Date
+    Dim colIndex As Long
+    
+    For r = 2 To lastHolidayRow
+        If IsDate(wsHoliday.Cells(r, "A").Value) Then
+            holidayDate = CDate(wsHoliday.Cells(r, "A").Value)
+            colIndex = DateToColumn(ganttStartDate, holidayDate, ganttStartCol)
+            If colIndex >= ganttStartCol And colIndex <= ganttStartCol + GANTT_DAYS - 1 Then
+                ws.Range(ws.Cells(ROW_DATE_HEADER, colIndex), ws.Cells(lastRow, colIndex)).Interior.Color = COLOR_HOLIDAY
+            End If
+        End If
+    Next r
 End Sub
 
 ' ==========================================
