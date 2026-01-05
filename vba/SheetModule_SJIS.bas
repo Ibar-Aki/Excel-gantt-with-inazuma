@@ -94,12 +94,75 @@ Private Sub Worksheet_Change(ByVal Target As Range)
         Next progressCell
     End If
     
+    ' 予定日付列（K, L列）に土日祝日を入力した場合に確認メッセージ
+    If Not Intersect(Target, Me.Range("K:L")) Is Nothing Then
+        Dim dateCell As Range
+        Dim inputDate As Date
+        Dim isWeekend As Boolean
+        Dim isHoliday As Boolean
+        Dim warningMsg As String
+        
+        For Each dateCell In Intersect(Target, Me.Range("K:L"))
+            If dateCell.Row >= ROW_DATA_START Then
+                If IsDate(dateCell.Value) Then
+                    inputDate = CDate(dateCell.Value)
+                    isWeekend = (Weekday(inputDate, vbMonday) >= 6)
+                    isHoliday = CheckHoliday(inputDate)
+                    
+                    If isWeekend Or isHoliday Then
+                        If isHoliday Then
+                            warningMsg = "祝日"
+                        ElseIf Weekday(inputDate, vbMonday) = 6 Then
+                            warningMsg = "土曜日"
+                        Else
+                            warningMsg = "日曜日"
+                        End If
+                        
+                        If MsgBox(Format(inputDate, "yy/mm/dd") & " は " & warningMsg & " です。" & vbCrLf & _
+                                  "この日付を入力しますか？", vbYesNo + vbQuestion, "確認") = vbNo Then
+                            Application.EnableEvents = False
+                            dateCell.ClearContents
+                            Application.EnableEvents = True
+                        End If
+                    End If
+                End If
+            End If
+        Next dateCell
+    End If
+    
     Application.EnableEvents = True
     Exit Sub
     
 ErrorHandler:
     Application.EnableEvents = True
 End Sub
+
+' ==========================================
+'  祝日チェック
+' ==========================================
+Private Function CheckHoliday(ByVal targetDate As Date) As Boolean
+    Dim wsHoliday As Worksheet
+    On Error Resume Next
+    Set wsHoliday = ThisWorkbook.Worksheets("祝日マスタ")
+    On Error GoTo 0
+    
+    CheckHoliday = False
+    If wsHoliday Is Nothing Then Exit Function
+    
+    Dim lastRow As Long
+    lastRow = wsHoliday.Cells(wsHoliday.Rows.Count, "A").End(xlUp).Row
+    If lastRow < 2 Then Exit Function
+    
+    Dim r As Long
+    For r = 2 To lastRow
+        If IsDate(wsHoliday.Cells(r, "A").Value) Then
+            If CDate(wsHoliday.Cells(r, "A").Value) = targetDate Then
+                CheckHoliday = True
+                Exit Function
+            End If
+        End If
+    Next r
+End Function
 
 Private Sub UpdateStatusByProgress(ByVal targetRow As Long)
     Dim progressValue As Variant

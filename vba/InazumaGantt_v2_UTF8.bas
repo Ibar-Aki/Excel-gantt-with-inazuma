@@ -158,10 +158,10 @@ Sub SetupInazumaGantt()
 
     
     ws.Range(CELL_PROJECT_START).Value = ganttStartDate
-    ws.Range(CELL_PROJECT_START).NumberFormat = "yyyy/mm/dd"
+    ws.Range(CELL_PROJECT_START).NumberFormat = "yy/mm/dd"
     ws.Range(CELL_DISPLAY_WEEK).Value = 1
     ws.Range(CELL_TODAY).Value = Date
-    ws.Range(CELL_TODAY).NumberFormat = "yyyy/mm/dd"
+    ws.Range(CELL_TODAY).NumberFormat = "yy/mm/dd"
     
     ' 日付列の生成
     Dim ganttStartCol As Long
@@ -269,10 +269,38 @@ Private Sub EnsureHolidaySheet()
     If wsHoliday Is Nothing Then
         Set wsHoliday = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
         wsHoliday.Name = HOLIDAY_SHEET_NAME
-        wsHoliday.Range("A1").Value = "祝日"
-        wsHoliday.Range("A1").Font.Bold = True
-        wsHoliday.Columns("A").NumberFormat = "yy/mm/dd"
+    Else
+        wsHoliday.Cells.Clear
     End If
+    
+    ' ヘッダー
+    wsHoliday.Range("A1").Value = "祝日"
+    wsHoliday.Range("A1").Font.Bold = True
+    wsHoliday.Range("A1").Interior.Color = RGB(48, 84, 150)
+    wsHoliday.Range("A1").Font.Color = RGB(255, 255, 255)
+    wsHoliday.Columns("A").NumberFormat = "yy/mm/dd"
+    wsHoliday.Columns("A").ColumnWidth = 12
+    
+    ' 入力エリアの罫線（A2:A30）
+    With wsHoliday.Range("A2:A30").Borders
+        .LineStyle = xlContinuous
+        .Weight = xlThin
+        .ColorIndex = 48
+    End With
+    
+    ' 説明テキスト
+    wsHoliday.Range("C1").Value = "【祝日マスタの使い方】"
+    wsHoliday.Range("C1").Font.Bold = True
+    wsHoliday.Range("C2").Value = "A列に祝日の日付を入力してください。"
+    wsHoliday.Range("C3").Value = "入力した日付はガントチャート上でピンク色で表示されます。"
+    wsHoliday.Range("C4").Value = ""
+    wsHoliday.Range("C5").Value = "例: 26/01/01, 26/01/13, 26/02/11 ..."
+    wsHoliday.Range("C6").Value = ""
+    wsHoliday.Range("C7").Value = "※ ガント更新後に反映されます。"
+    wsHoliday.Columns("C").ColumnWidth = 40
+    
+    ' 目盛線オフ
+    ActiveWindow.DisplayGridlines = False
 End Sub
 
 ' ==========================================
@@ -343,12 +371,42 @@ Private Sub EnsureGuideSheet()
         wsGuide.Cells.Clear
     End If
     
-    wsGuide.Cells(1, 1).Value = "InazumaGantt 説明"
+    ' 目盛線オフ
+    ActiveWindow.DisplayGridlines = False
+    
+    ' タイトル
+    wsGuide.Cells(1, 1).Value = "進捗管理表 操作マニュアル"
     wsGuide.Cells(1, 1).Font.Bold = True
-    wsGuide.Cells(3, 1).Value = "1) SetupInazumaGantt を実行して初期設定"
-    wsGuide.Cells(4, 1).Value = "2) タスクを入力（C-F列）"
-    wsGuide.Cells(5, 1).Value = "3) RefreshInazumaGantt を実行してガント更新"
-    wsGuide.Columns(1).ColumnWidth = 50
+    wsGuide.Cells(1, 1).Font.Size = 14
+    
+    ' ボタン機能
+    wsGuide.Cells(3, 1).Value = "■ ボタン機能"
+    wsGuide.Cells(3, 1).Font.Bold = True
+    wsGuide.Cells(4, 1).Value = "【ガント更新】"
+    wsGuide.Cells(4, 2).Value = "ガントチャートを最新状態に再描画します。"
+    wsGuide.Cells(5, 2).Value = "進捗率や日付を変更した後は必ずクリックしてください。"
+    wsGuide.Cells(6, 1).Value = "【土日切替】"
+    wsGuide.Cells(6, 2).Value = "土日列の表示/非表示を切替えます。"
+    wsGuide.Cells(7, 2).Value = "画面を広く使いたい時に便利です。"
+    wsGuide.Cells(8, 1).Value = "【書式リセット】"
+    wsGuide.Cells(8, 2).Value = "崩れた罫線・書式を修復します。"
+    wsGuide.Cells(9, 2).Value = "表示がおかしくなった時に使用してください。"
+    
+    ' ダブルクリック完了
+    wsGuide.Cells(11, 1).Value = "■ ダブルクリックでタスク完了"
+    wsGuide.Cells(11, 1).Font.Bold = True
+    wsGuide.Cells(12, 1).Value = "No.列(B列) または LV列(A列) をダブルクリックすると、"
+    wsGuide.Cells(13, 1).Value = "そのタスクが完了になります。"
+    wsGuide.Cells(14, 1).Value = ""
+    wsGuide.Cells(15, 1).Value = "  ・ 状況 → 「完了」"
+    wsGuide.Cells(16, 1).Value = "  ・ 進捗率 → 100%"
+    wsGuide.Cells(17, 1).Value = "  ・ 完了実績 → 今日の日付"
+    wsGuide.Cells(18, 1).Value = ""
+    wsGuide.Cells(19, 1).Value = "※ すでに完了しているタスクは変更されません。"
+    
+    ' 列幅設定
+    wsGuide.Columns(1).ColumnWidth = 35
+    wsGuide.Columns(2).ColumnWidth = 45
 End Sub
 
 ' ==========================================
