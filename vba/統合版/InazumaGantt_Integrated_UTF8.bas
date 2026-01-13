@@ -74,6 +74,10 @@ Sub SetupInazumaGantt()
         On Error GoTo ErrorHandler
     End If
     
+    ' P2修正: 元の設定を保存
+    Dim prevCalc As XlCalculation
+    prevCalc = Application.Calculation
+    
     Application.ScreenUpdating = False
     Application.Calculation = xlCalculationManual
     
@@ -246,14 +250,14 @@ Sub SetupInazumaGantt()
     ' コントロールボタンの作成
     CreateControlButtons ws
     
-    Application.Calculation = xlCalculationAutomatic
+    Application.Calculation = prevCalc  ' P2修正: 元設定に復元
     Application.ScreenUpdating = True
     
     MsgBox "セットアップ完了！" & vbCrLf & "データを入力後、RefreshInazumaGantt を実行してください。", vbInformation, "イナズマガント"
     Exit Sub
     
 ErrorHandler:
-    Application.Calculation = xlCalculationAutomatic
+    Application.Calculation = prevCalc  ' P2修正: 元設定に復元
     Application.ScreenUpdating = True
     MsgBox "エラーが発生しました: " & Err.Description, vbCritical, "エラー"
 End Sub
@@ -396,7 +400,7 @@ Private Sub EnsureGuideSheet()
     ' ダブルクリック完了
     wsGuide.Cells(11, 1).Value = "■ ダブルクリックでタスク完了"
     wsGuide.Cells(11, 1).Font.Bold = True
-    wsGuide.Cells(12, 1).Value = "No.列(B列) または LV列(A列) をダブルクリックすると、"
+    wsGuide.Cells(12, 1).Value = "No.列(B列) をダブルクリックすると、"
     wsGuide.Cells(13, 1).Value = "そのタスクが完了になります。"
     wsGuide.Cells(14, 1).Value = ""
     wsGuide.Cells(15, 1).Value = "  ・ 状況 → 「完了」"
@@ -588,6 +592,10 @@ Sub DrawGanttBars()
     Dim ws As Worksheet
     Set ws = ActiveSheet
     
+    ' P2修正: 元の設定を保存
+    Dim prevCalc As XlCalculation
+    prevCalc = Application.Calculation
+    
     Application.ScreenUpdating = False
     Application.Calculation = xlCalculationManual
     
@@ -650,8 +658,11 @@ Sub DrawGanttBars()
             startCol = DateToColumn(ganttStartDate, CDate(startPlan), ganttStartCol)
             endCol = DateToColumn(ganttStartDate, CDate(endPlan), ganttStartCol)
             
-            If startCol >= ganttStartCol And startCol <= ganttStartCol + GANTT_DAYS - 1 Then
-                If endCol > ganttStartCol + GANTT_DAYS - 1 Then endCol = ganttStartCol + GANTT_DAYS - 1
+            ' P1修正: 開始が範囲外でも終了が範囲内ならクランプして描画
+            If startCol < ganttStartCol Then startCol = ganttStartCol
+            If endCol > ganttStartCol + GANTT_DAYS - 1 Then endCol = ganttStartCol + GANTT_DAYS - 1
+            
+            If startCol <= ganttStartCol + GANTT_DAYS - 1 And endCol >= ganttStartCol Then
                 If endCol >= startCol Then
                     cellTop = ws.Cells(r, startCol).Top + 2
                     cellLeft = ws.Cells(r, startCol).Left
@@ -810,12 +821,12 @@ Sub DrawGanttBars()
         shp.Fill.Visible = msoFalse
     End If
     
-    Application.Calculation = xlCalculationAutomatic
+    Application.Calculation = prevCalc  ' P2修正: 元設定に復元
     Application.ScreenUpdating = True
     Exit Sub
     
 ErrorHandler:
-    Application.Calculation = xlCalculationAutomatic
+    Application.Calculation = prevCalc  ' P2修正: 元設定に復元
     Application.ScreenUpdating = True
     MsgBox "DrawGanttBars エラー: " & Err.Description, vbCritical, "エラー"
 End Sub
@@ -837,6 +848,10 @@ Sub RefreshInazumaGantt()
     
     Dim ws As Worksheet
     Set ws = ActiveSheet
+    
+    ' P2修正: 元の設定を保存
+    Dim prevCalc As XlCalculation
+    prevCalc = Application.Calculation
     
     Application.ScreenUpdating = False
     Application.Calculation = xlCalculationManual
@@ -868,14 +883,14 @@ Sub RefreshInazumaGantt()
     
     Call DrawGanttBars
     
-    Application.Calculation = xlCalculationAutomatic
+    Application.Calculation = prevCalc  ' P2修正: 元設定に復元
     Application.ScreenUpdating = True
     
     MsgBox "イナズマガント更新完了！", vbInformation, "イナズマガント"
     Exit Sub
     
 ErrorHandler:
-    Application.Calculation = xlCalculationAutomatic
+    Application.Calculation = prevCalc  ' P2修正: 元設定に復元
     Application.ScreenUpdating = True
     MsgBox "更新中にエラーが発生しました: " & Err.Description, vbCritical, "エラー"
 End Sub
@@ -1139,6 +1154,10 @@ Sub ResetFormatting()
     Dim ganttStartCol As Long
     ganttStartCol = Columns(COL_GANTT_START).Column
     
+    ' P2修正: 元の設定を保存
+    Dim prevCalc As XlCalculation
+    prevCalc = Application.Calculation
+    
     Application.ScreenUpdating = False
     Application.Calculation = xlCalculationManual
     
@@ -1155,14 +1174,14 @@ Sub ResetFormatting()
     ApplyDataValidationAndFormats ws, lastRow
     ApplyHolidayColors ws, lastRow
     
-    Application.Calculation = xlCalculationAutomatic
+    Application.Calculation = prevCalc  ' P2修正: 元設定に復元
     Application.ScreenUpdating = True
     
     MsgBox "書式リセット完了！", vbInformation, "リセット"
     Exit Sub
     
 ErrorHandler:
-    Application.Calculation = xlCalculationAutomatic
+    Application.Calculation = prevCalc  ' P2修正: 元設定に復元
     Application.ScreenUpdating = True
     MsgBox "書式リセットエラー: " & Err.Description, vbCritical, "エラー"
 End Sub

@@ -3,24 +3,15 @@
 目的: 既存の不具合/リスクを解消し、配布品質と操作の安全性を上げる。  
 注意: この作業ではビルドは実行しない（修正のみ）。  
 
-## 背景（現状）
-- `output/` 配布物が削除され、READMEの記載と矛盾している。
-- VBAコードに「表示範囲外タスクが描画されない」「ユーザー設定が破壊される」等の問題がある。
+## 更新メモ（2026-01-14時点）
+- `output/` に配布物あり（`output/InazumaGantt_v2.2_20260114_0025.xlsm`）。READMEの「output/ ← ビルド済みExcelファイル」と整合。
+- 未解決の課題は下記の修正対象一覧。
 
 ## 修正対象一覧（優先度順）
 
-### P1: 配布物消失（READMEと不整合）
-- 事象: 追跡済み `.xlsm` が削除され、`output/` に配布物が存在しない。
-- 影響: READMEは配布物がある前提。利用者が実行できない。
-- 参照: `README.md` の「output/ ← ビルド済みExcelファイル」
-- 修正案（いずれか）:
-  1) 最新の `.xlsm` を追跡追加する（推奨）
-  2) 配布物を同梱しない方針にする場合、README/ドキュメントを修正
-- 備考: `git status` で `output/InazumaGantt_v2.2_20260114_0025.xlsm` が未追跡の可能性あり。
-
 ### P1: ガントバーが範囲外開始タスクを描画しない
 - 事象: 開始日がガント表示範囲より前だと、タスクが完全に描画されない。
-- 参照: `vba/InazumaGantt_v2_UTF8.bas` の `DrawGanttBars`（`startCol >= ganttStartCol` の条件）
+- 参照: `vba/InazumaGantt_v2_UTF8.bas` / `vba/統合版/InazumaGantt_Integrated_UTF8.bas` の `DrawGanttBars`（`startCol >= ganttStartCol` の条件）
 - 修正方針:
   - `startCol` が範囲外でも、表示範囲内にかかる部分は描画する。
   - 例: `startCol < ganttStartCol` の場合は `startCol = ganttStartCol` にクランプする。
@@ -28,19 +19,20 @@
 
 ### P1: 既存図形の誤削除リスク
 - 事象: `Bar_`/`Today_`/`Inazuma_` プレフィックスの図形を無条件削除。
-- 参照: `vba/InazumaGantt_v2_UTF8.bas` の `DrawGanttBars`
+- 参照: `vba/InazumaGantt_v2_UTF8.bas` / `vba/統合版/InazumaGantt_Integrated_UTF8.bas` の `DrawGanttBars`
 - 修正方針:
   - 図形名の完全一致リストで削除対象を限定する、または
   - 生成時に一意なタグを持たせ、タグ付きのみ削除。
 
-### P2: 計算モードの強制変更
-- 事象: `Application.Calculation` を強制的に `xlCalculationAutomatic` に戻す。
-- 参照: `SetupInazumaGantt`, `RefreshInazumaGantt`, `ResetFormatting`, `HierarchyColor`
+### P2: 計算モードの強制変更（元設定が戻らない）
+- 事象: `Application.Calculation` を `xlCalculationManual` にした後、常に `xlCalculationAutomatic` へ戻すためユーザー設定が破壊される。
+- 参照: `InazumaGantt_v2_UTF8.bas`（`DrawGanttBars`, `RefreshInazumaGantt`, `SetupInazumaGantt`, `ResetFormatting`）、
+        `DataMigration_UTF8.bas`、`HierarchyColor_UTF8.bas`、統合版同名処理
 - 修正方針:
   - 実行前の状態を保存して、最後に元に戻す。
   - 例: `prevCalc = Application.Calculation` → 処理 → `Application.Calculation = prevCalc`
 
-### P2: ScreenUpdatingの復元漏れ
+### P2: ScreenUpdatingの復元漏れ（エラー時）
 - 事象: エラー時に `ScreenUpdating` が復元されない。
 - 参照: `vba/SetupWizard_UTF8.bas`
 - 修正方針:
@@ -62,13 +54,13 @@
 
 ### P3: PDF出力がPageSetupを戻さない
 - 事象: 既存印刷設定を破壊。
-- 参照: `vba/InazumaGantt_v2_UTF8.bas` の `ExportToPDF`
+- 参照: `vba/InazumaGantt_v2_UTF8.bas` / `vba/統合版/InazumaGantt_Integrated_UTF8.bas` の `ExportToPDF`
 - 修正方針:
   - 変更前の `PageSetup` を保存 → 復元。
 
-### P3: ドキュメントと実装の不整合
-- 事象: ガイドは「A列 or B列ダブルクリックで完了」だが、実装はB列のみ。
-- 参照: `vba/InazumaGantt_v2_UTF8.bas`（ガイド文）と `vba/SheetModule_UTF8.bas`
+### P3: ドキュメント/ガイド文と実装の不整合
+- 事象: ガイド文（シート内ガイド/開発メモ等）に「A列 or B列ダブルクリックで完了」とあるが、実装はB列のみ。
+- 参照: `vba/InazumaGantt_v2_UTF8.bas`（ガイド文）、`dev/docs/InazumaGantt_v2_SheetModule_README.md` と `vba/SheetModule_UTF8.bas`
 - 修正方針:
   - 実装をガイドに合わせるか、ガイド文を修正。
 
@@ -79,7 +71,6 @@
   - 祝日をDictionaryや配列でキャッシュして高速化。
 
 ## 修正後の期待結果（最低限）
-- `output/` の配布物方針とREADMEが一致している。
 - ガント描画で「範囲外開始だが範囲内にかかるタスク」が描画される。
 - マクロ実行前の `Calculation` / `ScreenUpdating` が復元される。
 - 既存図形の誤削除が起こらない。
@@ -88,8 +79,9 @@
 ## 関連ファイル
 - `README.md`
 - `vba/InazumaGantt_v2_UTF8.bas`
+- `vba/統合版/InazumaGantt_Integrated_UTF8.bas`
 - `vba/SheetModule_UTF8.bas`
+- `vba/統合版/SheetModule_Integrated_UTF8.bas`
 - `vba/SetupWizard_UTF8.bas`
 - `vba/DataMigration_UTF8.bas`
 - `vba/HierarchyColor_UTF8.bas`
-
