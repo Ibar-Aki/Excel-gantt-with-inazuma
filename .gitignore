@@ -3,6 +3,8 @@
 ~$*.xlsx
 ~$*.xls
 
+# ビルド成果物
+output/*.xlsm
 # Windowsシステムファイル
 Thumbs.db
 Desktop.ini

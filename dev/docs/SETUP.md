@@ -1,10 +1,10 @@
 # 🚀 セットアップガイド
 
-InazumaGantt v2 のセットアップ手順です。
+InazumaGantt v2.2 のセットアップ手順です。
 
 > [!IMPORTANT]
 > **Excelファイル名は自由に変更可能です**  
-> ただし、**シート名**（`InazumaGantt_v2`、`祝日マスタ`）は変更しないでください。
+> ただし、**シート名**（`InazumaGantt_v2`、`祝日マスタ`、`設定マスタ`）は変更しないでください。
 
 ---
 
@@ -16,6 +16,7 @@ InazumaGantt v2 のセットアップ手順です。
 |----------|------|--------|
 | `InazumaGantt_v2_SJIS.bas` | メイン機能 | ⭐ 必須 |
 | `HierarchyColor_SJIS.bas` | 階層色分け（条件付き書式） | ⭐ 必須 |
+| `SetupWizard_SJIS.bas` | セットアップウィザード | ⭐ 必須 |
 | `SheetModule_SJIS.bas` | シートイベント | ⭐ 必須 |
 | `DataMigration_SJIS.bas` | データ移管 | 任意 |
 
@@ -23,64 +24,85 @@ InazumaGantt v2 のセットアップ手順です。
 
 ---
 
-## セットアップ手順
+## セットアップ手順（推奨：ウィザード使用）
 
 ### ステップ1: VBAモジュールをインポート
 
 1. **Excelファイル（.xlsm）を開く**
 
 2. **VBAエディタを開く**
+
    ```
    Alt + F11
    ```
 
 3. **モジュールをインポート**
+
    ```
    ファイル → ファイルのインポート
    ```
-   
+
    以下を順番にインポート：
    - ✅ `vba/InazumaGantt_v2_SJIS.bas`
    - ✅ `vba/HierarchyColor_SJIS.bas`
+   - ✅ `vba/SetupWizard_SJIS.bas`
 
 4. **確認**
-   
+
    「標準モジュール」に以下が表示されればOK：
+
    ```
    標準モジュール
    ├─ InazumaGantt_v2
-   └─ HierarchyColor
+   ├─ HierarchyColor
+   └─ SetupWizard
    ```
 
-### ステップ2: シートモジュールを設定
-
-1. **VBAエディタで「InazumaGantt_v2」シートをダブルクリック**
-   
-   （まだシートがない場合はステップ3の後に設定）
-
-2. **コードを貼り付け**
-   
-   `vba/SheetModule_SJIS.bas` の内容を全てコピー＆貼り付け
-
-3. **保存して閉じる**
-   ```
-   Ctrl + S → Alt + Q
-   ```
-
-### ステップ3: 初回セットアップを実行
+### ステップ2: セットアップウィザードを実行
 
 1. **Excelに戻る**
 
-2. **マクロを実行**
    ```
-   Alt + F8 → SetupInazumaGantt → 実行
+   Alt + Q
+   ```
+
+2. **ウィザードを実行**
+
+   ```
+   Alt + F8 → RunSetupWizard → 実行
    ```
 
 3. **開始日を入力**（例: `26/01/01`）
 
-4. **階層色分けを設定**
+4. **自動設定される内容:**
+   - メインシート（InazumaGantt_v2）作成
+   - 祝日マスタシート作成
+   - 設定マスタシート作成
+   - 階層色分け（条件付き書式）
+   - ガントチャート描画
+
+### ステップ3: シートモジュールを設定
+
+> ウィザード完了後、シート固有の機能を有効にします。
+
+1. **VBAエディタを開く**
+
    ```
-   Alt + F8 → SetupHierarchyColors → 実行
+   Alt + F11
+   ```
+
+2. **「InazumaGantt_v2」シートをダブルクリック**
+
+   プロジェクトエクスプローラーで「InazumaGantt_v2」シートを探してダブルクリック
+
+3. **コードを貼り付け**
+
+   `vba/SheetModule_SJIS.bas` の内容を全てコピー＆貼り付け
+
+4. **保存して閉じる**
+
+   ```
+   Ctrl + S → Alt + Q
    ```
 
 5. **完了！**
@@ -98,15 +120,19 @@ InazumaGantt v2 のセットアップ手順です。
 | L列 | 完了予定日 |
 
 **自動入力される項目:**
-- B列（No.）: 連番を自動入力
-- H列（状況）: 「未着手」を自動入力
-- I列（進捗率）: 0% を自動入力
+
+- A列（LV）: 階層レベル
+- B列（No.）: 連番
+- H列（状況）: 「未着手」
+- I列（進捗率）: 0%
 
 ### ガントチャートを更新
 
 ```
 Alt + F8 → RefreshInazumaGantt → 実行
 ```
+
+または、シート上部の「**ガント更新**」ボタンをクリック
 
 ---
 
@@ -119,24 +145,32 @@ Alt + F8 → RefreshInazumaGantt → 実行
 
 ---
 
-## セットアップウィザード（簡単セットアップ）
+## v2.2 新機能
 
-対話形式でセットアップを進めたい場合：
+| 機能 | 操作 |
+|------|------|
+| ダブルクリック完了 | B列をダブルクリック → タスク完了 |
+| 折りたたみ | Shift + 右クリック（LV1行のC-F列） |
+| PDF出力 | `ExportToPDF` を実行 |
+| 日付シフト | 日付セルを選択 → `ShiftDates` 実行 |
+| No.再採番 | `RenumberRows` を実行 |
 
-1. `dev/extra_modules/SetupWizard_SJIS.bas` をインポート
-2. `Alt + F8 → RunSetupWizard → 実行`
+### 設定マスタシート
 
-ウィザードは以下を自動実行します：
-- シート作成
-- サンプルデータ追加（任意）
-- 階層色分け設定
-- ガントチャート描画
+「設定マスタ」シートでダブルクリック完了の動作をカスタマイズできます：
+
+| 設定項目 | デフォルト | 効果 |
+|----------|------------|------|
+| 機能有効 | TRUE | ダブルクリック完了のON/OFF |
+| 完了日自動入力 | TRUE | 完了実績日に今日を自動入力 |
+| 取り消し線 | TRUE | タスクに取り消し線を適用 |
+| 灰色変更 | TRUE | タスクを灰色に変更 |
 
 ---
 
 ## トラブルシューティング
 
-問題が発生した場合は [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) を参照。
+問題が発生した場合は [docs/TROUBLESHOOTING.md](../docs/TROUBLESHOOTING.md) を参照。
 
 ---
 
@@ -144,5 +178,5 @@ Alt + F8 → RefreshInazumaGantt → 実行
 
 追加のモジュールやドキュメントは `dev/` フォルダにあります：
 
-- `dev/extra_modules/` - SetupWizard, ErrorHandler, テスト
+- `dev/extra_modules/` - ErrorHandler, テスト
 - `dev/docs/` - システム構成、コード品質ガイド

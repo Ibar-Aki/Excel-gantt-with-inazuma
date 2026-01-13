@@ -22,7 +22,7 @@ InazumaGantt v2.2 で使用するVBAモジュールです。
 |----------|------|
 | `InazumaGantt_v2_SJIS.bas` | メイン機能 |
 | `HierarchyColor_SJIS.bas` | 階層色分け |
-| `SetupWizard_SJIS.bas` | セットアップウィザード（推奨） |
+| `SetupWizard_SJIS.bas` | セットアップウィザード |
 | `SheetModule_SJIS.bas` | シートイベント（※） |
 | `DataMigration_SJIS.bas` | データ移管（任意） |
 
@@ -51,6 +51,8 @@ InazumaGantt v2.2 で使用するVBAモジュールです。
 7. （任意）`DataMigration_SJIS.bas` を選択
 
 ## シートモジュールの設定
+
+> **注意**: シートモジュールはセットアップウィザード実行後に設定してください。
 
 1. VBAエディタで「InazumaGantt_v2」シートをダブルクリック
 2. `SheetModule_SJIS.bas` の内容を全てコピー＆貼り付け
