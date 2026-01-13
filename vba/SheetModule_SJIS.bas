@@ -1,90 +1,136 @@
 ' ==========================================
-'  InazumaGantt_v2 ã‚·ãƒ¼ãƒˆãƒ¢ã‚¸ãƒ¥ãƒ¼ãƒ«ç”¨ã‚³ãƒ¼ãƒ‰
+'  InazumaGantt_v2 ƒV[ƒgƒ‚ƒWƒ…[ƒ‹—pƒR[ƒh
 ' ==========================================
-' ã“ã®ã‚³ãƒ¼ãƒ‰ã¯ã€ŒInazumaGantt_v2ã€ã‚·ãƒ¼ãƒˆã®ã‚·ãƒ¼ãƒˆãƒ¢ã‚¸ãƒ¥ãƒ¼ãƒ«ã«è²¼ã‚Šä»˜ã‘ã¦ãã ã•ã„
+' ‚±‚ÌƒR[ƒh‚ÍuInazumaGantt_v2vƒV[ƒg‚ÌƒV[ƒgƒ‚ƒWƒ…[ƒ‹‚É“\‚è•t‚¯‚Ä‚­‚¾‚³‚¢
 '
-' ã€è¨­å®šæ–¹æ³•ã€‘
-' 1. Excelã§ Alt+F11 ã‚’æŠ¼ã—ã¦VBAã‚¨ãƒ‡ã‚£ã‚¿ã‚’é–‹ã
-' 2. ãƒ—ãƒ­ã‚¸ã‚§ã‚¯ãƒˆã‚¨ã‚¯ã‚¹ãƒ—ãƒ­ãƒ¼ãƒ©ãƒ¼ã§ã€ŒInazumaGantt_v2ã€ã‚·ãƒ¼ãƒˆã‚’ãƒ€ãƒ–ãƒ«ã‚¯ãƒªãƒƒã‚¯
-' 3. é–‹ã„ãŸã‚³ãƒ¼ãƒ‰ã‚¦ã‚£ãƒ³ãƒ‰ã‚¦ã«ä»¥ä¸‹ã®ã‚³ãƒ¼ãƒ‰ã‚’è²¼ã‚Šä»˜ã‘ã‚‹
-' 4. VBAã‚¨ãƒ‡ã‚£ã‚¿ã‚’é–‰ã˜ã‚‹
+' yİ’è•û–@z
+' 1. Excel‚Å Alt+F11 ‚ğ‰Ÿ‚µ‚ÄVBAƒGƒfƒBƒ^‚ğŠJ‚­
+' 2. ƒvƒƒWƒFƒNƒgƒGƒNƒXƒvƒ[ƒ‰[‚ÅuInazumaGantt_v2vƒV[ƒg‚ğƒ_ƒuƒ‹ƒNƒŠƒbƒN
+' 3. ŠJ‚¢‚½ƒR[ƒhƒEƒBƒ“ƒhƒE‚ÉˆÈ‰º‚ÌƒR[ƒh‚ğ“\‚è•t‚¯‚é
+' 4. VBAƒGƒfƒBƒ^‚ğ•Â‚¶‚é
 '
 ' ==========================================
 
-' ãƒ‡ãƒ¼ã‚¿é–‹å§‹è¡Œï¼ˆInazumaGantt_v2ãƒ¢ã‚¸ãƒ¥ãƒ¼ãƒ«ã¨åŒæœŸï¼‰
+' APIéŒ¾iShiftƒL[ŒŸ’m—pj
+#If VBA7 Then
+    Private Declare PtrSafe Function GetKeyState Lib "user32" (ByVal nVirtKey As Long) As Integer
+#Else
+    Private Declare Function GetKeyState Lib "user32" (ByVal nVirtKey As Long) As Integer
+#End If
+
+' ƒf[ƒ^ŠJnsiInazumaGantt_v2ƒ‚ƒWƒ…[ƒ‹‚Æ“¯Šúj
 Private Const ROW_DATA_START As Long = 9
 
 Private Sub Worksheet_BeforeDoubleClick(ByVal Target As Range, Cancel As Boolean)
-    ' ã‚¿ã‚¹ã‚¯è¡Œã®ãƒ€ãƒ–ãƒ«ã‚¯ãƒªãƒƒã‚¯ã§å®Œäº†å‡¦ç†ã‚’å®Ÿè¡Œ
-    ' â€» No.åˆ—(B)ã¾ãŸã¯LVåˆ—(A)ã®ã¿æœ‰åŠ¹ï¼ˆèª¤æ“ä½œé˜²æ­¢ï¼‰
+    ' ƒ^ƒXƒNs‚Ìƒ_ƒuƒ‹ƒNƒŠƒbƒNˆ—
+    ' B—ñ: Š®—¹ˆ—
     On Error GoTo ErrorHandler
     
     If Target.Row < ROW_DATA_START Then Exit Sub
     
-    ' Aåˆ—(1) or Båˆ—(2) ã®ã¿å¯¾è±¡
-    If Target.Column <> 1 And Target.Column <> 2 Then Exit Sub
+    ' B—ñ(2): Š®—¹ˆ—
+    If Target.Column <> 2 Then Exit Sub
     
-    ' æ—¢ã«å®Œäº†æ¸ˆã¿ã®å ´åˆã¯å¤‰æ›´ã—ãªã„ï¼ˆèª¤æ“ä½œé˜²æ­¢ï¼‰
-    If Me.Cells(Target.Row, "H").Value = "å®Œäº†" Then Exit Sub
+    ' İ’èƒ}ƒXƒ^‚©‚ç‹@”\—LŒø‚ğŠm”F
+    If Not InazumaGantt_v2.GetSettingValue(3) Then Exit Sub
     
-    ' é€²æ—ç‡ã‚’100%ã«
+    ' Šù‚ÉŠ®—¹Ï‚İ‚Ìê‡‚Í•ÏX‚µ‚È‚¢
+    If Me.Cells(Target.Row, "H").Value = "Š®—¹" Then Exit Sub
+    
+    Application.EnableEvents = False
+    
+    ' i’»—¦‚ğ100%‚É
     Me.Cells(Target.Row, "I").Value = 1
     
-    ' çŠ¶æ³ã‚’ã€Œå®Œäº†ã€ã«
-    Me.Cells(Target.Row, "H").Value = "å®Œäº†"
+    ' ó‹µ‚ğuŠ®—¹v‚É
+    Me.Cells(Target.Row, "H").Value = "Š®—¹"
     
-    ' é–‹å§‹å®Ÿç¸¾ãŒã‚ã‚‹å ´åˆã€å®Œäº†å®Ÿç¸¾ã«ä»Šæ—¥ã‚’è¨­å®šï¼ˆç©ºã®å ´åˆã®ã¿ï¼‰
-    If IsDate(Me.Cells(Target.Row, "M").Value) Then
-        If Trim(CStr(Me.Cells(Target.Row, "N").Value)) = "" Then
-            Me.Cells(Target.Row, "N").Value = Date
+    ' İ’èFŠ®—¹“ú©“®“ü—Í
+    If InazumaGantt_v2.GetSettingValue(4) Then
+        If IsDate(Me.Cells(Target.Row, "M").Value) Then
+            If Trim$(CStr(Me.Cells(Target.Row, "N").Value)) = "" Then
+                Me.Cells(Target.Row, "N").Value = Date
+            End If
         End If
     End If
     
+    ' İ’èFæ‚èÁ‚µü
+    If InazumaGantt_v2.GetSettingValue(5) Then
+        Me.Range("C" & Target.Row & ":F" & Target.Row).Font.Strikethrough = True
+    End If
+    
+    ' İ’èF”Z‚¢ŠDF‚É•ÏX
+    If InazumaGantt_v2.GetSettingValue(6) Then
+        Me.Range("C" & Target.Row & ":F" & Target.Row).Font.Color = RGB(128, 128, 128)
+    End If
+    
+    Application.EnableEvents = True
     Cancel = True
     Exit Sub
     
 ErrorHandler:
-    ' ã‚¨ãƒ©ãƒ¼ã¯ç„¡è¦–
+    Application.EnableEvents = True
+End Sub
+
+Private Sub Worksheet_BeforeRightClick(ByVal Target As Range, Cancel As Boolean)
+    ' Shift + ‰EƒNƒŠƒbƒN: Ü‚è‚½‚½‚İ/“WŠJ
+    On Error GoTo ErrorHandler
+    
+    ' ShiftƒL[‚ª‰Ÿ‚³‚ê‚Ä‚¢‚È‚¢ê‡‚Í’Êí‚Ì‰EƒNƒŠƒbƒNƒƒjƒ…[
+    If (GetKeyState(vbKeyShift) And &H8000) = 0 Then Exit Sub
+    
+    If Target.Row < ROW_DATA_START Then Exit Sub
+    
+    ' C-F—ñ(3-6)‚Å‚Ì‚İ—LŒø
+    If Target.Column < 3 Or Target.Column > 6 Then Exit Sub
+    
+    InazumaGantt_v2.ToggleTaskCollapse Target.Row
+    Cancel = True
+    Exit Sub
+    
+ErrorHandler:
+    ' ƒGƒ‰[‚Í–³‹
 End Sub
 
 Private Sub Worksheet_Change(ByVal Target As Range)
+
     On Error GoTo ErrorHandler
     
     Application.EnableEvents = False
     
-    ' ã‚¿ã‚¹ã‚¯å…¥åŠ›åˆ—ï¼ˆCï½Fåˆ—ï¼‰ã«å¤‰æ›´ãŒã‚ã£ãŸå ´åˆ
+    ' ƒ^ƒXƒN“ü—Í—ñiC`F—ñj‚É•ÏX‚ª‚ ‚Á‚½ê‡
     If Not Intersect(Target, Me.Range("C:F")) Is Nothing Then
         Dim cell As Range
         For Each cell In Intersect(Target, Me.Range("C:F"))
             If cell.Row >= ROW_DATA_START Then
-                ' ã‚¿ã‚¹ã‚¯ãŒå…¥åŠ›ã•ã‚ŒãŸå ´åˆ
+                ' ƒ^ƒXƒN‚ª“ü—Í‚³‚ê‚½ê‡
                 If Trim$(CStr(cell.Value)) <> "" Then
-                    ' éšå±¤ã‚’è‡ªå‹•åˆ¤å®š
+                    ' ŠK‘w‚ğ©“®”»’è
                     InazumaGantt_v2.AutoDetectTaskLevel cell.Row
                     
-                    ' No.ãŒç©ºãªã‚‰è‡ªå‹•å…¥åŠ›
+                    ' No.‚ª‹ó‚È‚ç©“®“ü—Í
                     If Trim$(CStr(Me.Cells(cell.Row, "B").Value)) = "" Then
                         Me.Cells(cell.Row, "B").Value = GetNextNo()
                     End If
                     
-                    ' é€²æ—ç‡ãŒç©ºãªã‚‰0%ã‚’å…¥åŠ›
+                    ' i’»—¦‚ª‹ó‚È‚ç0%‚ğ“ü—Í
                     If Trim$(CStr(Me.Cells(cell.Row, "I").Value)) = "" Then
                         Me.Cells(cell.Row, "I").Value = 0
                     End If
                     
-                    ' çŠ¶æ³ãŒç©ºãªã‚‰ã€Œæœªç€æ‰‹ã€ã‚’å…¥åŠ›
+                    ' ó‹µ‚ª‹ó‚È‚çu–¢’…èv‚ğ“ü—Í
                     If Trim$(CStr(Me.Cells(cell.Row, "H").Value)) = "" Then
-                        Me.Cells(cell.Row, "H").Value = "æœªç€æ‰‹"
+                        Me.Cells(cell.Row, "H").Value = "–¢’…è"
                     End If
                 Else
-                    ' ã‚¿ã‚¹ã‚¯ãŒå‰Šé™¤ã•ã‚ŒãŸå ´åˆã‚‚éšå±¤ã‚’æ›´æ–°
+                    ' ƒ^ƒXƒN‚ªíœ‚³‚ê‚½ê‡‚àŠK‘w‚ğXV
                     InazumaGantt_v2.AutoDetectTaskLevel cell.Row
                 End If
             End If
         Next cell
     End If
     
-    ' é€²æ—ç‡åˆ—ï¼ˆIåˆ—ï¼‰ã«å¤‰æ›´ãŒã‚ã£ãŸå ´åˆã€çŠ¶æ³ã‚’è‡ªå‹•æ›´æ–°
+    ' i’»—¦—ñiI—ñj‚É•ÏX‚ª‚ ‚Á‚½ê‡Aó‹µ‚ğ©“®XV
     If Not Intersect(Target, Me.Columns("I")) Is Nothing Then
         Dim progressCell As Range
         For Each progressCell In Intersect(Target, Me.Columns("I"))
@@ -94,7 +140,7 @@ Private Sub Worksheet_Change(ByVal Target As Range)
         Next progressCell
     End If
     
-    ' äºˆå®šæ—¥ä»˜åˆ—ï¼ˆK, Låˆ—ï¼‰ã«åœŸæ—¥ç¥æ—¥ã‚’å…¥åŠ›ã—ãŸå ´åˆã«ç¢ºèªãƒ¡ãƒƒã‚»ãƒ¼ã‚¸
+    ' —\’è“ú•t—ñiK, L—ñj‚É“y“új“ú‚ğ“ü—Í‚µ‚½ê‡‚ÉŠm”FƒƒbƒZ[ƒW
     If Not Intersect(Target, Me.Range("K:L")) Is Nothing Then
         Dim dateCell As Range
         Dim inputDate As Date
@@ -111,15 +157,15 @@ Private Sub Worksheet_Change(ByVal Target As Range)
                     
                     If isWeekend Or isHoliday Then
                         If isHoliday Then
-                            warningMsg = "ç¥æ—¥"
+                            warningMsg = "j“ú"
                         ElseIf Weekday(inputDate, vbMonday) = 6 Then
-                            warningMsg = "åœŸæ›œæ—¥"
+                            warningMsg = "“y—j“ú"
                         Else
-                            warningMsg = "æ—¥æ›œæ—¥"
+                            warningMsg = "“ú—j“ú"
                         End If
                         
-                        If MsgBox(Format(inputDate, "yy/mm/dd") & " ã¯ " & warningMsg & " ã§ã™ã€‚" & vbCrLf & _
-                                  "ã“ã®æ—¥ä»˜ã‚’å…¥åŠ›ã—ã¾ã™ã‹ï¼Ÿ", vbYesNo + vbQuestion, "ç¢ºèª") = vbNo Then
+                        If MsgBox(Format(inputDate, "yy/mm/dd") & " ‚Í " & warningMsg & " ‚Å‚·B" & vbCrLf & _
+                                  "‚±‚Ì“ú•t‚ğ“ü—Í‚µ‚Ü‚·‚©H", vbYesNo + vbQuestion, "Šm”F") = vbNo Then
                             Application.EnableEvents = False
                             dateCell.ClearContents
                             Application.EnableEvents = True
@@ -138,12 +184,12 @@ ErrorHandler:
 End Sub
 
 ' ==========================================
-'  ç¥æ—¥ãƒã‚§ãƒƒã‚¯
+'  j“úƒ`ƒFƒbƒN
 ' ==========================================
 Private Function CheckHoliday(ByVal targetDate As Date) As Boolean
     Dim wsHoliday As Worksheet
     On Error Resume Next
-    Set wsHoliday = ThisWorkbook.Worksheets("ç¥æ—¥ãƒã‚¹ã‚¿")
+    Set wsHoliday = ThisWorkbook.Worksheets("j“úƒ}ƒXƒ^")
     On Error GoTo 0
     
     CheckHoliday = False
@@ -172,7 +218,7 @@ Private Sub UpdateStatusByProgress(ByVal targetRow As Long)
     progressValue = Me.Cells(targetRow, "I").Value
     
     If Trim$(CStr(progressValue)) = "" Then
-        Me.Cells(targetRow, "H").Value = "æœªç€æ‰‹"
+        Me.Cells(targetRow, "H").Value = "–¢’…è"
         Exit Sub
     End If
     
@@ -186,23 +232,23 @@ Private Sub UpdateStatusByProgress(ByVal targetRow As Long)
         rate = CDbl(textValue)
     End If
     
-    ' 100è¶…ã®å€¤ã¯å‰²åˆã¨ã—ã¦æ‰±ã†
+    ' 100’´‚Ì’l‚ÍŠ„‡‚Æ‚µ‚Äˆµ‚¤
     If rate > 1 Then rate = rate / 100
     If rate < 0 Then rate = 0
     If rate > 1 Then rate = 1
     
-    ' çŠ¶æ³ã‚’è¨­å®š
+    ' ó‹µ‚ğİ’è
     If rate >= 1 Then
-        Me.Cells(targetRow, "H").Value = "å®Œäº†"
+        Me.Cells(targetRow, "H").Value = "Š®—¹"
     ElseIf rate <= 0 Then
-        Me.Cells(targetRow, "H").Value = "æœªç€æ‰‹"
+        Me.Cells(targetRow, "H").Value = "–¢’…è"
     Else
-        Me.Cells(targetRow, "H").Value = "é€²è¡Œä¸­"
+        Me.Cells(targetRow, "H").Value = "is’†"
     End If
 End Sub
 
 ' ==========================================
-'  æ¬¡ã®No.ã‚’å–å¾—
+'  Ÿ‚ÌNo.‚ğæ“¾
 ' ==========================================
 Private Function GetNextNo() As Long
     Dim lastNo As Long
@@ -211,7 +257,7 @@ Private Function GetNextNo() As Long
     
     lastNo = 0
     
-    ' Båˆ—ã‹ã‚‰æœ€å¤§ã®No.ã‚’æ¢ã™
+    ' B—ñ‚©‚çÅ‘å‚ÌNo.‚ğ’T‚·
     For r = ROW_DATA_START To Me.Cells(Me.Rows.Count, "B").End(xlUp).Row
         cellValue = Me.Cells(r, "B").Value
         If IsNumeric(cellValue) Then

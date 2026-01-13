@@ -5,6 +5,28 @@ All notable changes to InazumaGantt v2 will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2026-01-14
+
+### Added
+
+- **設定マスタシート**: ダブルクリック完了の動作を制御（`EnsureSettingsSheet`）
+- **タスク折りたたみ**: Shift+右クリックでLV1配下を非表示/表示（`ToggleTaskCollapse`）
+- **No.自動採番**: 行挿入後も連番維持（`RenumberRows`）
+- **日付一括シフト**: 祝日マスタ考慮の営業日シフト（`ShiftDates`）
+- **PDF出力**: 当月末までのガントを含む出力（`ExportToPDF`）
+- **日付ヘッダー再生成**: 開始日変更時に自動更新（`RegenerateDateHeaders`）
+- **バリデーション機能**: 日付・進捗率の入力チェック
+
+### Changed
+
+- **RefreshInazumaGantt**: 日付ヘッダー再生成と色クリア処理を追加
+- **ResetFormatting**: ガント領域の色をクリアしてから再塗り
+- **SetupWizard**: 設定マスタシートを自動作成
+
+### Fixed
+
+- **休日色塗り問題**: 開始日変更後も正しく色塗り
+
 ## [2.1.0] - 2026-01-05
 
 ### Added

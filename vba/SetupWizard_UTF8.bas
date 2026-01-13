@@ -55,6 +55,9 @@ Sub RunSetupWizard()
     
     Application.ScreenUpdating = False
     
+    ' v2.2: 設定マスタシートを作成
+    InazumaGantt_v2.EnsureSettingsSheet
+    
     ' 階層色分けの条件付き書式を設定
     HierarchyColor.SetupHierarchyColors
     
@@ -66,16 +69,19 @@ Sub RunSetupWizard()
     ' ステップ5: 完了
     MsgBox "セットアップウィザードが完了しました！" & vbCrLf & vbCrLf & _
            "以下の設定が完了しました:" & vbCrLf & _
-           "- シート作成" & vbCrLf & _
+           "- シート作成（メイン、祝日マスタ、設定マスタ）" & vbCrLf & _
            "- 階層色分け（条件付き書式）" & vbCrLf & _
            "- ガントチャート描画" & vbCrLf & vbCrLf & _
-           "タスクを入力して RefreshInazumaGantt を実行してください。", _
+           "【シートモジュールの設定】" & vbCrLf & _
+           "ダブルクリック完了・折りたたみ機能を使うには、" & vbCrLf & _
+           "SheetModule_SJIS.bas をシートモジュールに貼り付けてください。", _
            vbInformation, "セットアップ完了"
     Exit Sub
     
 ErrorHandler:
     MsgBox "セットアップ中にエラーが発生しました: " & Err.Description, vbCritical, "エラー"
 End Sub
+
 
 ' ==========================================
 '  メインシートの作成

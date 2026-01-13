@@ -1,4 +1,4 @@
-﻿Attribute VB_Name = "InazumaGantt_v2"
+﻿Attribute VB_Name = "InazumaGantt_Integrated"
 Option Explicit
 
 ' ==========================================
@@ -1594,3 +1594,582 @@ Public Sub ValidateProgressInput(ByVal ws As Worksheet, ByVal Target As Range)
     End If
 End Sub
 
+
+
+' ============================================================================
+' # HierarchyColor Module
+' ============================================================================
+' ==========================================
+'  階層色分けモジュール（条件付き書式版）
+' ==========================================
+' このモジュールは条件付き書式を設定します。
+' 一度実行すれば、以降は自動的に色分けが適用されます。
+' 
+' 塗り範囲ルール:
+'   LV1 (A列=1): C～N列を塗る
+'   LV2 (A列=2): D～N列を塗る
+'   LV3 (A列=3): E～N列を塗る
+'   LV4 (A列=4): F～N列を塗る
+
+' 階層別の色定義
+Public Const COLOR_LV1 As Long = 14083324  ' RGB(252,228,214) サーモン
+Public Const COLOR_LV2 As Long = 15983322  ' RGB(218,227,243) 薄い青
+Public Const COLOR_LV3 As Long = 14348514  ' RGB(226,239,218) 薄い緑
+Public Const COLOR_LV4 As Long = 13434879  ' RGB(255,242,204) 薄い黄色
+
+' 色塗り終了列（ガント開始列の手前）
+Public Const COL_COLOR_END As String = "N"
+
+' ==========================================
+'  階層色分けの条件付き書式を設定
+' ==========================================
+Sub SetupHierarchyColors()
+    On Error GoTo ErrorHandler
+    
+    Dim ws As Worksheet
+    Set ws = ActiveSheet
+    
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
+    
+    Dim lastRow As Long
+    lastRow = ROW_DATA_START + DATA_ROWS_DEFAULT - 1
+    
+    ' 既存の条件付き書式をクリア（B～N列）
+    ws.Range("B" & ROW_DATA_START & ":" & COL_COLOR_END & lastRow).FormatConditions.Delete
+    
+    ' LV1: A列が1のとき、C～N列をサーモン色に
+    Dim rangeLV1 As Range
+    Set rangeLV1 = ws.Range("C" & ROW_DATA_START & ":" & COL_COLOR_END & lastRow)
+    Dim cf1 As FormatCondition
+    Set cf1 = rangeLV1.FormatConditions.Add(Type:=xlExpression, _
+        Formula1:="=$A" & ROW_DATA_START & "=1")
+    cf1.Interior.Color = COLOR_LV1
+    cf1.StopIfTrue = True
+    
+    ' LV2: A列が2のとき、D～N列を薄い青に
+    Dim rangeLV2 As Range
+    Set rangeLV2 = ws.Range("D" & ROW_DATA_START & ":" & COL_COLOR_END & lastRow)
+    Dim cf2 As FormatCondition
+    Set cf2 = rangeLV2.FormatConditions.Add(Type:=xlExpression, _
+        Formula1:="=$A" & ROW_DATA_START & "=2")
+    cf2.Interior.Color = COLOR_LV2
+    cf2.StopIfTrue = True
+    
+    ' LV3: A列が3のとき、E～N列を薄い緑に
+    Dim rangeLV3 As Range
+    Set rangeLV3 = ws.Range("E" & ROW_DATA_START & ":" & COL_COLOR_END & lastRow)
+    Dim cf3 As FormatCondition
+    Set cf3 = rangeLV3.FormatConditions.Add(Type:=xlExpression, _
+        Formula1:="=$A" & ROW_DATA_START & "=3")
+    cf3.Interior.Color = COLOR_LV3
+    cf3.StopIfTrue = True
+    
+    ' LV4: A列が4のとき、F～N列を薄い黄色に
+    Dim rangeLV4 As Range
+    Set rangeLV4 = ws.Range("F" & ROW_DATA_START & ":" & COL_COLOR_END & lastRow)
+    Dim cf4 As FormatCondition
+    Set cf4 = rangeLV4.FormatConditions.Add(Type:=xlExpression, _
+        Formula1:="=$A" & ROW_DATA_START & "=4")
+    cf4.Interior.Color = COLOR_LV4
+    cf4.StopIfTrue = True
+    
+    Application.Calculation = xlCalculationAutomatic
+    Application.ScreenUpdating = True
+    
+    MsgBox "階層色分けの条件付き書式を設定しました！" & vbCrLf & vbCrLf & _
+           "塗り範囲ルール:" & vbCrLf & _
+           "  LV1: C～N列" & vbCrLf & _
+           "  LV2: D～N列" & vbCrLf & _
+           "  LV3: E～N列" & vbCrLf & _
+           "  LV4: F～N列", vbInformation, "階層色分け"
+    Exit Sub
+    
+ErrorHandler:
+    Application.Calculation = xlCalculationAutomatic
+    Application.ScreenUpdating = True
+    MsgBox "条件付き書式設定エラー: " & Err.Description, vbCritical, "エラー"
+End Sub
+
+' ==========================================
+'  階層色分けの条件付き書式をクリア
+' ==========================================
+Sub ClearHierarchyColors()
+    On Error GoTo ErrorHandler
+    
+    Dim ws As Worksheet
+    Set ws = ActiveSheet
+    
+    Dim lastRow As Long
+    lastRow = ROW_DATA_START + DATA_ROWS_DEFAULT - 1
+    
+    ' 対象範囲の条件付き書式をクリア（B～N列）
+    ws.Range("B" & ROW_DATA_START & ":" & COL_COLOR_END & lastRow).FormatConditions.Delete
+    
+    MsgBox "階層色分けの条件付き書式をクリアしました！", vbInformation, "階層色分け"
+    Exit Sub
+    
+ErrorHandler:
+    MsgBox "クリアエラー: " & Err.Description, vbCritical, "エラー"
+End Sub
+
+' ==========================================
+'  旧互換: ApplyHierarchyColors
+' ==========================================
+' 旧バージョンとの互換性のため、SetupHierarchyColorsを呼び出す
+Sub ApplyHierarchyColors()
+    Call SetupHierarchyColors
+End Sub
+
+
+' ============================================================================
+' # DataMigration Module
+' ============================================================================
+' ==========================================
+'  データ移管モジュール
+' ==========================================
+' 既存のガントチャート形式からv2形式へデータを移管する
+
+' ==========================================
+'  v2形式への移管実行
+' ==========================================
+Sub MigrateToV2Format()
+    On Error GoTo ErrorHandler
+    
+    Dim oldSheet As Worksheet
+    Dim newSheet As Worksheet
+    
+    Set oldSheet = ActiveSheet
+    
+    ' 確認
+    Dim result As VbMsgBoxResult
+    result = MsgBox("このシートのデータをv2形式に移管しますか？" & vbCrLf & vbCrLf & _
+                   "移管元: " & oldSheet.Name & vbCrLf & _
+                   "移管先: InazumaGantt_v2 シート（新規作成）", _
+                   vbQuestion + vbYesNo, "データ移管")
+    
+    If result <> vbYes Then
+        MsgBox "移管をキャンセルしました。", vbInformation
+        Exit Sub
+    End If
+    
+    ' v2シートを取得または作成
+    On Error Resume Next
+    Set newSheet = ThisWorkbook.Worksheets(MAIN_SHEET_NAME)
+    On Error GoTo ErrorHandler
+    
+    If newSheet Is Nothing Then
+        Set newSheet = ThisWorkbook.Worksheets.Add(After:=oldSheet)
+        newSheet.Name = MAIN_SHEET_NAME
+    End If
+    
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
+    
+    ' 移管処理
+    Dim oldRow As Long, newRow As Long
+    Dim lastOldRow As Long
+    
+    ' 元データの最終行を取得（C列基準）
+    lastOldRow = oldSheet.Cells(oldSheet.Rows.Count, "C").End(xlUp).Row
+    If lastOldRow < 2 Then lastOldRow = 2
+    
+    ' データ行の開始（v2形式）
+    newRow = ROW_DATA_START
+    
+    ' ヘッダー行をスキップして移管
+    For oldRow = 2 To lastOldRow
+        ' 空行はスキップ
+        If Trim$(CStr(oldSheet.Cells(oldRow, "C").Value)) <> "" Then
+            ' タスク名（C列）
+            newSheet.Cells(newRow, "C").Value = oldSheet.Cells(oldRow, "C").Value
+            
+            ' 可能な列をマッピング
+            If oldSheet.Cells(1, "D").Value Like "*詳細*" Or oldSheet.Cells(1, "D").Value Like "*内容*" Then
+                newSheet.Cells(newRow, "G").Value = oldSheet.Cells(oldRow, "D").Value
+            End If
+            
+            ' 日付列のマッピング
+            MapDateColumns oldSheet, newSheet, oldRow, newRow
+            
+            ' 進捗率のマッピング
+            MapProgressColumn oldSheet, newSheet, oldRow, newRow
+            
+            ' 担当者のマッピング
+            MapAssigneeColumn oldSheet, newSheet, oldRow, newRow
+            
+            newRow = newRow + 1
+        End If
+    Next oldRow
+    
+    Application.Calculation = xlCalculationAutomatic
+    Application.ScreenUpdating = True
+    
+    ' 階層自動判定
+    newSheet.Activate
+    AutoDetectTaskLevel
+    
+    MsgBox "移管完了！" & vbCrLf & vbCrLf & _
+           "移管元: " & oldSheet.Name & vbCrLf & _
+           "移管先: " & newSheet.Name & vbCrLf & _
+           "移管行数: " & (newRow - ROW_DATA_START), _
+           vbInformation, "データ移管"
+    Exit Sub
+    
+ErrorHandler:
+    Application.Calculation = xlCalculationAutomatic
+    Application.ScreenUpdating = True
+    MsgBox "移管エラー: " & Err.Description, vbCritical, "エラー"
+End Sub
+
+' ==========================================
+'  日付列のマッピング
+' ==========================================
+Private Sub MapDateColumns(ByVal oldSheet As Worksheet, ByVal newSheet As Worksheet, ByVal oldRow As Long, ByVal newRow As Long)
+    Dim col As Long
+    
+    For col = 1 To oldSheet.Cells(1, oldSheet.Columns.Count).End(xlToLeft).Column
+        Dim header As String
+        header = CStr(oldSheet.Cells(1, col).Value)
+        
+        If header Like "*開始予定*" Or header Like "*Start*" Then
+            If IsDate(oldSheet.Cells(oldRow, col).Value) Then
+                newSheet.Cells(newRow, "K").Value = oldSheet.Cells(oldRow, col).Value
+            End If
+        ElseIf header Like "*完了予定*" Or header Like "*End*" Or header Like "*終了予定*" Then
+            If IsDate(oldSheet.Cells(oldRow, col).Value) Then
+                newSheet.Cells(newRow, "L").Value = oldSheet.Cells(oldRow, col).Value
+            End If
+        ElseIf header Like "*開始実績*" Then
+            If IsDate(oldSheet.Cells(oldRow, col).Value) Then
+                newSheet.Cells(newRow, "M").Value = oldSheet.Cells(oldRow, col).Value
+            End If
+        ElseIf header Like "*完了実績*" Then
+            If IsDate(oldSheet.Cells(oldRow, col).Value) Then
+                newSheet.Cells(newRow, "N").Value = oldSheet.Cells(oldRow, col).Value
+            End If
+        End If
+    Next col
+End Sub
+
+' ==========================================
+'  進捗率のマッピング
+' ==========================================
+Private Sub MapProgressColumn(ByVal oldSheet As Worksheet, ByVal newSheet As Worksheet, ByVal oldRow As Long, ByVal newRow As Long)
+    Dim col As Long
+    
+    For col = 1 To oldSheet.Cells(1, oldSheet.Columns.Count).End(xlToLeft).Column
+        Dim header As String
+        header = CStr(oldSheet.Cells(1, col).Value)
+        
+        If header Like "*進捗*" Or header Like "*Progress*" Then
+            Dim progressValue As Variant
+            progressValue = oldSheet.Cells(oldRow, col).Value
+            
+            If IsNumeric(progressValue) Then
+                Dim rate As Double
+                rate = CDbl(progressValue)
+                If rate > 1 Then rate = rate / 100
+                newSheet.Cells(newRow, "I").Value = rate
+            End If
+            Exit For
+        End If
+    Next col
+End Sub
+
+' ==========================================
+'  担当者のマッピング
+' ==========================================
+Private Sub MapAssigneeColumn(ByVal oldSheet As Worksheet, ByVal newSheet As Worksheet, ByVal oldRow As Long, ByVal newRow As Long)
+    Dim col As Long
+    
+    For col = 1 To oldSheet.Cells(1, oldSheet.Columns.Count).End(xlToLeft).Column
+        Dim header As String
+        header = CStr(oldSheet.Cells(1, col).Value)
+        
+        If header Like "*担当*" Or header Like "*Assignee*" Then
+            newSheet.Cells(newRow, "J").Value = oldSheet.Cells(oldRow, col).Value
+            Exit For
+        End If
+    Next col
+End Sub
+
+
+' ============================================================================
+' # SetupWizard Module
+' ============================================================================
+' ==========================================
+'  セットアップウィザードモジュール
+' ==========================================
+' 対話形式でセットアップを進めるウィザード機能
+' ==========================================
+
+' ==========================================
+'  ウィザード実行
+' ==========================================
+Sub RunSetupWizard()
+    On Error GoTo ErrorHandler
+    
+    Dim result As VbMsgBoxResult
+    
+    ' ステップ1: 開始確認
+    result = MsgBox("InazumaGantt セットアップウィザードへようこそ！" & vbCrLf & vbCrLf & _
+                   "このウィザードでは以下を設定します:" & vbCrLf & _
+                   "1. メインシートの作成" & vbCrLf & _
+                   "2. 祝日マスタシートの作成" & vbCrLf & _
+                   "3. サンプルデータの追加（任意）" & vbCrLf & vbCrLf & _
+                   "続行しますか？", _
+                   vbQuestion + vbYesNo, "セットアップウィザード")
+    
+    If result <> vbYes Then
+        MsgBox "セットアップをキャンセルしました。", vbInformation
+        Exit Sub
+    End If
+    
+    ' ステップ2: シート作成確認
+    result = MsgBox("新しいシート「InazumaGantt_v2」を作成しますか？" & vbCrLf & vbCrLf & _
+                   "注意: 同名のシートが既に存在する場合は上書きされません。", _
+                   vbQuestion + vbYesNo, "ステップ 1/3: シート作成")
+    
+    If result = vbYes Then
+        CreateMainSheet
+    End If
+    
+    ' ステップ3: サンプルデータ
+    result = MsgBox("サンプルデータを追加しますか？" & vbCrLf & vbCrLf & _
+                   "サンプルデータには以下が含まれます:" & vbCrLf & _
+                   "- 3つのフェーズ（LV1）" & vbCrLf & _
+                   "- 各フェーズに2-3個のタスク（LV2-LV3）", _
+                   vbQuestion + vbYesNo, "ステップ 2/3: サンプルデータ")
+    
+    If result = vbYes Then
+        AddSampleData
+    End If
+    
+    ' ステップ4: 階層色分けとガント描画を自動実行
+    ' まずメインシートをアクティブにする
+    ThisWorkbook.Worksheets(MAIN_SHEET_NAME).Activate
+    
+    Application.ScreenUpdating = False
+    
+    ' v2.2: 設定マスタシートを作成
+    EnsureSettingsSheet
+    
+    ' 階層色分けの条件付き書式を設定
+    SetupHierarchyColors
+    
+    ' ガントチャートを描画
+    RefreshInazumaGantt
+    
+    Application.ScreenUpdating = True
+    
+    ' ステップ5: 完了
+    MsgBox "セットアップウィザードが完了しました！" & vbCrLf & vbCrLf & _
+           "以下の設定が完了しました:" & vbCrLf & _
+           "- シート作成（メイン、祝日マスタ、設定マスタ）" & vbCrLf & _
+           "- 階層色分け（条件付き書式）" & vbCrLf & _
+           "- ガントチャート描画" & vbCrLf & vbCrLf & _
+           "【シートモジュールの設定】" & vbCrLf & _
+           "ダブルクリック完了・折りたたみ機能を使うには、" & vbCrLf & _
+           "SheetModule_SJIS.bas をシートモジュールに貼り付けてください。", _
+           vbInformation, "セットアップ完了"
+    Exit Sub
+    
+ErrorHandler:
+    MsgBox "セットアップ中にエラーが発生しました: " & Err.Description, vbCritical, "エラー"
+End Sub
+
+
+' ==========================================
+'  メインシートの作成
+' ==========================================
+Private Sub CreateMainSheet()
+    Dim ws As Worksheet
+    
+    On Error Resume Next
+    Set ws = ThisWorkbook.Worksheets(MAIN_SHEET_NAME)
+    On Error GoTo 0
+    
+    If ws Is Nothing Then
+        Set ws = ThisWorkbook.Worksheets.Add
+        ws.Name = MAIN_SHEET_NAME
+    End If
+    
+    ws.Activate
+    SetupInazumaGantt
+End Sub
+
+' ==========================================
+'  サンプルデータの追加
+' ==========================================
+Private Sub AddSampleData()
+    On Error GoTo ErrorHandler
+    
+    Dim ws As Worksheet
+    ' ActiveSheetではなく、明示的にメインシートを指定
+    Set ws = ThisWorkbook.Worksheets(MAIN_SHEET_NAME)
+    
+    Dim startRow As Long
+    startRow = ROW_DATA_START
+    
+    Dim baseDate As Date
+    baseDate = Date  ' 今日を基準にする
+    
+    ' フェーズ1: 計画フェーズ
+    ws.Cells(startRow, "C").Value = "計画フェーズ"
+    ws.Cells(startRow, "H").Value = "完了"
+    ws.Cells(startRow, "I").Value = 1
+    ws.Cells(startRow, "J").Value = "山田"
+    ws.Cells(startRow, "K").Value = baseDate - 14
+    ws.Cells(startRow, "L").Value = baseDate - 7
+    ws.Cells(startRow, "M").Value = baseDate - 14
+    ws.Cells(startRow, "N").Value = baseDate - 8
+    
+    ws.Cells(startRow + 1, "D").Value = "要件定義"
+    ws.Cells(startRow + 1, "H").Value = "完了"
+    ws.Cells(startRow + 1, "I").Value = 1
+    ws.Cells(startRow + 1, "J").Value = "山田"
+    ws.Cells(startRow + 1, "K").Value = baseDate - 14
+    ws.Cells(startRow + 1, "L").Value = baseDate - 10
+    ws.Cells(startRow + 1, "M").Value = baseDate - 14
+    ws.Cells(startRow + 1, "N").Value = baseDate - 10
+    
+    ws.Cells(startRow + 2, "D").Value = "設計書作成"
+    ws.Cells(startRow + 2, "H").Value = "完了"
+    ws.Cells(startRow + 2, "I").Value = 1
+    ws.Cells(startRow + 2, "J").Value = "鈴木"
+    ws.Cells(startRow + 2, "K").Value = baseDate - 10
+    ws.Cells(startRow + 2, "L").Value = baseDate - 7
+    ws.Cells(startRow + 2, "M").Value = baseDate - 10
+    ws.Cells(startRow + 2, "N").Value = baseDate - 8
+    
+    ' フェーズ2: 開発フェーズ
+    ws.Cells(startRow + 3, "C").Value = "開発フェーズ"
+    ws.Cells(startRow + 3, "H").Value = "進行中"
+    ws.Cells(startRow + 3, "I").Value = 0.6
+    ws.Cells(startRow + 3, "J").Value = "田中"
+    ws.Cells(startRow + 3, "K").Value = baseDate - 7
+    ws.Cells(startRow + 3, "L").Value = baseDate + 14
+    ws.Cells(startRow + 3, "M").Value = baseDate - 7
+    
+    ws.Cells(startRow + 4, "D").Value = "機能開発"
+    ws.Cells(startRow + 4, "H").Value = "進行中"
+    ws.Cells(startRow + 4, "I").Value = 0.7
+    ws.Cells(startRow + 4, "J").Value = "田中"
+    ws.Cells(startRow + 4, "K").Value = baseDate - 7
+    ws.Cells(startRow + 4, "L").Value = baseDate + 7
+    ws.Cells(startRow + 4, "M").Value = baseDate - 7
+    
+    ws.Cells(startRow + 5, "E").Value = "機能A開発"
+    ws.Cells(startRow + 5, "H").Value = "完了"
+    ws.Cells(startRow + 5, "I").Value = 1
+    ws.Cells(startRow + 5, "J").Value = "田中"
+    ws.Cells(startRow + 5, "K").Value = baseDate - 7
+    ws.Cells(startRow + 5, "L").Value = baseDate - 3
+    ws.Cells(startRow + 5, "M").Value = baseDate - 7
+    ws.Cells(startRow + 5, "N").Value = baseDate - 2
+    
+    ws.Cells(startRow + 6, "E").Value = "機能B開発"
+    ws.Cells(startRow + 6, "H").Value = "進行中"
+    ws.Cells(startRow + 6, "I").Value = 0.5
+    ws.Cells(startRow + 6, "J").Value = "佐藤"
+    ws.Cells(startRow + 6, "K").Value = baseDate - 3
+    ws.Cells(startRow + 6, "L").Value = baseDate + 4
+    ws.Cells(startRow + 6, "M").Value = baseDate - 3
+    
+    ws.Cells(startRow + 7, "D").Value = "テスト"
+    ws.Cells(startRow + 7, "H").Value = "未着手"
+    ws.Cells(startRow + 7, "I").Value = 0
+    ws.Cells(startRow + 7, "J").Value = "鈴木"
+    ws.Cells(startRow + 7, "K").Value = baseDate + 5
+    ws.Cells(startRow + 7, "L").Value = baseDate + 14
+    
+    ' フェーズ3: リリースフェーズ
+    ws.Cells(startRow + 8, "C").Value = "リリースフェーズ"
+    ws.Cells(startRow + 8, "H").Value = "未着手"
+    ws.Cells(startRow + 8, "I").Value = 0
+    ws.Cells(startRow + 8, "J").Value = "山田"
+    ws.Cells(startRow + 8, "K").Value = baseDate + 14
+    ws.Cells(startRow + 8, "L").Value = baseDate + 21
+    
+    ws.Cells(startRow + 9, "D").Value = "本番環境構築"
+    ws.Cells(startRow + 9, "H").Value = "未着手"
+    ws.Cells(startRow + 9, "I").Value = 0
+    ws.Cells(startRow + 9, "J").Value = "佐藤"
+    ws.Cells(startRow + 9, "K").Value = baseDate + 14
+    ws.Cells(startRow + 9, "L").Value = baseDate + 18
+    
+    ws.Cells(startRow + 10, "D").Value = "リリース作業"
+    ws.Cells(startRow + 10, "H").Value = "未着手"
+    ws.Cells(startRow + 10, "I").Value = 0
+    ws.Cells(startRow + 10, "J").Value = "山田"
+    ws.Cells(startRow + 10, "K").Value = baseDate + 19
+    ws.Cells(startRow + 10, "L").Value = baseDate + 21
+    
+    ' 階層自動判定
+    AutoDetectTaskLevel
+    
+    Exit Sub
+    
+ErrorHandler:
+    MsgBox "サンプルデータ追加エラー: " & Err.Description, vbCritical, "エラー"
+End Sub
+
+' ==========================================
+'  シートモジュール設定手順の表示
+' ==========================================
+Sub ShowSheetModuleInstructions()
+    Dim instructions As String
+    
+    instructions = "【シートモジュールの設定手順】" & vbCrLf & vbCrLf & _
+                  "1. Alt + F11 でVBAエディタを開く" & vbCrLf & _
+                  "2. プロジェクトエクスプローラーで" & vbCrLf & _
+                  "   「InazumaGantt_v2」シートをダブルクリック" & vbCrLf & _
+                  "3. vba/SheetModule_SJIS.bas の内容を" & vbCrLf & _
+                  "   コピー＆貼り付け" & vbCrLf & _
+                  "4. 保存して閉じる" & vbCrLf & vbCrLf & _
+                  "これにより以下の機能が有効になります:" & vbCrLf & _
+                  "- タスク入力時の階層自動判定" & vbCrLf & _
+                  "- 進捗率変更時の状況自動更新" & vbCrLf & _
+                  "- ダブルクリックでタスク完了"
+    
+    MsgBox instructions, vbInformation, "シートモジュール設定"
+End Sub
+
+' ==========================================
+'  モジュール存在確認
+' ==========================================
+Public Function IsModuleInstalled(ByVal moduleName As String) As Boolean
+    On Error Resume Next
+    Dim vbComp As Object
+    
+    For Each vbComp In ThisWorkbook.VBProject.VBComponents
+        If StrComp(vbComp.Name, moduleName, vbTextCompare) = 0 Then
+            IsModuleInstalled = True
+            Exit Function
+        End If
+    Next vbComp
+    
+    IsModuleInstalled = False
+End Function
+
+' ==========================================
+'  インストール状態の確認
+' ==========================================
+Sub CheckInstallation()
+    Dim status As String
+    
+    status = "【モジュールインストール状態】" & vbCrLf & vbCrLf
+    
+    ' 必須モジュール
+    status = status & "必須モジュール:" & vbCrLf
+    status = status & "  InazumaGantt_v2: " & IIf(IsModuleInstalled("InazumaGantt_v2"), "OK", "未インストール") & vbCrLf
+    status = status & "  HierarchyColor: " & IIf(IsModuleInstalled("HierarchyColor"), "OK", "未インストール") & vbCrLf
+    
+    ' オプションモジュール
+    status = status & vbCrLf & "オプションモジュール:" & vbCrLf
+    status = status & "  DataMigration: " & IIf(IsModuleInstalled("DataMigration"), "OK", "未インストール") & vbCrLf
+    status = status & "  ErrorHandler: " & IIf(IsModuleInstalled("ErrorHandler"), "OK", "未インストール") & vbCrLf
+    
+    MsgBox status, vbInformation, "インストール状態"
+End Sub

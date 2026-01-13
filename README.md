@@ -1,10 +1,10 @@
-﻿# 📊 InazumaGantt v2
+﻿# 📊 InazumaGantt v2.2
 
 Excelベースのイナズマガントチャート管理ツール
 
 > [!NOTE]
 > **Excelファイル名は自由に変更可能です**  
-> シート名（`InazumaGantt_v2`、`祝日マスタ`）は変更しないでください。
+> シート名（`InazumaGantt_v2`、`祝日マスタ`、`設定マスタ`）は変更しないでください。
 
 ---
 
@@ -20,6 +20,8 @@ Alt + F11 → ファイル → ファイルのインポート
 
 - ✅ `InazumaGantt_v2_SJIS.bas` （必須）
 - ✅ `HierarchyColor_SJIS.bas` （必須）
+- ✅ `SetupWizard_SJIS.bas` （推奨）
+- 🔹 `DataMigration_SJIS.bas` （任意）
 
 ### 2. シートモジュールを設定
 
@@ -30,7 +32,7 @@ Alt + F11 → ファイル → ファイルのインポート
 ### 3. セットアップ実行
 
 ```
-Alt + F8 → SetupInazumaGantt → 実行
+Alt + F8 → RunSetupWizard → 実行
 ```
 
 👉 **詳細は [SETUP.md](SETUP.md) を参照**
@@ -44,7 +46,9 @@ Alt + F8 → SetupInazumaGantt → 実行
 | 📊 ガントチャート | 予定バー（薄灰+黒枠）、進捗バー（紺色）、実績バー（緑色） |
 | ⚡ イナズマ線 | 今日基準型で進捗の遅れを視覚化（オレンジ） |
 | 🎨 階層色分け | 条件付き書式でLVに応じた自動色分け |
-| 🖱️ ダブルクリック完了 | タスクを即座に完了 |
+| 🖱️ ダブルクリック完了 | タスクを即座に完了（取り消し線・灰色対応） |
+| 📁 折りたたみ | Shift+右クリックでLV1配下を非表示 |
+| 📄 PDF出力 | 当月末までのガントを含むPDF出力 |
 | 🔄 自動機能 | No.・階層・状況・進捗率の自動設定 |
 
 ---

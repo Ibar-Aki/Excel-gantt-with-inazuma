@@ -1,63 +1,63 @@
-ï»¿Attribute VB_Name = "InazumaGantt_v2"
+Attribute VB_Name = "InazumaGantt_Integrated"
 Option Explicit
 
 ' ==========================================
-'  ã‚¤ãƒŠã‚ºãƒã‚¬ãƒ³ãƒˆãƒãƒ£ãƒ¼ãƒˆ - è¨­å®šã‚¨ãƒªã‚¢
+'  ƒCƒiƒYƒ}ƒKƒ“ƒgƒ`ƒƒ[ƒg - İ’èƒGƒŠƒA
 ' ==========================================
-' ãƒ¬ã‚¤ã‚¢ã‚¦ãƒˆ:
-' A: LV(éšå±¤) | B: No. | C: TASK | D-F: (ã‚¿ã‚¹ã‚¯ç”¨ã‚¹ãƒšãƒ¼ã‚¹)
-' G: ã‚¿ã‚¹ã‚¯ã®è©³ç´° | H: çŠ¶æ³ | I: é€²æ—ç‡ | J: æ‹…å½“
-' K: é–‹å§‹äºˆå®š | L: å®Œäº†äºˆå®š | M: é–‹å§‹å®Ÿç¸¾ | N: å®Œäº†å®Ÿç¸¾
-' Oä»¥é™: ã‚¬ãƒ³ãƒˆãƒãƒ£ãƒ¼ãƒˆé ˜åŸŸ (æ—¥ä»˜)
+' ƒŒƒCƒAƒEƒg:
+' A: LV(ŠK‘w) | B: No. | C: TASK | D-F: (ƒ^ƒXƒN—pƒXƒy[ƒX)
+' G: ƒ^ƒXƒN‚ÌÚ× | H: ó‹µ | I: i’»—¦ | J: ’S“–
+' K: ŠJn—\’è | L: Š®—¹—\’è | M: ŠJnÀÑ | N: Š®—¹ÀÑ
+' OˆÈ~: ƒKƒ“ƒgƒ`ƒƒ[ƒg—Ìˆæ (“ú•t)
 
-Public Const COL_HIERARCHY As String = "A"   ' LV(éšå±¤)
+Public Const COL_HIERARCHY As String = "A"   ' LV(ŠK‘w)
 Public Const COL_NO As String = "B"          ' No.
 Public Const COL_TASK As String = "C"        ' TASK
-' D-Fåˆ—ã¯ã‚¿ã‚¹ã‚¯ç”¨ã®ã‚¹ãƒšãƒ¼ã‚¹ï¼ˆå¹…åºƒã‚ï¼‰
-Public Const COL_TASK_DETAIL As String = "G" ' ã‚¿ã‚¹ã‚¯ã®è©³ç´°
-Public Const COL_STATUS As String = "H"      ' çŠ¶æ³
-Public Const COL_PROGRESS As String = "I"    ' é€²æ—ç‡
-Public Const COL_ASSIGNEE As String = "J"    ' æ‹…å½“
-Public Const COL_START_PLAN As String = "K"  ' é–‹å§‹äºˆå®š
-Public Const COL_END_PLAN As String = "L"    ' å®Œäº†äºˆå®š
-Public Const COL_START_ACTUAL As String = "M" ' é–‹å§‹å®Ÿç¸¾
-Public Const COL_END_ACTUAL As String = "N"  ' å®Œäº†å®Ÿç¸¾
+' D-F—ñ‚Íƒ^ƒXƒN—p‚ÌƒXƒy[ƒXi•L‚ßj
+Public Const COL_TASK_DETAIL As String = "G" ' ƒ^ƒXƒN‚ÌÚ×
+Public Const COL_STATUS As String = "H"      ' ó‹µ
+Public Const COL_PROGRESS As String = "I"    ' i’»—¦
+Public Const COL_ASSIGNEE As String = "J"    ' ’S“–
+Public Const COL_START_PLAN As String = "K"  ' ŠJn—\’è
+Public Const COL_END_PLAN As String = "L"    ' Š®—¹—\’è
+Public Const COL_START_ACTUAL As String = "M" ' ŠJnÀÑ
+Public Const COL_END_ACTUAL As String = "N"  ' Š®—¹ÀÑ
 
-Public Const COL_GANTT_START As String = "O"  ' ã‚¬ãƒ³ãƒˆãƒãƒ£ãƒ¼ãƒˆã®é–‹å§‹åˆ—
-Public Const ROW_TITLE As Long = 1            ' ã‚¿ã‚¤ãƒˆãƒ«è¡Œ
-Public Const ROW_WEEK_HEADER As Long = 6      ' é€±ãƒ˜ãƒƒãƒ€ãƒ¼è¡Œ
-Public Const ROW_DATE_HEADER As Long = 7      ' æ—¥ä»˜è¡Œï¼ˆã‚¬ãƒ³ãƒˆï¼‰
-Public Const ROW_HEADER As Long = 8           ' æ›œæ—¥è¡Œï¼ˆã‚¬ãƒ³ãƒˆï¼‰/ é …ç›®ãƒ˜ãƒƒãƒ€ãƒ¼è¡Œï¼ˆA-Nåˆ—ï¼‰
-Public Const ROW_DATA_START As Long = 9       ' ãƒ‡ãƒ¼ã‚¿é–‹å§‹è¡Œ
-Public Const GANTT_DAYS As Long = 120         ' ã‚¬ãƒ³ãƒˆãƒãƒ£ãƒ¼ãƒˆã®æ—¥æ•°
-Public Const DATA_ROWS_DEFAULT As Long = 200  ' åˆæœŸå…¥åŠ›ç¯„å›²ã®è¡Œæ•°
-Public Const HOLIDAY_SHEET_NAME As String = "ç¥æ—¥ãƒã‚¹ã‚¿"
-Public Const GUIDE_SHEET_NAME As String = "InazumaGantt_èª¬æ˜"
+Public Const COL_GANTT_START As String = "O"  ' ƒKƒ“ƒgƒ`ƒƒ[ƒg‚ÌŠJn—ñ
+Public Const ROW_TITLE As Long = 1            ' ƒ^ƒCƒgƒ‹s
+Public Const ROW_WEEK_HEADER As Long = 6      ' Tƒwƒbƒ_[s
+Public Const ROW_DATE_HEADER As Long = 7      ' “ú•tsiƒKƒ“ƒgj
+Public Const ROW_HEADER As Long = 8           ' —j“úsiƒKƒ“ƒgj/ €–Úƒwƒbƒ_[siA-N—ñj
+Public Const ROW_DATA_START As Long = 9       ' ƒf[ƒ^ŠJns
+Public Const GANTT_DAYS As Long = 120         ' ƒKƒ“ƒgƒ`ƒƒ[ƒg‚Ì“ú”
+Public Const DATA_ROWS_DEFAULT As Long = 200  ' ‰Šú“ü—Í”ÍˆÍ‚Ìs”
+Public Const HOLIDAY_SHEET_NAME As String = "j“úƒ}ƒXƒ^"
+Public Const GUIDE_SHEET_NAME As String = "InazumaGantt_à–¾"
 Public Const MAIN_SHEET_NAME As String = "InazumaGantt_v2"
-Public Const SETTINGS_SHEET_NAME As String = "è¨­å®šãƒã‚¹ã‚¿"  ' v2.2è¿½åŠ 
+Public Const SETTINGS_SHEET_NAME As String = "İ’èƒ}ƒXƒ^"  ' v2.2’Ç‰Á
 Public Const GUIDE_LEGEND_START_CELL As String = "E1"
 Public Const CELL_PROJECT_START As String = "L2"
 Public Const CELL_DISPLAY_WEEK As String = "L3"
 Public Const CELL_TODAY As String = "L4"
 
-' è‰²è¨­å®š
-Public Const COLOR_PLAN As Long = 16119285       ' RGB(245,245,245) é™ã‚Šãªãç™½ã«è¿‘ã„ç°è‰²
-Public Const COLOR_PROGRESS As Long = 9851952    ' RGB(48,84,150) ç´ºè‰²
-Public Const COLOR_HOLIDAY As Long = 5263430     ' RGB(70,70,80) æ¿ƒã„ç°è‰²ï¼ˆä¼‘æ—¥ç¥æ—¥ï¼‰
+' Fİ’è
+Public Const COLOR_PLAN As Long = 16119285       ' RGB(245,245,245) ŒÀ‚è‚È‚­”’‚É‹ß‚¢ŠDF
+Public Const COLOR_PROGRESS As Long = 9851952    ' RGB(48,84,150) ®F
+Public Const COLOR_HOLIDAY As Long = 5263430     ' RGB(70,70,80) ”Z‚¢ŠDFi‹x“új“új
 Public Const COLOR_ROW_BAND As Long = 16316664
-Public Const COLOR_ACTUAL As Long = 5287936      ' RGB(0,176,80) ç·‘è‰²
-Public Const COLOR_TODAY As Long = 255           ' RGB(255,0,0) èµ¤
+Public Const COLOR_ACTUAL As Long = 5287936      ' RGB(0,176,80) —ÎF
+Public Const COLOR_TODAY As Long = 255           ' RGB(255,0,0) Ô
 Public Const COLOR_WARN As Long = 13434879
 Public Const COLOR_ERROR As Long = 13553151
-Public Const COLOR_INAZUMA As Long = 42495       ' RGB(255,165,0) ã‚ªãƒ¬ãƒ³ã‚¸
+Public Const COLOR_INAZUMA As Long = 42495       ' RGB(255,165,0) ƒIƒŒƒ“ƒW
 Public Const COLOR_HEADER_BG As Long = 12874308
 Public Const COLOR_GANTT_HEADER As Long = 8421504
-Public Const COLOR_WEEKEND As Long = 5263430     ' RGB(70,70,80) æ¿ƒã„ç°è‰²
+Public Const COLOR_WEEKEND As Long = 5263430     ' RGB(70,70,80) ”Z‚¢ŠDF
 Public Const TODAY_LINE_WEIGHT As Double = 2
 Public Const ACTUAL_LINE_WEIGHT As Double = 4
 
 ' ==========================================
-'  åˆæœŸã‚»ãƒƒãƒˆã‚¢ãƒƒãƒ— (ãƒ˜ãƒƒãƒ€ãƒ¼ä½œæˆï¼†æ›¸å¼è¨­å®š)
+'  ‰ŠúƒZƒbƒgƒAƒbƒv (ƒwƒbƒ_[ì¬•‘®İ’è)
 ' ==========================================
 Sub SetupInazumaGantt()
     On Error GoTo ErrorHandler
@@ -68,7 +68,7 @@ Sub SetupInazumaGantt()
         On Error Resume Next
         ws.Name = MAIN_SHEET_NAME
         If Err.Number <> 0 Then
-            MsgBox "ã‚·ãƒ¼ãƒˆåã‚’ '" & MAIN_SHEET_NAME & "' ã«å¤‰æ›´ã§ãã¾ã›ã‚“ã§ã—ãŸã€‚" & vbCrLf & "æ—¢ã«åŒåã®ã‚·ãƒ¼ãƒˆãŒå­˜åœ¨ã™ã‚‹å¯èƒ½æ€§ãŒã‚ã‚Šã¾ã™ã€‚", vbExclamation
+            MsgBox "ƒV[ƒg–¼‚ğ '" & MAIN_SHEET_NAME & "' ‚É•ÏX‚Å‚«‚Ü‚¹‚ñ‚Å‚µ‚½B" & vbCrLf & "Šù‚É“¯–¼‚ÌƒV[ƒg‚ª‘¶İ‚·‚é‰Â”\«‚ª‚ ‚è‚Ü‚·B", vbExclamation
             Err.Clear
         End If
         On Error GoTo ErrorHandler
@@ -77,68 +77,68 @@ Sub SetupInazumaGantt()
     Application.ScreenUpdating = False
     Application.Calculation = xlCalculationManual
     
-    ' ã‚¿ã‚¤ãƒˆãƒ«ãƒ»æƒ…å ±ã‚¨ãƒªã‚¢
-    ws.Range("A" & ROW_TITLE).Value = "ã‚¤ãƒŠã‚ºãƒã‚¬ãƒ³ãƒˆãƒãƒ£ãƒ¼ãƒˆ"
+    ' ƒ^ƒCƒgƒ‹Eî•ñƒGƒŠƒA
+    ws.Range("A" & ROW_TITLE).Value = "ƒCƒiƒYƒ}ƒKƒ“ƒgƒ`ƒƒ[ƒg"
     ws.Range("A" & ROW_TITLE).Font.Bold = True
     ws.Range("A" & ROW_TITLE).Font.Size = 16
-    ws.Range("A4").Value = "ãƒ¡ãƒ¢ï¼š"
+    ws.Range("A4").Value = "ƒƒ‚F"
     
-    ' æƒ…å ±ã‚¨ãƒªã‚¢ï¼ˆK-Låˆ—ï¼‰
-    ws.Range("K2").Value = "é–‹å§‹æ—¥ï¼š"
-    ws.Range("K3").Value = "é€±è¡¨ç¤º:"
-    ws.Range("K4").Value = "ä»Šæ—¥ï¼š"
+    ' î•ñƒGƒŠƒAiK-L—ñj
+    ws.Range("K2").Value = "ŠJn“úF"
+    ws.Range("K3").Value = "T•\¦:"
+    ws.Range("K4").Value = "¡“úF"
     
-    ' ãƒ˜ãƒƒãƒ€ãƒ¼è¨­å®š (ROW_HEADER = 8è¡Œç›®ã«çµ±ä¸€)
+    ' ƒwƒbƒ_[İ’è (ROW_HEADER = 8s–Ú‚É“ˆê)
     ws.Range(COL_HIERARCHY & ROW_HEADER).Value = "LV"
     ws.Range(COL_NO & ROW_HEADER).Value = "No."
     ws.Range("C" & ROW_HEADER).Value = "TASK"
-    ' D-Fåˆ—ã¯ã‚¿ã‚¹ã‚¯å…¥åŠ›ç”¨ï¼ˆãƒ˜ãƒƒãƒ€ãƒ¼ãªã—ï¼‰
-    ws.Range(COL_TASK_DETAIL & ROW_HEADER).Value = "ã‚¿ã‚¹ã‚¯è©³ç´°"
-    ws.Range(COL_STATUS & ROW_HEADER).Value = "çŠ¶æ³"
-    ws.Range(COL_PROGRESS & ROW_HEADER).Value = "é€²æ—ç‡"
-    ws.Range(COL_ASSIGNEE & ROW_HEADER).Value = "æ‹…å½“"
-    ws.Range(COL_START_PLAN & ROW_HEADER).Value = "é–‹å§‹äºˆå®š"
-    ws.Range(COL_END_PLAN & ROW_HEADER).Value = "å®Œäº†äºˆå®š"
-    ws.Range(COL_START_ACTUAL & ROW_HEADER).Value = "é–‹å§‹å®Ÿç¸¾"
-    ws.Range(COL_END_ACTUAL & ROW_HEADER).Value = "å®Œäº†å®Ÿç¸¾"
+    ' D-F—ñ‚Íƒ^ƒXƒN“ü—Í—piƒwƒbƒ_[‚È‚µj
+    ws.Range(COL_TASK_DETAIL & ROW_HEADER).Value = "ƒ^ƒXƒNÚ×"
+    ws.Range(COL_STATUS & ROW_HEADER).Value = "ó‹µ"
+    ws.Range(COL_PROGRESS & ROW_HEADER).Value = "i’»—¦"
+    ws.Range(COL_ASSIGNEE & ROW_HEADER).Value = "’S“–"
+    ws.Range(COL_START_PLAN & ROW_HEADER).Value = "ŠJn—\’è"
+    ws.Range(COL_END_PLAN & ROW_HEADER).Value = "Š®—¹—\’è"
+    ws.Range(COL_START_ACTUAL & ROW_HEADER).Value = "ŠJnÀÑ"
+    ws.Range(COL_END_ACTUAL & ROW_HEADER).Value = "Š®—¹ÀÑ"
     
-    ' ãƒ˜ãƒƒãƒ€ãƒ¼è¡Œã®ã‚¹ã‚¿ã‚¤ãƒ«ï¼ˆ8è¡Œç›®ã€Aï½Nåˆ—ï¼‰
+    ' ƒwƒbƒ_[s‚ÌƒXƒ^ƒCƒ‹i8s–ÚAA`N—ñj
     With ws.Range("A" & ROW_HEADER & ":N" & ROW_HEADER)
         .Font.Bold = True
         .Interior.Color = COLOR_HEADER_BG
         .Font.Color = RGB(255, 255, 255)
     End With
     
-    ' åˆ—å¹…è¨­å®šï¼ˆæ”¹å–„ãƒ¡ãƒ¢ä»•æ§˜ã«æº–æ‹ ï¼‰
+    ' —ñ•İ’èi‰ü‘Pƒƒ‚d—l‚É€‹’j
     ws.Columns("A").ColumnWidth = 3     ' LV
     ws.Columns("B").ColumnWidth = 4     ' No.
     ws.Columns("C").ColumnWidth = 4     ' TASK Lv1
     ws.Columns("D").ColumnWidth = 4     ' TASK Lv2
     ws.Columns("E").ColumnWidth = 4     ' TASK Lv3
     ws.Columns("F").ColumnWidth = 15    ' TASK Lv4
-    ws.Columns("G").ColumnWidth = 20    ' ã‚¿ã‚¹ã‚¯è£œè¶³
-    ws.Columns("H").ColumnWidth = 7     ' çŠ¶æ³
-    ws.Columns("I").ColumnWidth = 7     ' é€²æ—ç‡
-    ws.Columns("J").ColumnWidth = 7     ' æ‹…å½“
-    ws.Columns("K").ColumnWidth = 8.7   ' é–‹å§‹äºˆå®š
-    ws.Columns("L").ColumnWidth = 8.7   ' å®Œäº†äºˆå®š
-    ws.Columns("M").ColumnWidth = 8.7   ' é–‹å§‹å®Ÿç¸¾
-    ws.Columns("N").ColumnWidth = 8.7   ' å®Œäº†å®Ÿç¸¾
+    ws.Columns("G").ColumnWidth = 20    ' ƒ^ƒXƒN•â‘«
+    ws.Columns("H").ColumnWidth = 7     ' ó‹µ
+    ws.Columns("I").ColumnWidth = 7     ' i’»—¦
+    ws.Columns("J").ColumnWidth = 7     ' ’S“–
+    ws.Columns("K").ColumnWidth = 8.7   ' ŠJn—\’è
+    ws.Columns("L").ColumnWidth = 8.7   ' Š®—¹—\’è
+    ws.Columns("M").ColumnWidth = 8.7   ' ŠJnÀÑ
+    ws.Columns("N").ColumnWidth = 8.7   ' Š®—¹ÀÑ
     
-    ' è¡Œé«˜ã•çµ±ä¸€ï¼ˆ22ï¼‰
+    ' s‚‚³“ˆêi22j
     ws.Rows.RowHeight = 22
 
 
     EnsureHolidaySheet
     EnsureGuideSheet
     
-    ' æ—¥ä»˜é–‹å§‹æ—¥ã‚’å…¥åŠ›ã•ã›ã‚‹ï¼ˆã‚­ãƒ£ãƒ³ã‚»ãƒ«æ™‚ã¯ãƒ­ãƒ¼ãƒ«ãƒãƒƒã‚¯ï¼‰
+    ' “ú•tŠJn“ú‚ğ“ü—Í‚³‚¹‚éiƒLƒƒƒ“ƒZƒ‹‚Íƒ[ƒ‹ƒoƒbƒNj
     Dim startDateInput As Variant
-    startDateInput = Application.InputBox("ã‚¬ãƒ³ãƒˆãƒãƒ£ãƒ¼ãƒˆã®é–‹å§‹æ—¥ã‚’å…¥åŠ›ã—ã¦ãã ã•ã„ (ä¾‹: 24/12/25)", "é–‹å§‹æ—¥è¨­å®š", Format(Date, "yy/mm/dd"), Type:=2)
+    startDateInput = Application.InputBox("ƒKƒ“ƒgƒ`ƒƒ[ƒg‚ÌŠJn“ú‚ğ“ü—Í‚µ‚Ä‚­‚¾‚³‚¢ (—á: 24/12/25)", "ŠJn“úİ’è", Format(Date, "yy/mm/dd"), Type:=2)
     
-    ' ã‚­ãƒ£ãƒ³ã‚»ãƒ«å‡¦ç†ï¼ˆãƒ­ãƒ¼ãƒ«ãƒãƒƒã‚¯ï¼‰
+    ' ƒLƒƒƒ“ƒZƒ‹ˆ—iƒ[ƒ‹ƒoƒbƒNj
     If startDateInput = False Or VarType(startDateInput) = vbBoolean Then
-        ' ã‚·ãƒ¼ãƒˆã®å†…å®¹ã‚’ã‚¯ãƒªã‚¢ï¼ˆãƒ­ãƒ¼ãƒ«ãƒãƒƒã‚¯ï¼‰: æƒ³å®šç¯„å›²ã®ã¿
+        ' ƒV[ƒg‚Ì“à—e‚ğƒNƒŠƒAiƒ[ƒ‹ƒoƒbƒNj: ‘z’è”ÍˆÍ‚Ì‚İ
         Dim rollbackEndCol As Long
         rollbackEndCol = ws.Columns(COL_GANTT_START).Column + GANTT_DAYS - 1
         Dim rollbackEndRow As Long
@@ -146,7 +146,7 @@ Sub SetupInazumaGantt()
         ws.Range(ws.Cells(1, 1), ws.Cells(rollbackEndRow, rollbackEndCol)).Clear
         Application.Calculation = xlCalculationAutomatic
         Application.ScreenUpdating = True
-        MsgBox "ã‚»ãƒƒãƒˆã‚¢ãƒƒãƒ—ãŒã‚­ãƒ£ãƒ³ã‚»ãƒ«ã•ã‚Œã¾ã—ãŸã€‚", vbInformation, "ã‚­ãƒ£ãƒ³ã‚»ãƒ«"
+        MsgBox "ƒZƒbƒgƒAƒbƒv‚ªƒLƒƒƒ“ƒZƒ‹‚³‚ê‚Ü‚µ‚½B", vbInformation, "ƒLƒƒƒ“ƒZƒ‹"
         Exit Sub
     End If
     
@@ -164,7 +164,7 @@ Sub SetupInazumaGantt()
     ws.Range(CELL_TODAY).Value = Date
     ws.Range(CELL_TODAY).NumberFormat = "yy/mm/dd"
     
-    ' æ—¥ä»˜åˆ—ã®ç”Ÿæˆ
+    ' “ú•t—ñ‚Ì¶¬
     Dim ganttStartCol As Long
     ganttStartCol = Columns(COL_GANTT_START).Column
 
@@ -174,7 +174,7 @@ Sub SetupInazumaGantt()
         todayDate = CDate(ws.Range(CELL_TODAY).Value)
     End If
     
-    ' é€±ãƒ»æ—¥ä»˜ãƒ»æ›œæ—¥ãƒ˜ãƒƒãƒ€ãƒ¼ã®ä½œæˆ
+    ' TE“ú•tE—j“úƒwƒbƒ_[‚Ìì¬
     Dim weekStartCol As Long
     Dim weekEndCol As Long
     Dim currentDate As Date
@@ -185,24 +185,24 @@ Sub SetupInazumaGantt()
         colIndex = ganttStartCol + i - 1
         currentDate = ganttStartDate + i - 1
         
-        ' 7è¡Œç›®: æ—¥ä»˜ï¼ˆæ—¥ã®ã¿ï¼‰- ãƒ˜ãƒƒãƒ€ãƒ¼ã¨åŒã˜è‰²
+        ' 7s–Ú: “ú•ti“ú‚Ì‚İj- ƒwƒbƒ_[‚Æ“¯‚¶F
         ws.Cells(ROW_DATE_HEADER, colIndex).Value = Day(currentDate)
         ws.Cells(ROW_DATE_HEADER, colIndex).Font.Size = 9
         ws.Cells(ROW_DATE_HEADER, colIndex).HorizontalAlignment = xlCenter
         ws.Cells(ROW_DATE_HEADER, colIndex).Interior.Color = COLOR_HEADER_BG
         ws.Cells(ROW_DATE_HEADER, colIndex).Font.Color = RGB(255, 255, 255)
         
-        ' 8è¡Œç›®: æ›œæ—¥ - ãƒ˜ãƒƒãƒ€ãƒ¼ã¨åŒã˜è‰²
+        ' 8s–Ú: —j“ú - ƒwƒbƒ_[‚Æ“¯‚¶F
         ws.Cells(ROW_HEADER, colIndex).Value = Format$(currentDate, "aaa")
         ws.Cells(ROW_HEADER, colIndex).Font.Size = 8
         ws.Cells(ROW_HEADER, colIndex).HorizontalAlignment = xlCenter
         ws.Cells(ROW_HEADER, colIndex).Interior.Color = COLOR_HEADER_BG
         ws.Cells(ROW_HEADER, colIndex).Font.Color = RGB(255, 255, 255)
         
-        ' åˆ—å¹…ã‚’è¨­å®š
+        ' —ñ•‚ğİ’è
         ws.Columns(colIndex).ColumnWidth = 3
         
-        ' 6è¡Œç›®: é€±ãƒ˜ãƒƒãƒ€ãƒ¼ï¼ˆ7æ—¥å˜ä½ï¼‰
+        ' 6s–Ú: Tƒwƒbƒ_[i7“ú’PˆÊj
         If (i - 1) Mod 7 = 0 Then
             weekStartCol = colIndex
             weekEndCol = Application.WorksheetFunction.Min(ganttStartCol + GANTT_DAYS - 1, weekStartCol + 6)
@@ -229,37 +229,37 @@ Sub SetupInazumaGantt()
     ApplyWeekendColors ws, lastRow, ganttStartDate, ganttStartCol
     ApplyDataValidationAndFormats ws, lastRow
     
-    ' ç›®ç››ç·šã‚’ã‚ªãƒ•
+    ' –Ú·ü‚ğƒIƒt
     ActiveWindow.DisplayGridlines = False
     
-    ' ãƒ•ã‚£ãƒ«ã‚¿è‡ªå‹•è¨­å®š (8è¡Œç›®A-Nåˆ—)
+    ' ƒtƒBƒ‹ƒ^©“®İ’è (8s–ÚA-N—ñ)
     If Not ws.AutoFilterMode Then
         ws.Range("A" & ROW_HEADER & ":N" & ROW_HEADER).AutoFilter
     End If
     
-    ' No.1ã€œ400ã®åˆæœŸæ¡ç•ª
+    ' No.1?400‚Ì‰ŠúÌ”Ô
     Dim noRow As Long
     For noRow = ROW_DATA_START To ROW_DATA_START + 399
         ws.Cells(noRow, COL_NO).Value = noRow - ROW_DATA_START + 1
     Next noRow
     
-    ' ã‚³ãƒ³ãƒˆãƒ­ãƒ¼ãƒ«ãƒœã‚¿ãƒ³ã®ä½œæˆ
+    ' ƒRƒ“ƒgƒ[ƒ‹ƒ{ƒ^ƒ“‚Ìì¬
     CreateControlButtons ws
     
     Application.Calculation = xlCalculationAutomatic
     Application.ScreenUpdating = True
     
-    MsgBox "ã‚»ãƒƒãƒˆã‚¢ãƒƒãƒ—å®Œäº†ï¼" & vbCrLf & "ãƒ‡ãƒ¼ã‚¿ã‚’å…¥åŠ›å¾Œã€RefreshInazumaGantt ã‚’å®Ÿè¡Œã—ã¦ãã ã•ã„ã€‚", vbInformation, "ã‚¤ãƒŠã‚ºãƒã‚¬ãƒ³ãƒˆ"
+    MsgBox "ƒZƒbƒgƒAƒbƒvŠ®—¹I" & vbCrLf & "ƒf[ƒ^‚ğ“ü—ÍŒãARefreshInazumaGantt ‚ğÀs‚µ‚Ä‚­‚¾‚³‚¢B", vbInformation, "ƒCƒiƒYƒ}ƒKƒ“ƒg"
     Exit Sub
     
 ErrorHandler:
     Application.Calculation = xlCalculationAutomatic
     Application.ScreenUpdating = True
-    MsgBox "ã‚¨ãƒ©ãƒ¼ãŒç™ºç”Ÿã—ã¾ã—ãŸ: " & Err.Description, vbCritical, "ã‚¨ãƒ©ãƒ¼"
+    MsgBox "ƒGƒ‰[‚ª”­¶‚µ‚Ü‚µ‚½: " & Err.Description, vbCritical, "ƒGƒ‰["
 End Sub
 
 ' ==========================================
-'  ç¥æ—¥ãƒã‚¹ã‚¿ã®ç¢ºä¿
+'  j“úƒ}ƒXƒ^‚ÌŠm•Û
 ' ==========================================
 Private Sub EnsureHolidaySheet()
     Dim wsHoliday As Worksheet
@@ -274,43 +274,43 @@ Private Sub EnsureHolidaySheet()
         wsHoliday.Cells.Clear
     End If
     
-    ' ãƒ˜ãƒƒãƒ€ãƒ¼
-    wsHoliday.Range("A1").Value = "ç¥æ—¥"
+    ' ƒwƒbƒ_[
+    wsHoliday.Range("A1").Value = "j“ú"
     wsHoliday.Range("A1").Font.Bold = True
     wsHoliday.Range("A1").Interior.Color = RGB(48, 84, 150)
     wsHoliday.Range("A1").Font.Color = RGB(255, 255, 255)
     wsHoliday.Columns("A").NumberFormat = "yy/mm/dd"
     wsHoliday.Columns("A").ColumnWidth = 12
     
-    ' å…¥åŠ›ã‚¨ãƒªã‚¢ã®ç½«ç·šï¼ˆA2:A30ï¼‰
+    ' “ü—ÍƒGƒŠƒA‚ÌŒrüiA2:A30j
     With wsHoliday.Range("A2:A30").Borders
         .LineStyle = xlContinuous
         .Weight = xlThin
         .ColorIndex = 48
     End With
     
-    ' èª¬æ˜ãƒ†ã‚­ã‚¹ãƒˆ
-    wsHoliday.Range("C1").Value = "ã€ç¥æ—¥ãƒã‚¹ã‚¿ã®ä½¿ã„æ–¹ã€‘"
+    ' à–¾ƒeƒLƒXƒg
+    wsHoliday.Range("C1").Value = "yj“úƒ}ƒXƒ^‚Ìg‚¢•ûz"
     wsHoliday.Range("C1").Font.Bold = True
-    wsHoliday.Range("C2").Value = "Aåˆ—ã«ç¥æ—¥ã®æ—¥ä»˜ã‚’å…¥åŠ›ã—ã¦ãã ã•ã„ã€‚"
-    wsHoliday.Range("C3").Value = "å…¥åŠ›ã—ãŸæ—¥ä»˜ã¯ã‚¬ãƒ³ãƒˆãƒãƒ£ãƒ¼ãƒˆä¸Šã§ãƒ”ãƒ³ã‚¯è‰²ã§è¡¨ç¤ºã•ã‚Œã¾ã™ã€‚"
+    wsHoliday.Range("C2").Value = "A—ñ‚Éj“ú‚Ì“ú•t‚ğ“ü—Í‚µ‚Ä‚­‚¾‚³‚¢B"
+    wsHoliday.Range("C3").Value = "“ü—Í‚µ‚½“ú•t‚ÍƒKƒ“ƒgƒ`ƒƒ[ƒgã‚Åƒsƒ“ƒNF‚Å•\¦‚³‚ê‚Ü‚·B"
     wsHoliday.Range("C4").Value = ""
-    wsHoliday.Range("C5").Value = "ä¾‹: 26/01/01, 26/01/13, 26/02/11 ..."
+    wsHoliday.Range("C5").Value = "—á: 26/01/01, 26/01/13, 26/02/11 ..."
     wsHoliday.Range("C6").Value = ""
-    wsHoliday.Range("C7").Value = "â€» ã‚¬ãƒ³ãƒˆæ›´æ–°å¾Œã«åæ˜ ã•ã‚Œã¾ã™ã€‚"
+    wsHoliday.Range("C7").Value = "¦ ƒKƒ“ƒgXVŒã‚É”½‰f‚³‚ê‚Ü‚·B"
     wsHoliday.Columns("C").ColumnWidth = 40
     
-    ' ç›®ç››ç·šã‚ªãƒ•
+    ' –Ú·üƒIƒt
     ActiveWindow.DisplayGridlines = False
 End Sub
 
 ' ==========================================
-'  å…¥åŠ›è¦å‰‡ã¨æ—¥ä»˜æ›¸å¼ã®é©ç”¨
+'  “ü—Í‹K‘¥‚Æ“ú•t‘®‚Ì“K—p
 ' ==========================================
 Private Sub ApplyDataValidationAndFormats(ByVal ws As Worksheet, ByVal lastRow As Long)
     If lastRow < ROW_DATA_START Then lastRow = ROW_DATA_START
     
-    ' é€²æ—ç‡ã®ãƒ‰ãƒ­ãƒƒãƒ—ãƒ€ã‚¦ãƒ³
+    ' i’»—¦‚Ìƒhƒƒbƒvƒ_ƒEƒ“
     With ws.Range(COL_PROGRESS & ROW_DATA_START & ":" & COL_PROGRESS & lastRow)
         .NumberFormat = "0%"
         With .Validation
@@ -320,19 +320,19 @@ Private Sub ApplyDataValidationAndFormats(ByVal ws As Worksheet, ByVal lastRow A
         End With
     End With
     
-    ' çŠ¶æ³ã®ãƒ‰ãƒ­ãƒƒãƒ—ãƒ€ã‚¦ãƒ³
+    ' ó‹µ‚Ìƒhƒƒbƒvƒ_ƒEƒ“
     With ws.Range(COL_STATUS & ROW_DATA_START & ":" & COL_STATUS & lastRow).Validation
         .Delete
-        .Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, Formula1:="æœªç€æ‰‹,é€²è¡Œä¸­,å®Œäº†,ä¿ç•™"
+        .Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, Formula1:="–¢’…è,is’†,Š®—¹,•Û—¯"
         .InCellDropdown = True
     End With
     
-    ' æ—¥ä»˜åˆ—ã®æ›¸å¼
+    ' “ú•t—ñ‚Ì‘®
     ws.Range(COL_START_PLAN & ROW_DATA_START & ":" & COL_END_ACTUAL & lastRow).NumberFormat = "yy/mm/dd"
 End Sub
 
 ' ==========================================
-'  ãƒ‡ãƒ¼ã‚¿æœ€çµ‚è¡Œã®å–å¾—
+'  ƒf[ƒ^ÅIs‚Ìæ“¾
 ' ==========================================
 Private Function GetLastDataRow(ByVal ws As Worksheet) As Long
     Dim lastRow As Long
@@ -357,7 +357,7 @@ Private Function MaxRow(ByVal a As Long, ByVal b As Long) As Long
 End Function
 
 ' ==========================================
-'  èª¬æ˜ã‚·ãƒ¼ãƒˆã®ä½œæˆ
+'  à–¾ƒV[ƒg‚Ìì¬
 ' ==========================================
 Private Sub EnsureGuideSheet()
     Dim wsGuide As Worksheet
@@ -372,46 +372,46 @@ Private Sub EnsureGuideSheet()
         wsGuide.Cells.Clear
     End If
     
-    ' ç›®ç››ç·šã‚ªãƒ•
+    ' –Ú·üƒIƒt
     ActiveWindow.DisplayGridlines = False
     
-    ' ã‚¿ã‚¤ãƒˆãƒ«
-    wsGuide.Cells(1, 1).Value = "é€²æ—ç®¡ç†è¡¨ æ“ä½œãƒãƒ‹ãƒ¥ã‚¢ãƒ«"
+    ' ƒ^ƒCƒgƒ‹
+    wsGuide.Cells(1, 1).Value = "i’»ŠÇ—•\ ‘€ìƒ}ƒjƒ…ƒAƒ‹"
     wsGuide.Cells(1, 1).Font.Bold = True
     wsGuide.Cells(1, 1).Font.Size = 14
     
-    ' ãƒœã‚¿ãƒ³æ©Ÿèƒ½
-    wsGuide.Cells(3, 1).Value = "â–  ãƒœã‚¿ãƒ³æ©Ÿèƒ½"
+    ' ƒ{ƒ^ƒ“‹@”\
+    wsGuide.Cells(3, 1).Value = "¡ ƒ{ƒ^ƒ“‹@”\"
     wsGuide.Cells(3, 1).Font.Bold = True
-    wsGuide.Cells(4, 1).Value = "ã€ã‚¬ãƒ³ãƒˆæ›´æ–°ã€‘"
-    wsGuide.Cells(4, 2).Value = "ã‚¬ãƒ³ãƒˆãƒãƒ£ãƒ¼ãƒˆã‚’æœ€æ–°çŠ¶æ…‹ã«å†æç”»ã—ã¾ã™ã€‚"
-    wsGuide.Cells(5, 2).Value = "é€²æ—ç‡ã‚„æ—¥ä»˜ã‚’å¤‰æ›´ã—ãŸå¾Œã¯å¿…ãšã‚¯ãƒªãƒƒã‚¯ã—ã¦ãã ã•ã„ã€‚"
-    wsGuide.Cells(6, 1).Value = "ã€åœŸæ—¥åˆ‡æ›¿ã€‘"
-    wsGuide.Cells(6, 2).Value = "åœŸæ—¥åˆ—ã®è¡¨ç¤º/éè¡¨ç¤ºã‚’åˆ‡æ›¿ãˆã¾ã™ã€‚"
-    wsGuide.Cells(7, 2).Value = "ç”»é¢ã‚’åºƒãä½¿ã„ãŸã„æ™‚ã«ä¾¿åˆ©ã§ã™ã€‚"
-    wsGuide.Cells(8, 1).Value = "ã€æ›¸å¼ãƒªã‚»ãƒƒãƒˆã€‘"
-    wsGuide.Cells(8, 2).Value = "å´©ã‚ŒãŸç½«ç·šãƒ»æ›¸å¼ã‚’ä¿®å¾©ã—ã¾ã™ã€‚"
-    wsGuide.Cells(9, 2).Value = "è¡¨ç¤ºãŒãŠã‹ã—ããªã£ãŸæ™‚ã«ä½¿ç”¨ã—ã¦ãã ã•ã„ã€‚"
+    wsGuide.Cells(4, 1).Value = "yƒKƒ“ƒgXVz"
+    wsGuide.Cells(4, 2).Value = "ƒKƒ“ƒgƒ`ƒƒ[ƒg‚ğÅVó‘Ô‚ÉÄ•`‰æ‚µ‚Ü‚·B"
+    wsGuide.Cells(5, 2).Value = "i’»—¦‚â“ú•t‚ğ•ÏX‚µ‚½Œã‚Í•K‚¸ƒNƒŠƒbƒN‚µ‚Ä‚­‚¾‚³‚¢B"
+    wsGuide.Cells(6, 1).Value = "y“y“úØ‘Öz"
+    wsGuide.Cells(6, 2).Value = "“y“ú—ñ‚Ì•\¦/”ñ•\¦‚ğØ‘Ö‚¦‚Ü‚·B"
+    wsGuide.Cells(7, 2).Value = "‰æ–Ê‚ğL‚­g‚¢‚½‚¢‚É•Ö—˜‚Å‚·B"
+    wsGuide.Cells(8, 1).Value = "y‘®ƒŠƒZƒbƒgz"
+    wsGuide.Cells(8, 2).Value = "•ö‚ê‚½ŒrüE‘®‚ğC•œ‚µ‚Ü‚·B"
+    wsGuide.Cells(9, 2).Value = "•\¦‚ª‚¨‚©‚µ‚­‚È‚Á‚½‚Ég—p‚µ‚Ä‚­‚¾‚³‚¢B"
     
-    ' ãƒ€ãƒ–ãƒ«ã‚¯ãƒªãƒƒã‚¯å®Œäº†
-    wsGuide.Cells(11, 1).Value = "â–  ãƒ€ãƒ–ãƒ«ã‚¯ãƒªãƒƒã‚¯ã§ã‚¿ã‚¹ã‚¯å®Œäº†"
+    ' ƒ_ƒuƒ‹ƒNƒŠƒbƒNŠ®—¹
+    wsGuide.Cells(11, 1).Value = "¡ ƒ_ƒuƒ‹ƒNƒŠƒbƒN‚Åƒ^ƒXƒNŠ®—¹"
     wsGuide.Cells(11, 1).Font.Bold = True
-    wsGuide.Cells(12, 1).Value = "No.åˆ—(Båˆ—) ã¾ãŸã¯ LVåˆ—(Aåˆ—) ã‚’ãƒ€ãƒ–ãƒ«ã‚¯ãƒªãƒƒã‚¯ã™ã‚‹ã¨ã€"
-    wsGuide.Cells(13, 1).Value = "ãã®ã‚¿ã‚¹ã‚¯ãŒå®Œäº†ã«ãªã‚Šã¾ã™ã€‚"
+    wsGuide.Cells(12, 1).Value = "No.—ñ(B—ñ) ‚Ü‚½‚Í LV—ñ(A—ñ) ‚ğƒ_ƒuƒ‹ƒNƒŠƒbƒN‚·‚é‚ÆA"
+    wsGuide.Cells(13, 1).Value = "‚»‚Ìƒ^ƒXƒN‚ªŠ®—¹‚É‚È‚è‚Ü‚·B"
     wsGuide.Cells(14, 1).Value = ""
-    wsGuide.Cells(15, 1).Value = "  ãƒ» çŠ¶æ³ â†’ ã€Œå®Œäº†ã€"
-    wsGuide.Cells(16, 1).Value = "  ãƒ» é€²æ—ç‡ â†’ 100%"
-    wsGuide.Cells(17, 1).Value = "  ãƒ» å®Œäº†å®Ÿç¸¾ â†’ ä»Šæ—¥ã®æ—¥ä»˜"
+    wsGuide.Cells(15, 1).Value = "  E ó‹µ ¨ uŠ®—¹v"
+    wsGuide.Cells(16, 1).Value = "  E i’»—¦ ¨ 100%"
+    wsGuide.Cells(17, 1).Value = "  E Š®—¹ÀÑ ¨ ¡“ú‚Ì“ú•t"
     wsGuide.Cells(18, 1).Value = ""
-    wsGuide.Cells(19, 1).Value = "â€» ã™ã§ã«å®Œäº†ã—ã¦ã„ã‚‹ã‚¿ã‚¹ã‚¯ã¯å¤‰æ›´ã•ã‚Œã¾ã›ã‚“ã€‚"
+    wsGuide.Cells(19, 1).Value = "¦ ‚·‚Å‚ÉŠ®—¹‚µ‚Ä‚¢‚éƒ^ƒXƒN‚Í•ÏX‚³‚ê‚Ü‚¹‚ñB"
     
-    ' åˆ—å¹…è¨­å®š
+    ' —ñ•İ’è
     wsGuide.Columns(1).ColumnWidth = 35
     wsGuide.Columns(2).ColumnWidth = 45
 End Sub
 
 ' ==========================================
-'  ã‚¬ãƒ³ãƒˆå…¨ä½“ã®ç½«ç·šï¼ˆç½«ç·šã‚µãƒãƒªã«åŸºã¥ãè©³ç´°ãƒ‘ã‚¿ãƒ¼ãƒ³é©ç”¨ï¼‰
+'  ƒKƒ“ƒg‘S‘Ì‚ÌŒrüiŒrüƒTƒ}ƒŠ‚ÉŠî‚Ã‚­Ú×ƒpƒ^[ƒ““K—pj
 ' ==========================================
 Private Sub ApplyGanttBorders(ByVal ws As Worksheet, ByVal lastRow As Long)
     Dim ganttStartCol As Long
@@ -420,13 +420,13 @@ Private Sub ApplyGanttBorders(ByVal ws As Worksheet, ByVal lastRow As Long)
     Dim ganttEndCol As Long
     ganttEndCol = ganttStartCol + GANTT_DAYS - 1
     
-    ' ç½«ç·šã‚’ã‚¯ãƒªã‚¢
+    ' Œrü‚ğƒNƒŠƒA
     ws.Range(ws.Cells(1, 1), ws.Cells(lastRow, ganttEndCol)).Borders.LineStyle = xlNone
     
-    ' --- P1: 1è¡Œç›® (K:L ä¸‹ç½«ç·š) ---
+    ' --- P1: 1s–Ú (K:L ‰ºŒrü) ---
     ApplyBorder ws.Range("K1:L1"), xlEdgeBottom, xlContinuous, xlThin, xlColorIndexAutomatic
     
-    ' --- P2: 2-4è¡Œç›® (K:L ä¸Šä¸‹å·¦å³ç½«ç·š) ---
+    ' --- P2: 2-4s–Ú (K:L ã‰º¶‰EŒrü) ---
     Dim r As Long
     For r = 2 To 4
         ApplyBorder ws.Range("K" & r & ":L" & r), xlEdgeTop, xlContinuous, xlThin, xlColorIndexAutomatic
@@ -437,41 +437,41 @@ Private Sub ApplyGanttBorders(ByVal ws As Worksheet, ByVal lastRow As Long)
         ApplyBorder ws.Range("M" & r), xlEdgeLeft, xlContinuous, xlThin, xlColorIndexAutomatic
     Next r
     
-    ' --- P3: 5è¡Œç›® (K:L ä¸Š, O:BA ä¸‹) ---
+    ' --- P3: 5s–Ú (K:L ã, O:BA ‰º) ---
     ApplyBorder ws.Range("K5:L5"), xlEdgeTop, xlContinuous, xlThin, xlColorIndexAutomatic
     ApplyBorder ws.Range(ws.Cells(5, ganttStartCol), ws.Cells(5, ganttEndCol)), xlEdgeBottom, xlContinuous, xlThin, xlColorIndexAutomatic
     
-    ' --- P4: 6è¡Œç›® (é€±ãƒ˜ãƒƒãƒ€ãƒ¼è¡Œ) ---
-    ' ä¸Š: O, V, AC, AJ, AQ, AX (7åˆ—ãŠã)
+    ' --- P4: 6s–Ú (Tƒwƒbƒ_[s) ---
+    ' ã: O, V, AC, AJ, AQ, AX (7—ñ‚¨‚«)
     Dim weekCol As Long
     For weekCol = ganttStartCol To ganttEndCol Step 7
         ApplyBorder ws.Cells(6, weekCol), xlEdgeTop, xlContinuous, xlThin, xlColorIndexAutomatic
         ApplyBorder ws.Cells(6, weekCol), xlEdgeLeft, xlContinuous, xlThin, xlColorIndexAutomatic
         ApplyBorder ws.Cells(6, weekCol), xlEdgeRight, xlContinuous, xlThin, xlColorIndexAutomatic
     Next weekCol
-    ' ä¸‹: A:O + é€±åŒºåˆ‡ã‚Š (ä¸­å¤ª)
+    ' ‰º: A:O + T‹æØ‚è (’†‘¾)
     ApplyBorder ws.Range(ws.Cells(6, 1), ws.Cells(6, ganttStartCol)), xlEdgeBottom, xlContinuous, xlMedium, xlColorIndexAutomatic
     For weekCol = ganttStartCol To ganttEndCol Step 7
         ApplyBorder ws.Cells(6, weekCol), xlEdgeBottom, xlContinuous, xlMedium, xlColorIndexAutomatic
     Next weekCol
     ApplyBorder ws.Range("N6"), xlEdgeRight, xlContinuous, xlThin, xlColorIndexAutomatic
     
-    ' --- P5: 7è¡Œç›® (æ—¥ä»˜è¡Œ) ---
-    ' 7è¡Œç›®ã®èƒŒæ™¯è‰²ã‚’ãƒ˜ãƒƒãƒ€ãƒ¼ã¨åŒã˜è‰²ã§å¡—ã‚Šã¤ã¶ã—
+    ' --- P5: 7s–Ú (“ú•ts) ---
+    ' 7s–Ú‚Ì”wŒiF‚ğƒwƒbƒ_[‚Æ“¯‚¶F‚Å“h‚è‚Â‚Ô‚µ
     ws.Range(ws.Cells(7, 1), ws.Cells(7, ganttEndCol)).Interior.Color = COLOR_HEADER_BG
     ws.Range(ws.Cells(7, 1), ws.Cells(7, ganttEndCol)).Font.Color = RGB(255, 255, 255)
     
     ApplyBorder ws.Range(ws.Cells(7, 1), ws.Cells(7, ganttEndCol)), xlEdgeTop, xlContinuous, xlMedium, xlColorIndexAutomatic
-    ' 7è¡Œç›®ä¸‹éƒ¨ã«é»’è‰²ã®å¤ªç·š
+    ' 7s–Ú‰º•”‚É•F‚Ì‘¾ü
     ApplyBorder ws.Range(ws.Cells(7, 1), ws.Cells(7, ganttEndCol)), xlEdgeBottom, xlContinuous, xlMedium, xlColorIndexAutomatic
     ApplyBorder ws.Range(ws.Cells(7, 14), ws.Cells(7, ganttEndCol)), xlEdgeRight, xlContinuous, xlThin, xlColorIndexAutomatic
     ApplyBorder ws.Range("A7"), xlEdgeLeft, xlContinuous, xlMedium, xlColorIndexAutomatic
     ApplyBorder ws.Range(ws.Cells(7, ganttStartCol), ws.Cells(7, ganttEndCol)), xlEdgeLeft, xlContinuous, xlThin, xlColorIndexAutomatic
     
-    ' 7è¡Œç›®ã®Oåˆ—ã‚ˆã‚Šå³ã®ã‚¬ãƒ³ãƒˆãƒãƒ£ãƒ¼ãƒˆéƒ¨ã¯å¤ªå­—
+    ' 7s–Ú‚ÌO—ñ‚æ‚è‰E‚ÌƒKƒ“ƒgƒ`ƒƒ[ƒg•”‚Í‘¾š
     ws.Range(ws.Cells(7, ganttStartCol), ws.Cells(7, ganttEndCol)).Font.Bold = True
     
-    ' --- P6: 8è¡Œç›® (ãƒ˜ãƒƒãƒ€ãƒ¼è¡Œ) ---
+    ' --- P6: 8s–Ú (ƒwƒbƒ_[s) ---
     ApplyBorder ws.Range(ws.Cells(8, 1), ws.Cells(8, ganttEndCol)), xlEdgeTop, xlContinuous, xlThin, xlColorIndexAutomatic
     ApplyBorder ws.Range(ws.Cells(8, 1), ws.Cells(8, ganttEndCol)), xlEdgeBottom, xlContinuous, xlMedium, xlColorIndexAutomatic
     ApplyBorder ws.Range("A8:B8"), xlEdgeRight, xlContinuous, xlThin, xlColorIndexAutomatic
@@ -480,27 +480,27 @@ Private Sub ApplyGanttBorders(ByVal ws As Worksheet, ByVal lastRow As Long)
     ApplyBorder ws.Range("B8:C8"), xlEdgeLeft, xlContinuous, xlThin, xlColorIndexAutomatic
     ApplyBorder ws.Range(ws.Cells(8, 7), ws.Cells(8, ganttEndCol)), xlEdgeLeft, xlContinuous, xlThin, xlColorIndexAutomatic
     
-    ' --- P7/P8: 9è¡Œç›®ä»¥é™ (ãƒ‡ãƒ¼ã‚¿è¡Œãƒ‘ã‚¿ãƒ¼ãƒ³ã€9è¡Œç›®ã‚‚10è¡Œç›®ä»¥é™ã¨åŒã˜) ---
+    ' --- P7/P8: 9s–ÚˆÈ~ (ƒf[ƒ^sƒpƒ^[ƒ“A9s–Ú‚à10s–ÚˆÈ~‚Æ“¯‚¶) ---
     If lastRow >= ROW_DATA_START Then
         Dim dataRange As Range
         Set dataRange = ws.Range(ws.Cells(ROW_DATA_START, 1), ws.Cells(lastRow, ganttEndCol))
         
-        ' ä¸Šä¸‹: ColorIndex 48 (è–„ã„ç°è‰²)
+        ' ã‰º: ColorIndex 48 (”–‚¢ŠDF)
         ApplyBorderWithColorIndex dataRange, xlEdgeTop, xlContinuous, xlThin, 48
         ApplyBorderWithColorIndex dataRange, xlEdgeBottom, xlContinuous, xlThin, 48
         ApplyBorderWithColorIndex ws.Range(ws.Cells(ROW_DATA_START, 1), ws.Cells(lastRow, ganttEndCol)), xlInsideHorizontal, xlContinuous, xlThin, 48
         
-        ' C-Eåˆ—: æ¥µç´° ColorIndex 15
+        ' C-E—ñ: ‹É× ColorIndex 15
         ApplyBorderWithColorIndex ws.Range(ws.Cells(ROW_DATA_START, 3), ws.Cells(lastRow, 5)), xlEdgeRight, xlContinuous, xlHairline, 15
         ApplyBorderWithColorIndex ws.Range(ws.Cells(ROW_DATA_START, 4), ws.Cells(lastRow, 6)), xlEdgeLeft, xlContinuous, xlHairline, 15
         ApplyBorderWithColorIndex ws.Range(ws.Cells(ROW_DATA_START, 3), ws.Cells(lastRow, 5)), xlInsideVertical, xlContinuous, xlHairline, 15
         
-        ' ã‚¬ãƒ³ãƒˆãƒãƒ£ãƒ¼ãƒˆéƒ¨(Oåˆ—ä»¥é™)ã«ã‚‚C-Dé–“ã¨åŒã˜ç¸¦ç½«ç·š
+        ' ƒKƒ“ƒgƒ`ƒƒ[ƒg•”(O—ñˆÈ~)‚É‚àC-DŠÔ‚Æ“¯‚¶cŒrü
         ApplyBorderWithColorIndex ws.Range(ws.Cells(ROW_DATE_HEADER, ganttStartCol), ws.Cells(lastRow, ganttEndCol)), xlInsideVertical, xlContinuous, xlHairline, 15
         
-        ' A-B, F-Nåˆ—: ç´°ç·š è‡ªå‹•
+        ' A-B, F-N—ñ: ×ü ©“®
         ApplyBorder ws.Range(ws.Cells(ROW_DATA_START, 1), ws.Cells(lastRow, 2)), xlEdgeRight, xlContinuous, xlThin, xlColorIndexAutomatic
-        ' Aåˆ—Båˆ—é–“ã¯é»’ç´°ç·š
+        ' A—ñB—ñŠÔ‚Í•×ü
         ApplyBorder ws.Range(ws.Cells(ROW_DATA_START, 1), ws.Cells(lastRow, 1)), xlEdgeRight, xlContinuous, xlThin, xlColorIndexAutomatic
         ApplyBorder ws.Range(ws.Cells(ROW_DATA_START, 6), ws.Cells(lastRow, 14)), xlEdgeRight, xlContinuous, xlThin, xlColorIndexAutomatic
         ApplyBorder ws.Range(ws.Cells(ROW_DATA_START, 6), ws.Cells(lastRow, 14)), xlInsideVertical, xlContinuous, xlThin, xlColorIndexAutomatic
@@ -510,7 +510,7 @@ Private Sub ApplyGanttBorders(ByVal ws As Worksheet, ByVal lastRow As Long)
 End Sub
 
 ' ==========================================
-'  ç½«ç·šé©ç”¨ãƒ˜ãƒ«ãƒ‘ãƒ¼ï¼ˆè‡ªå‹•è‰²ï¼‰
+'  Œrü“K—pƒwƒ‹ƒp[i©“®Fj
 ' ==========================================
 Private Sub ApplyBorder(ByVal rng As Range, ByVal borderIndex As XlBordersIndex, _
                         ByVal lineStyle As XlLineStyle, ByVal weight As XlBorderWeight, _
@@ -525,7 +525,7 @@ Private Sub ApplyBorder(ByVal rng As Range, ByVal borderIndex As XlBordersIndex,
 End Sub
 
 ' ==========================================
-'  ç½«ç·šé©ç”¨ãƒ˜ãƒ«ãƒ‘ãƒ¼ï¼ˆColorIndexæŒ‡å®šï¼‰
+'  Œrü“K—pƒwƒ‹ƒp[iColorIndexw’èj
 ' ==========================================
 Private Sub ApplyBorderWithColorIndex(ByVal rng As Range, ByVal borderIndex As XlBordersIndex, _
                                       ByVal lineStyle As XlLineStyle, ByVal weight As XlBorderWeight, _
@@ -541,7 +541,7 @@ End Sub
 
 
 ' ==========================================
-'  é€±ã®åŒºåˆ‡ã‚Šç·š
+'  T‚Ì‹æØ‚èü
 ' ==========================================
 Private Sub DrawWeekSeparators(ByVal ws As Worksheet, ByVal lastRow As Long)
     Dim ganttStartCol As Long
@@ -561,7 +561,7 @@ Private Sub DrawWeekSeparators(ByVal ws As Worksheet, ByVal lastRow As Long)
 End Sub
 
 ' ==========================================
-'  åœŸæ—¥åˆ—ã®è‰²å¡—ã‚Šï¼ˆæ›œæ—¥ãƒ»æ—¥ä»˜è¡Œã¨ãƒ‡ãƒ¼ã‚¿è¡Œã‚’å«ã‚€ï¼‰
+'  “y“ú—ñ‚ÌF“h‚èi—j“úE“ú•ts‚Æƒf[ƒ^s‚ğŠÜ‚Şj
 ' ==========================================
 Private Sub ApplyWeekendColors(ByVal ws As Worksheet, ByVal lastRow As Long, ByVal ganttStartDate As Date, ByVal ganttStartCol As Long)
     Dim colIndex As Long
@@ -572,7 +572,7 @@ Private Sub ApplyWeekendColors(ByVal ws As Worksheet, ByVal lastRow As Long, ByV
         colIndex = ganttStartCol + i - 1
         currentDate = ganttStartDate + i - 1
         
-        ' åœŸæ—¥ï¼ˆåœŸ=6, æ—¥=7ï¼‰ã®åˆ—ã‚’è–„ã„ç°è‰²ã§å¡—ã‚Šã¤ã¶ã™ï¼ˆæ—¥ä»˜è¡Œã€æ›œæ—¥è¡Œã€ãƒ‡ãƒ¼ã‚¿è¡Œã™ã¹ã¦ï¼‰
+        ' “y“úi“y=6, “ú=7j‚Ì—ñ‚ğ”–‚¢ŠDF‚Å“h‚è‚Â‚Ô‚·i“ú•tsA—j“úsAƒf[ƒ^s‚·‚×‚Äj
         If Weekday(currentDate, vbMonday) >= 6 Then
             ws.Range(ws.Cells(ROW_DATE_HEADER, colIndex), ws.Cells(lastRow, colIndex)).Interior.Color = COLOR_HOLIDAY
         End If
@@ -580,7 +580,7 @@ Private Sub ApplyWeekendColors(ByVal ws As Worksheet, ByVal lastRow As Long, ByV
 End Sub
 
 ' ==========================================
-'  ã‚¬ãƒ³ãƒˆãƒãƒ¼æç”»
+'  ƒKƒ“ƒgƒo[•`‰æ
 ' ==========================================
 Sub DrawGanttBars()
     On Error GoTo ErrorHandler
@@ -605,7 +605,7 @@ Sub DrawGanttBars()
         ganttStartDate = Date
     End If
     
-    ' æ—¢å­˜ã®ã‚·ã‚§ã‚¤ãƒ—ã‚’å‰Šé™¤
+    ' Šù‘¶‚ÌƒVƒFƒCƒv‚ğíœ
     Dim shp As Shape
     For Each shp In ws.Shapes
         If Left(shp.Name, 4) = "Bar_" Or Left(shp.Name, 6) = "Today_" Or Left(shp.Name, 8) = "Inazuma_" Then
@@ -613,7 +613,7 @@ Sub DrawGanttBars()
         End If
     Next shp
     
-    ' å„è¡Œã®ãƒãƒ¼ã‚’æç”»
+    ' Šes‚Ìƒo[‚ğ•`‰æ
     Dim r As Long
     Dim startPlan As Variant, endPlan As Variant
     Dim startActual As Variant, endActual As Variant
@@ -622,7 +622,7 @@ Sub DrawGanttBars()
     Dim cellTop As Double, cellLeft As Double, cellWidth As Double, cellHeight As Double
     Dim barHeight As Double
     
-    barHeight = 12  ' ãƒãƒ¼ã®é«˜ã•
+    barHeight = 12  ' ƒo[‚Ì‚‚³
     
     Dim inazumaPoints() As Variant
     ReDim inazumaPoints(1 To lastRow - ROW_DATA_START + 1, 1 To 2)
@@ -630,13 +630,13 @@ Sub DrawGanttBars()
     inazumaCount = 0
     
     For r = ROW_DATA_START To lastRow
-        ' æ—¥ä»˜ã‚’å–å¾—
+        ' “ú•t‚ğæ“¾
         startPlan = ws.Cells(r, COL_START_PLAN).Value
         endPlan = ws.Cells(r, COL_END_PLAN).Value
         startActual = ws.Cells(r, COL_START_ACTUAL).Value
         endActual = ws.Cells(r, COL_END_ACTUAL).Value
         
-        ' é€²æ—ç‡ã‚’å–å¾—
+        ' i’»—¦‚ğæ“¾
         progress = 0
         If IsNumeric(ws.Cells(r, COL_PROGRESS).Value) Then
             progress = CDbl(ws.Cells(r, COL_PROGRESS).Value)
@@ -645,7 +645,7 @@ Sub DrawGanttBars()
             If progress > 1 Then progress = 1
         End If
         
-        ' äºˆå®šãƒãƒ¼ã‚’æç”»
+        ' —\’èƒo[‚ğ•`‰æ
         If IsDate(startPlan) And IsDate(endPlan) Then
             startCol = DateToColumn(ganttStartDate, CDate(startPlan), ganttStartCol)
             endCol = DateToColumn(ganttStartDate, CDate(endPlan), ganttStartCol)
@@ -656,17 +656,17 @@ Sub DrawGanttBars()
                     cellTop = ws.Cells(r, startCol).Top + 2
                     cellLeft = ws.Cells(r, startCol).Left
                     cellWidth = ws.Cells(r, endCol).Left + ws.Cells(r, endCol).Width - cellLeft
-                    barHeight = 6  ' äºˆå®šãƒãƒ¼ã®é«˜ã•
+                    barHeight = 6  ' —\’èƒo[‚Ì‚‚³
                     
-                    ' äºˆå®šãƒãƒ¼ï¼ˆè–„ã„ç°è‰² + é»’æ ç·šï¼‰
+                    ' —\’èƒo[i”–‚¢ŠDF + •˜güj
                     Set shp = ws.Shapes.AddShape(msoShapeRectangle, cellLeft, cellTop, cellWidth, barHeight)
                     shp.Name = "Bar_Plan_" & r
                     shp.Fill.ForeColor.RGB = COLOR_PLAN
                     shp.Line.Visible = msoTrue
-                    shp.Line.ForeColor.RGB = RGB(0, 0, 0)  ' é»’æ ç·š
+                    shp.Line.ForeColor.RGB = RGB(0, 0, 0)  ' •˜gü
                     shp.Line.Weight = 1
                     
-                    ' é€²æ—ãƒãƒ¼ï¼ˆç´ºè‰² + é»’æ ç·šï¼‰
+                    ' i’»ƒo[i®F + •˜güj
                     If progress > 0 Then
                         progressCol = startCol + CLng((endCol - startCol + 1) * progress) - 1
                         If progressCol < startCol Then progressCol = startCol
@@ -680,19 +680,19 @@ Sub DrawGanttBars()
                             shp.Name = "Bar_Progress_" & r
                             shp.Fill.ForeColor.RGB = COLOR_PROGRESS
                             shp.Line.Visible = msoTrue
-                            shp.Line.ForeColor.RGB = RGB(0, 0, 0)  ' é»’æ ç·š
+                            shp.Line.ForeColor.RGB = RGB(0, 0, 0)  ' •˜gü
                             shp.Line.Weight = 1
                         End If
                     End If
                     
-                    ' ã‚¤ãƒŠã‚ºãƒç·šç”¨ã®ãƒã‚¤ãƒ³ãƒˆã‚’è¨˜éŒ²ï¼ˆä»Šæ—¥åŸºæº–å‹ï¼‰
-                    ' æ¡ä»¶: é–‹å§‹äºˆå®šæ—¥ãŒä»Šæ—¥ä»¥å‰ã®ã‚¿ã‚¹ã‚¯ã®ã¿å¯¾è±¡
+                    ' ƒCƒiƒYƒ}ü—p‚Ìƒ|ƒCƒ“ƒg‚ğ‹L˜^i¡“úŠî€Œ^j
+                    ' ğŒ: ŠJn—\’è“ú‚ª¡“úˆÈ‘O‚Ìƒ^ƒXƒN‚Ì‚İ‘ÎÛ
                     If CDate(startPlan) <= Date Then
                         Dim inazumaX As Double
                         Dim useTodayPosition As Boolean
                         useTodayPosition = False
                         
-                        ' ä»Šæ—¥åˆ—ã®Xåº§æ¨™ã‚’è¨ˆç®—
+                        ' ¡“ú—ñ‚ÌXÀ•W‚ğŒvZ
                         Dim todayColForInazuma As Long
                         todayColForInazuma = DateToColumn(ganttStartDate, Date, ganttStartCol)
                         Dim todayX As Double
@@ -703,16 +703,16 @@ Sub DrawGanttBars()
                         End If
                         
                         If progress >= 1 Then
-                            ' å®Œäº†æ¸ˆã¿
+                            ' Š®—¹Ï‚İ
                             If CDate(endPlan) < Date Then
-                                ' å®Œäº†äºˆå®šæ—¥ãŒä»Šæ—¥ã‚ˆã‚Šå‰ã®å ´åˆã¯ä»Šæ—¥ã®ä½ç½®ã§çµã¶
+                                ' Š®—¹—\’è“ú‚ª¡“ú‚æ‚è‘O‚Ìê‡‚Í¡“ú‚ÌˆÊ’u‚ÅŒ‹‚Ô
                                 useTodayPosition = True
                             Else
-                                ' å®Œäº†äºˆå®šæ—¥ãŒä»Šæ—¥ä»¥é™ã®å ´åˆã¯å®Œäº†äºˆå®šä½ç½®ã§çµã¶
+                                ' Š®—¹—\’è“ú‚ª¡“úˆÈ~‚Ìê‡‚ÍŠ®—¹—\’èˆÊ’u‚ÅŒ‹‚Ô
                                 inazumaX = ws.Cells(r, endCol).Left + ws.Cells(r, endCol).Width
                             End If
                         Else
-                            ' é€²è¡Œä¸­ã¾ãŸã¯æœªç€æ‰‹: é€²æ—ç‡ã«å¿œã˜ãŸä½ç½®
+                            ' is’†‚Ü‚½‚Í–¢’…è: i’»—¦‚É‰‚¶‚½ˆÊ’u
                             Dim progressPosition As Long
                             progressPosition = startCol + CLng((endCol - startCol + 1) * progress) - 1
                             If progressPosition < startCol Then progressPosition = startCol
@@ -720,7 +720,7 @@ Sub DrawGanttBars()
                             If progress = 0 Then inazumaX = cellLeft
                         End If
                         
-                        ' ä»Šæ—¥ã®ä½ç½®ã‚’ä½¿ç”¨ã™ã‚‹å ´åˆ
+                        ' ¡“ú‚ÌˆÊ’u‚ğg—p‚·‚éê‡
                         If useTodayPosition And todayX > 0 Then
                             inazumaX = todayX
                         End If
@@ -733,9 +733,9 @@ Sub DrawGanttBars()
             End If
         End If
         
-        ' å®Ÿç¸¾ãƒãƒ¼ï¼ˆç·‘è‰²ã®å¡—ã‚Šã¤ã¶ã—ãƒãƒ¼ã€äºˆå®šã®ä¸‹ã«é…ç½®ã€å³ç«¯ã¯é€²æ—ãƒãƒ¼ã¨æƒãˆã‚‹ï¼‰
+        ' ÀÑƒo[i—ÎF‚Ì“h‚è‚Â‚Ô‚µƒo[A—\’è‚Ì‰º‚É”z’uA‰E’[‚Íi’»ƒo[‚Æ‘µ‚¦‚éj
         If IsDate(startActual) And IsDate(startPlan) And IsDate(endPlan) Then
-            ' å®Ÿç¸¾ãƒãƒ¼ã®å³ç«¯ã¯é€²æ—ãƒãƒ¼ã®å³ç«¯ã¨æƒãˆã‚‹
+            ' ÀÑƒo[‚Ì‰E’[‚Íi’»ƒo[‚Ì‰E’[‚Æ‘µ‚¦‚é
             Dim actualStartCol As Long
             Dim actualEndCol As Long
             Dim planStartCol As Long
@@ -745,7 +745,7 @@ Sub DrawGanttBars()
             planStartCol = DateToColumn(ganttStartDate, CDate(startPlan), ganttStartCol)
             planEndCol = DateToColumn(ganttStartDate, CDate(endPlan), ganttStartCol)
             
-            ' é€²æ—ãƒãƒ¼ã®å³ç«¯ä½ç½®ã‚’è¨ˆç®—
+            ' i’»ƒo[‚Ì‰E’[ˆÊ’u‚ğŒvZ
             Dim progressEndCol As Long
             If progress >= 1 Then
                 progressEndCol = planEndCol
@@ -758,10 +758,10 @@ Sub DrawGanttBars()
                 If progressEndCol > ganttStartCol + GANTT_DAYS - 1 Then progressEndCol = ganttStartCol + GANTT_DAYS - 1
                 If progressEndCol >= actualStartCol Then
                     Dim actualBarHeight As Double
-                    actualBarHeight = 6  ' å®Ÿç¸¾ãƒãƒ¼ã®é«˜ã•ï¼ˆäºˆå®šã‚ˆã‚Šç´°ã‚ï¼‰
-                    cellTop = ws.Cells(r, actualStartCol).Top + 10  ' äºˆå®šãƒãƒ¼ã®ä¸‹ã«é…ç½®
+                    actualBarHeight = 6  ' ÀÑƒo[‚Ì‚‚³i—\’è‚æ‚è×‚ßj
+                    cellTop = ws.Cells(r, actualStartCol).Top + 10  ' —\’èƒo[‚Ì‰º‚É”z’u
                     cellLeft = ws.Cells(r, actualStartCol).Left
-                    ' å³ç«¯ã¯é€²æ—ãƒãƒ¼ã®å³ç«¯ã¨æƒãˆã‚‹
+                    ' ‰E’[‚Íi’»ƒo[‚Ì‰E’[‚Æ‘µ‚¦‚é
                     cellWidth = ws.Cells(r, progressEndCol).Left + ws.Cells(r, progressEndCol).Width - cellLeft
                     
                     Set shp = ws.Shapes.AddShape(msoShapeRectangle, cellLeft, cellTop, cellWidth, actualBarHeight)
@@ -773,15 +773,15 @@ Sub DrawGanttBars()
         End If
     Next r
     
-    ' ä»Šæ—¥ç·šã‚’æç”»ï¼ˆ9è¡Œç›®ã‚¹ã‚¿ãƒ¼ãƒˆï¼‰
+    ' ¡“úü‚ğ•`‰æi9s–ÚƒXƒ^[ƒgj
     Dim todayCol As Long
     todayCol = DateToColumn(ganttStartDate, Date, ganttStartCol)
     
     If todayCol >= ganttStartCol And todayCol <= ganttStartCol + GANTT_DAYS - 1 Then
-        ' ä»Šæ—¥ã«ã‚ãŸã‚‹æ—¥ä»˜(7è¡Œç›®)ã‚’èµ¤å­—ã«ã™ã‚‹
+        ' ¡“ú‚É‚ ‚½‚é“ú•t(7s–Ú)‚ğÔš‚É‚·‚é
         ws.Cells(ROW_DATE_HEADER, todayCol).Font.Color = COLOR_TODAY
         
-        ' ä»Šæ—¥ç·šï¼ˆ9è¡Œç›®ã‹ã‚‰é–‹å§‹ï¼‰
+        ' ¡“úüi9s–Ú‚©‚çŠJnj
         Dim todayLeft As Double, todayTop As Double, todayBottom As Double
         todayLeft = ws.Cells(ROW_DATA_START, todayCol).Left + ws.Cells(ROW_DATA_START, todayCol).Width / 2
         todayTop = ws.Cells(ROW_DATA_START, todayCol).Top
@@ -793,7 +793,7 @@ Sub DrawGanttBars()
         shp.Line.Weight = TODAY_LINE_WEIGHT
     End If
     
-    ' ã‚¤ãƒŠã‚ºãƒç·šã‚’æç”»ï¼ˆè¤‡æ•°ãƒã‚¤ãƒ³ãƒˆãŒã‚ã‚‹å ´åˆï¼‰
+    ' ƒCƒiƒYƒ}ü‚ğ•`‰æi•¡”ƒ|ƒCƒ“ƒg‚ª‚ ‚éê‡j
     If inazumaCount >= 2 Then
         Dim freeformBuilder As FreeformBuilder
         Set freeformBuilder = ws.Shapes.BuildFreeform(msoEditingAuto, inazumaPoints(1, 1), inazumaPoints(1, 2))
@@ -817,11 +817,11 @@ Sub DrawGanttBars()
 ErrorHandler:
     Application.Calculation = xlCalculationAutomatic
     Application.ScreenUpdating = True
-    MsgBox "DrawGanttBars ã‚¨ãƒ©ãƒ¼: " & Err.Description, vbCritical, "ã‚¨ãƒ©ãƒ¼"
+    MsgBox "DrawGanttBars ƒGƒ‰[: " & Err.Description, vbCritical, "ƒGƒ‰["
 End Sub
 
 ' ==========================================
-'  æ—¥ä»˜ã‹ã‚‰åˆ—ç•ªå·ã‚’è¨ˆç®—
+'  “ú•t‚©‚ç—ñ”Ô†‚ğŒvZ
 ' ==========================================
 Private Function DateToColumn(ByVal ganttStartDate As Date, ByVal targetDate As Date, ByVal ganttStartCol As Long) As Long
     Dim daysDiff As Long
@@ -830,7 +830,7 @@ Private Function DateToColumn(ByVal ganttStartDate As Date, ByVal targetDate As 
 End Function
 
 ' ==========================================
-'  å…¨æç”»å®Ÿè¡Œ
+'  ‘S•`‰æÀs
 ' ==========================================
 Sub RefreshInazumaGantt()
     On Error GoTo ErrorHandler
@@ -845,7 +845,7 @@ Sub RefreshInazumaGantt()
     lastRow = GetLastDataRow(ws)
     If lastRow < ROW_DATA_START Then lastRow = ROW_DATA_START
     
-    ' æ—¥ä»˜ãƒ˜ãƒƒãƒ€ãƒ¼ã‚’å†ç”Ÿæˆï¼ˆé–‹å§‹æ—¥å¤‰æ›´å¯¾å¿œï¼‰
+    ' “ú•tƒwƒbƒ_[‚ğÄ¶¬iŠJn“ú•ÏX‘Î‰j
     RegenerateDateHeaders ws
     
     Dim ganttStartDate As Date
@@ -857,7 +857,7 @@ Sub RefreshInazumaGantt()
         ganttStartDate = Date
     End If
     
-    ' ã‚¬ãƒ³ãƒˆé ˜åŸŸã®èƒŒæ™¯è‰²ã‚’ã‚¯ãƒªã‚¢ã—ã¦ã‹ã‚‰å†å¡—ã‚Š
+    ' ƒKƒ“ƒg—Ìˆæ‚Ì”wŒiF‚ğƒNƒŠƒA‚µ‚Ä‚©‚çÄ“h‚è
     ClearGanttColors ws, lastRow, ganttStartCol
     
     ApplyGanttBorders ws, lastRow
@@ -871,18 +871,18 @@ Sub RefreshInazumaGantt()
     Application.Calculation = xlCalculationAutomatic
     Application.ScreenUpdating = True
     
-    MsgBox "ã‚¤ãƒŠã‚ºãƒã‚¬ãƒ³ãƒˆæ›´æ–°å®Œäº†ï¼", vbInformation, "ã‚¤ãƒŠã‚ºãƒã‚¬ãƒ³ãƒˆ"
+    MsgBox "ƒCƒiƒYƒ}ƒKƒ“ƒgXVŠ®—¹I", vbInformation, "ƒCƒiƒYƒ}ƒKƒ“ƒg"
     Exit Sub
     
 ErrorHandler:
     Application.Calculation = xlCalculationAutomatic
     Application.ScreenUpdating = True
-    MsgBox "æ›´æ–°ä¸­ã«ã‚¨ãƒ©ãƒ¼ãŒç™ºç”Ÿã—ã¾ã—ãŸ: " & Err.Description, vbCritical, "ã‚¨ãƒ©ãƒ¼"
+    MsgBox "XV’†‚ÉƒGƒ‰[‚ª”­¶‚µ‚Ü‚µ‚½: " & Err.Description, vbCritical, "ƒGƒ‰["
 End Sub
 
 
 ' ==========================================
-'  ç¥æ—¥åˆ—ã®è‰²å¡—ã‚Šï¼ˆç¥æ—¥ãƒã‚¹ã‚¿ Aåˆ—ï¼‰
+'  j“ú—ñ‚ÌF“h‚èij“úƒ}ƒXƒ^ A—ñj
 ' ==========================================
 Private Sub ApplyHolidayColors(ByVal ws As Worksheet, ByVal lastRow As Long)
     Dim wsHoliday As Worksheet
@@ -922,7 +922,7 @@ Private Sub ApplyHolidayColors(ByVal ws As Worksheet, ByVal lastRow As Long)
 End Sub
 
 ' ==========================================
-'  ã‚¿ã‚¹ã‚¯åˆ—ã®é–‹å§‹ä½ç½®ã‚’å–å¾—ï¼ˆéšå±¤ãƒ¬ãƒ™ãƒ«ã‹ã‚‰ï¼‰
+'  ƒ^ƒXƒN—ñ‚ÌŠJnˆÊ’u‚ğæ“¾iŠK‘wƒŒƒxƒ‹‚©‚çj
 ' ==========================================
 Public Function GetTaskColumnByLevel(ByVal level As Long) As String
     Select Case level
@@ -940,7 +940,7 @@ Public Function GetTaskColumnByLevel(ByVal level As Long) As String
 End Function
 
 ' ==========================================
-'  ã‚¿ã‚¹ã‚¯å…¥åŠ›åˆ—ã‹ã‚‰éšå±¤ã‚’è‡ªå‹•åˆ¤å®š
+'  ƒ^ƒXƒN“ü—Í—ñ‚©‚çŠK‘w‚ğ©“®”»’è
 ' ==========================================
 Public Sub AutoDetectTaskLevel(Optional ByVal targetRow As Long = 0)
     On Error GoTo ErrorHandler
@@ -990,16 +990,16 @@ Public Sub AutoDetectTaskLevel(Optional ByVal targetRow As Long = 0)
     
 ErrorHandler:
     Application.EnableEvents = True
-    MsgBox "éšå±¤è‡ªå‹•åˆ¤å®šã‚¨ãƒ©ãƒ¼: " & Err.Description, vbCritical, "ã‚¨ãƒ©ãƒ¼"
+    MsgBox "ŠK‘w©“®”»’èƒGƒ‰[: " & Err.Description, vbCritical, "ƒGƒ‰["
 End Sub
 
 ' ==========================================
-'  ã‚³ãƒ³ãƒˆãƒ­ãƒ¼ãƒ«ãƒœã‚¿ãƒ³ã®ä½œæˆ
+'  ƒRƒ“ƒgƒ[ƒ‹ƒ{ƒ^ƒ“‚Ìì¬
 ' ==========================================
 Private Sub CreateControlButtons(ByVal ws As Worksheet)
     On Error Resume Next
     
-    ' æ—¢å­˜ãƒœã‚¿ãƒ³ã‚’å‰Šé™¤
+    ' Šù‘¶ƒ{ƒ^ƒ“‚ğíœ
     Dim shp As Shape
     For Each shp In ws.Shapes
         If Left(shp.Name, 4) = "Btn_" Then shp.Delete
@@ -1011,7 +1011,7 @@ Private Sub CreateControlButtons(ByVal ws As Worksheet)
     btnWidth = 80
     btnHeight = 22
     
-    ' ã‚¬ãƒ³ãƒˆæ›´æ–°ãƒœã‚¿ãƒ³
+    ' ƒKƒ“ƒgXVƒ{ƒ^ƒ“
     btnLeft = ws.Cells(2, 1).Left
     Dim btnRefresh As Shape
     Set btnRefresh = ws.Shapes.AddShape(msoShapeRoundedRectangle, btnLeft, btnTop, btnWidth, btnHeight)
@@ -1019,7 +1019,7 @@ Private Sub CreateControlButtons(ByVal ws As Worksheet)
         .Name = "Btn_Refresh"
         .Fill.ForeColor.RGB = RGB(48, 84, 150)
         .Line.Visible = msoFalse
-        .TextFrame2.TextRange.Characters.Text = "ã‚¬ãƒ³ãƒˆæ›´æ–°"
+        .TextFrame2.TextRange.Characters.Text = "ƒKƒ“ƒgXV"
         .TextFrame2.TextRange.Font.Fill.ForeColor.RGB = RGB(255, 255, 255)
         .TextFrame2.TextRange.Font.Size = 10
         .TextFrame2.TextRange.ParagraphFormat.Alignment = msoAlignCenter
@@ -1027,7 +1027,7 @@ Private Sub CreateControlButtons(ByVal ws As Worksheet)
         .OnAction = "RefreshInazumaGantt"
     End With
     
-    ' åœŸæ—¥åˆ‡æ›¿ãƒœã‚¿ãƒ³
+    ' “y“úØ‘Öƒ{ƒ^ƒ“
     btnLeft = btnLeft + btnWidth + 10
     Dim btnToggle As Shape
     Set btnToggle = ws.Shapes.AddShape(msoShapeRoundedRectangle, btnLeft, btnTop, btnWidth, btnHeight)
@@ -1035,7 +1035,7 @@ Private Sub CreateControlButtons(ByVal ws As Worksheet)
         .Name = "Btn_ToggleWeekend"
         .Fill.ForeColor.RGB = RGB(68, 114, 196)
         .Line.Visible = msoFalse
-        .TextFrame2.TextRange.Characters.Text = "åœŸæ—¥åˆ‡æ›¿"
+        .TextFrame2.TextRange.Characters.Text = "“y“úØ‘Ö"
         .TextFrame2.TextRange.Font.Fill.ForeColor.RGB = RGB(255, 255, 255)
         .TextFrame2.TextRange.Font.Size = 10
         .TextFrame2.TextRange.ParagraphFormat.Alignment = msoAlignCenter
@@ -1043,7 +1043,7 @@ Private Sub CreateControlButtons(ByVal ws As Worksheet)
         .OnAction = "ToggleWeekends"
     End With
     
-    ' æ›¸å¼ãƒªã‚»ãƒƒãƒˆãƒœã‚¿ãƒ³
+    ' ‘®ƒŠƒZƒbƒgƒ{ƒ^ƒ“
     btnLeft = btnLeft + btnWidth + 10
     Dim btnReset As Shape
     Set btnReset = ws.Shapes.AddShape(msoShapeRoundedRectangle, btnLeft, btnTop, btnWidth, btnHeight)
@@ -1051,7 +1051,7 @@ Private Sub CreateControlButtons(ByVal ws As Worksheet)
         .Name = "Btn_Reset"
         .Fill.ForeColor.RGB = RGB(112, 48, 160)
         .Line.Visible = msoFalse
-        .TextFrame2.TextRange.Characters.Text = "æ›¸å¼ãƒªã‚»ãƒƒãƒˆ"
+        .TextFrame2.TextRange.Characters.Text = "‘®ƒŠƒZƒbƒg"
         .TextFrame2.TextRange.Font.Fill.ForeColor.RGB = RGB(255, 255, 255)
         .TextFrame2.TextRange.Font.Size = 10
         .TextFrame2.TextRange.ParagraphFormat.Alignment = msoAlignCenter
@@ -1061,7 +1061,7 @@ Private Sub CreateControlButtons(ByVal ws As Worksheet)
 End Sub
 
 ' ==========================================
-'  åœŸæ—¥åˆ—ã®è¡¨ç¤º/éè¡¨ç¤ºåˆ‡æ›¿
+'  “y“ú—ñ‚Ì•\¦/”ñ•\¦Ø‘Ö
 ' ==========================================
 Sub ToggleWeekends()
     On Error GoTo ErrorHandler
@@ -1076,7 +1076,7 @@ Sub ToggleWeekends()
     If IsDate(ws.Range(CELL_PROJECT_START).Value) Then
         ganttStartDate = CDate(ws.Range(CELL_PROJECT_START).Value)
     Else
-        MsgBox "é–‹å§‹æ—¥ãŒè¨­å®šã•ã‚Œã¦ã„ã¾ã›ã‚“ã€‚", vbExclamation
+        MsgBox "ŠJn“ú‚ªİ’è‚³‚ê‚Ä‚¢‚Ü‚¹‚ñB", vbExclamation
         Exit Sub
     End If
     
@@ -1085,7 +1085,7 @@ Sub ToggleWeekends()
     Dim i As Long, colIndex As Long, currentDate As Date
     Dim isHidden As Boolean
     
-    ' æœ€åˆã®åœŸæ—¥åˆ—ã®çŠ¶æ…‹ã‚’ç¢ºèª
+    ' Å‰‚Ì“y“ú—ñ‚Ìó‘Ô‚ğŠm”F
     For i = 1 To GANTT_DAYS
         colIndex = ganttStartCol + i - 1
         currentDate = ganttStartDate + i - 1
@@ -1095,7 +1095,7 @@ Sub ToggleWeekends()
         End If
     Next i
     
-    ' åœŸæ—¥åˆ—ã®å¹…ã‚’åˆ‡ã‚Šæ›¿ãˆ
+    ' “y“ú—ñ‚Ì•‚ğØ‚è‘Ö‚¦
     For i = 1 To GANTT_DAYS
         colIndex = ganttStartCol + i - 1
         currentDate = ganttStartDate + i - 1
@@ -1113,11 +1113,11 @@ Sub ToggleWeekends()
     
 ErrorHandler:
     Application.ScreenUpdating = True
-    MsgBox "åœŸæ—¥åˆ‡æ›¿ã‚¨ãƒ©ãƒ¼: " & Err.Description, vbCritical, "ã‚¨ãƒ©ãƒ¼"
+    MsgBox "“y“úØ‘ÖƒGƒ‰[: " & Err.Description, vbCritical, "ƒGƒ‰["
 End Sub
 
 ' ==========================================
-'  æ›¸å¼ãƒªã‚»ãƒƒãƒˆ
+'  ‘®ƒŠƒZƒbƒg
 ' ==========================================
 Sub ResetFormatting()
     On Error GoTo ErrorHandler
@@ -1142,13 +1142,13 @@ Sub ResetFormatting()
     Application.ScreenUpdating = False
     Application.Calculation = xlCalculationManual
     
-    ' æ—¥ä»˜ãƒ˜ãƒƒãƒ€ãƒ¼ã‚’å†ç”Ÿæˆ
+    ' “ú•tƒwƒbƒ_[‚ğÄ¶¬
     RegenerateDateHeaders ws
     
-    ' ã‚¬ãƒ³ãƒˆé ˜åŸŸã®èƒŒæ™¯è‰²ã‚’ã‚¯ãƒªã‚¢
+    ' ƒKƒ“ƒg—Ìˆæ‚Ì”wŒiF‚ğƒNƒŠƒA
     ClearGanttColors ws, lastRow, ganttStartCol
     
-    ' ç½«ç·šã‚’å†é©ç”¨
+    ' Œrü‚ğÄ“K—p
     ApplyGanttBorders ws, lastRow
     DrawWeekSeparators ws, lastRow
     ApplyWeekendColors ws, lastRow, ganttStartDate, ganttStartCol
@@ -1158,22 +1158,22 @@ Sub ResetFormatting()
     Application.Calculation = xlCalculationAutomatic
     Application.ScreenUpdating = True
     
-    MsgBox "æ›¸å¼ãƒªã‚»ãƒƒãƒˆå®Œäº†ï¼", vbInformation, "ãƒªã‚»ãƒƒãƒˆ"
+    MsgBox "‘®ƒŠƒZƒbƒgŠ®—¹I", vbInformation, "ƒŠƒZƒbƒg"
     Exit Sub
     
 ErrorHandler:
     Application.Calculation = xlCalculationAutomatic
     Application.ScreenUpdating = True
-    MsgBox "æ›¸å¼ãƒªã‚»ãƒƒãƒˆã‚¨ãƒ©ãƒ¼: " & Err.Description, vbCritical, "ã‚¨ãƒ©ãƒ¼"
+    MsgBox "‘®ƒŠƒZƒbƒgƒGƒ‰[: " & Err.Description, vbCritical, "ƒGƒ‰["
 End Sub
 
 
 ' ============================================================================
-' # æ–°æ©Ÿèƒ½ (v2.2)
+' # V‹@”\ (v2.2)
 ' ============================================================================
 
 ' ==========================================
-'  æ—¥ä»˜ãƒ˜ãƒƒãƒ€ãƒ¼å†ç”Ÿæˆï¼ˆé–‹å§‹æ—¥å¤‰æ›´å¯¾å¿œï¼‰
+'  “ú•tƒwƒbƒ_[Ä¶¬iŠJn“ú•ÏX‘Î‰j
 ' ==========================================
 Private Sub RegenerateDateHeaders(ByVal ws As Worksheet)
     On Error Resume Next
@@ -1192,7 +1192,7 @@ Private Sub RegenerateDateHeaders(ByVal ws As Worksheet)
     Dim colIndex As Long
     Dim i As Long
     
-    ' é€±ãƒ˜ãƒƒãƒ€ãƒ¼ã®ãƒãƒ¼ã‚¸è§£é™¤
+    ' Tƒwƒbƒ_[‚Ìƒ}[ƒW‰ğœ
     ws.Range(ws.Cells(ROW_WEEK_HEADER, ganttStartCol), ws.Cells(ROW_WEEK_HEADER, ganttStartCol + GANTT_DAYS - 1)).UnMerge
     
     Dim weekStartCol As Long
@@ -1202,21 +1202,21 @@ Private Sub RegenerateDateHeaders(ByVal ws As Worksheet)
         colIndex = ganttStartCol + i - 1
         currentDate = ganttStartDate + i - 1
         
-        ' 7è¡Œç›®: æ—¥ä»˜ï¼ˆæ—¥ã®ã¿ï¼‰
+        ' 7s–Ú: “ú•ti“ú‚Ì‚İj
         ws.Cells(ROW_DATE_HEADER, colIndex).Value = Day(currentDate)
         ws.Cells(ROW_DATE_HEADER, colIndex).Font.Size = 9
         ws.Cells(ROW_DATE_HEADER, colIndex).HorizontalAlignment = xlCenter
         ws.Cells(ROW_DATE_HEADER, colIndex).Interior.Color = COLOR_HEADER_BG
         ws.Cells(ROW_DATE_HEADER, colIndex).Font.Color = RGB(255, 255, 255)
         
-        ' 8è¡Œç›®: æ›œæ—¥
+        ' 8s–Ú: —j“ú
         ws.Cells(ROW_HEADER, colIndex).Value = Format$(currentDate, "aaa")
         ws.Cells(ROW_HEADER, colIndex).Font.Size = 8
         ws.Cells(ROW_HEADER, colIndex).HorizontalAlignment = xlCenter
         ws.Cells(ROW_HEADER, colIndex).Interior.Color = COLOR_HEADER_BG
         ws.Cells(ROW_HEADER, colIndex).Font.Color = RGB(255, 255, 255)
         
-        ' 6è¡Œç›®: é€±ãƒ˜ãƒƒãƒ€ãƒ¼ï¼ˆ7æ—¥å˜ä½ï¼‰
+        ' 6s–Ú: Tƒwƒbƒ_[i7“ú’PˆÊj
         If (i - 1) Mod 7 = 0 Then
             weekStartCol = colIndex
             weekEndCol = Application.WorksheetFunction.Min(ganttStartCol + GANTT_DAYS - 1, weekStartCol + 6)
@@ -1234,19 +1234,19 @@ Private Sub RegenerateDateHeaders(ByVal ws As Worksheet)
 End Sub
 
 ' ==========================================
-'  ã‚¬ãƒ³ãƒˆé ˜åŸŸã®èƒŒæ™¯è‰²ã‚¯ãƒªã‚¢
+'  ƒKƒ“ƒg—Ìˆæ‚Ì”wŒiFƒNƒŠƒA
 ' ==========================================
 Private Sub ClearGanttColors(ByVal ws As Worksheet, ByVal lastRow As Long, ByVal ganttStartCol As Long)
     On Error Resume Next
     Dim ganttEndCol As Long
     ganttEndCol = ganttStartCol + GANTT_DAYS - 1
     
-    ' ãƒ‡ãƒ¼ã‚¿è¡Œã®ã‚¬ãƒ³ãƒˆé ˜åŸŸã®èƒŒæ™¯è‰²ã‚’ã‚¯ãƒªã‚¢
+    ' ƒf[ƒ^s‚ÌƒKƒ“ƒg—Ìˆæ‚Ì”wŒiF‚ğƒNƒŠƒA
     ws.Range(ws.Cells(ROW_DATA_START, ganttStartCol), ws.Cells(lastRow, ganttEndCol)).Interior.ColorIndex = xlNone
 End Sub
 
 ' ==========================================
-'  è¨­å®šãƒã‚¹ã‚¿ã‚·ãƒ¼ãƒˆä½œæˆ
+'  İ’èƒ}ƒXƒ^ƒV[ƒgì¬
 ' ==========================================
 
 Sub EnsureSettingsSheet()
@@ -1260,36 +1260,36 @@ Sub EnsureSettingsSheet()
     Set wsSettings = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
     wsSettings.Name = SETTINGS_SHEET_NAME
     
-    wsSettings.Range("A1").Value = "ãƒ€ãƒ–ãƒ«ã‚¯ãƒªãƒƒã‚¯å®Œäº†è¨­å®š"
+    wsSettings.Range("A1").Value = "ƒ_ƒuƒ‹ƒNƒŠƒbƒNŠ®—¹İ’è"
     wsSettings.Range("A1").Font.Bold = True
     wsSettings.Range("A1").Font.Size = 14
     
-    wsSettings.Range("A3").Value = "æ©Ÿèƒ½æœ‰åŠ¹"
+    wsSettings.Range("A3").Value = "‹@”\—LŒø"
     wsSettings.Range("B3").Value = True
-    wsSettings.Range("C3").Value = "â† TRUE: ãƒ€ãƒ–ãƒ«ã‚¯ãƒªãƒƒã‚¯ã§å®Œäº†å‡¦ç†ã‚’è¡Œã†"
+    wsSettings.Range("C3").Value = "© TRUE: ƒ_ƒuƒ‹ƒNƒŠƒbƒN‚ÅŠ®—¹ˆ—‚ğs‚¤"
     
-    wsSettings.Range("A4").Value = "å®Œäº†æ—¥è‡ªå‹•å…¥åŠ›"
+    wsSettings.Range("A4").Value = "Š®—¹“ú©“®“ü—Í"
     wsSettings.Range("B4").Value = True
-    wsSettings.Range("C4").Value = "â† TRUE: å®Œäº†å®Ÿç¸¾æ—¥ã«ä»Šæ—¥ã‚’å…¥åŠ›"
+    wsSettings.Range("C4").Value = "© TRUE: Š®—¹ÀÑ“ú‚É¡“ú‚ğ“ü—Í"
     
-    wsSettings.Range("A5").Value = "å–ã‚Šæ¶ˆã—ç·š"
+    wsSettings.Range("A5").Value = "æ‚èÁ‚µü"
     wsSettings.Range("B5").Value = True
-    wsSettings.Range("C5").Value = "â† TRUE: ã‚¿ã‚¹ã‚¯ã«å–ã‚Šæ¶ˆã—ç·šã‚’å…¥ã‚Œã‚‹"
+    wsSettings.Range("C5").Value = "© TRUE: ƒ^ƒXƒN‚Éæ‚èÁ‚µü‚ğ“ü‚ê‚é"
     
-    wsSettings.Range("A6").Value = "ç°è‰²å¤‰æ›´"
+    wsSettings.Range("A6").Value = "ŠDF•ÏX"
     wsSettings.Range("B6").Value = True
-    wsSettings.Range("C6").Value = "â† TRUE: ã‚¿ã‚¹ã‚¯ã‚’æ¿ƒã„ç°è‰²ã«å¤‰æ›´"
+    wsSettings.Range("C6").Value = "© TRUE: ƒ^ƒXƒN‚ğ”Z‚¢ŠDF‚É•ÏX"
     
     wsSettings.Columns("A").ColumnWidth = 18
     wsSettings.Columns("B").ColumnWidth = 8
     wsSettings.Columns("C").ColumnWidth = 40
     wsSettings.Range("B3:B6").HorizontalAlignment = xlCenter
     
-    MsgBox "è¨­å®šãƒã‚¹ã‚¿ã‚·ãƒ¼ãƒˆã‚’ä½œæˆã—ã¾ã—ãŸ", vbInformation
+    MsgBox "İ’èƒ}ƒXƒ^ƒV[ƒg‚ğì¬‚µ‚Ü‚µ‚½", vbInformation
 End Sub
 
 ' ==========================================
-'  è¨­å®šèª­ã¿è¾¼ã¿
+'  İ’è“Ç‚İ‚İ
 ' ==========================================
 Public Function GetSettingValue(ByVal settingRow As Long) As Boolean
     Dim wsSettings As Worksheet
@@ -1306,7 +1306,7 @@ Public Function GetSettingValue(ByVal settingRow As Long) As Boolean
 End Function
 
 ' ==========================================
-'  ã‚¿ã‚¹ã‚¯è¡Œã®æŠ˜ã‚ŠãŸãŸã¿/å±•é–‹ï¼ˆå³ãƒ€ãƒ–ãƒ«ã‚¯ãƒªãƒƒã‚¯ç”¨ï¼‰
+'  ƒ^ƒXƒNs‚ÌÜ‚è‚½‚½‚İ/“WŠJi‰Eƒ_ƒuƒ‹ƒNƒŠƒbƒN—pj
 ' ==========================================
 Public Sub ToggleTaskCollapse(ByVal targetRow As Long)
     On Error GoTo ErrorHandler
@@ -1319,14 +1319,14 @@ Public Sub ToggleTaskCollapse(ByVal targetRow As Long)
     Dim lvValue As Variant
     lvValue = ws.Cells(targetRow, "A").Value
     If Not IsNumeric(lvValue) Then Exit Sub
-    If CLng(lvValue) <> 1 Then Exit Sub  ' LV1ã®ã¿æŠ˜ã‚ŠãŸãŸã¿å¯¾è±¡
+    If CLng(lvValue) <> 1 Then Exit Sub  ' LV1‚Ì‚İÜ‚è‚½‚½‚İ‘ÎÛ
     
     Application.ScreenUpdating = False
     
     Dim r As Long, lastRow As Long
     lastRow = GetLastDataRow(ws)
     
-    ' æ¬¡ã®LV1ã¾ã§ã€ã¾ãŸã¯æœ€çµ‚è¡Œã¾ã§
+    ' Ÿ‚ÌLV1‚Ü‚ÅA‚Ü‚½‚ÍÅIs‚Ü‚Å
     Dim endRow As Long
     endRow = lastRow
     For r = targetRow + 1 To lastRow
@@ -1343,11 +1343,11 @@ Public Sub ToggleTaskCollapse(ByVal targetRow As Long)
         Exit Sub
     End If
     
-    ' ç¾åœ¨ã®çŠ¶æ…‹ã‚’ç¢ºèªï¼ˆæœ€åˆã®å­è¡ŒãŒéè¡¨ç¤ºã‹ã©ã†ã‹ï¼‰
+    ' Œ»İ‚Ìó‘Ô‚ğŠm”FiÅ‰‚Ìqs‚ª”ñ•\¦‚©‚Ç‚¤‚©j
     Dim isHidden As Boolean
     isHidden = ws.Rows(targetRow + 1).Hidden
     
-    ' å­è¡Œã®è¡¨ç¤º/éè¡¨ç¤ºã‚’åˆ‡ã‚Šæ›¿ãˆ
+    ' qs‚Ì•\¦/”ñ•\¦‚ğØ‚è‘Ö‚¦
     For r = targetRow + 1 To endRow
         ws.Rows(r).Hidden = Not isHidden
     Next r
@@ -1360,7 +1360,7 @@ ErrorHandler:
 End Sub
 
 ' ==========================================
-'  No.åˆ—ã®è‡ªå‹•æ¡ç•ª
+'  No.—ñ‚Ì©“®Ì”Ô
 ' ==========================================
 Sub RenumberRows()
     On Error GoTo ErrorHandler
@@ -1402,27 +1402,27 @@ Sub RenumberRows()
 ErrorHandler:
     Application.EnableEvents = True
     Application.ScreenUpdating = True
-    MsgBox "æ¡ç•ªã‚¨ãƒ©ãƒ¼: " & Err.Description, vbCritical
+    MsgBox "Ì”ÔƒGƒ‰[: " & Err.Description, vbCritical
 End Sub
 
 ' ==========================================
-'  æ—¥ä»˜ä¸€æ‹¬ã‚·ãƒ•ãƒˆï¼ˆç¥æ—¥è€ƒæ…®ï¼‰
+'  “ú•tˆêŠ‡ƒVƒtƒgij“úl—¶j
 ' ==========================================
 Sub ShiftDates()
     On Error GoTo ErrorHandler
     
     Dim shiftDays As Variant
-    shiftDays = Application.InputBox("ã‚·ãƒ•ãƒˆã™ã‚‹å–¶æ¥­æ—¥æ•°ã‚’å…¥åŠ›ï¼ˆä¾‹: 5 ã¾ãŸã¯ -3ï¼‰" & vbCrLf & _
-                                     "â€»ç¥æ—¥ãƒã‚¹ã‚¿ã®ç¥æ—¥ã‚‚è€ƒæ…®ã•ã‚Œã¾ã™", _
-                                     "æ—¥ä»˜ã‚·ãƒ•ãƒˆ", 0, Type:=1)
+    shiftDays = Application.InputBox("ƒVƒtƒg‚·‚é‰c‹Æ“ú”‚ğ“ü—Íi—á: 5 ‚Ü‚½‚Í -3j" & vbCrLf & _
+                                     "¦j“úƒ}ƒXƒ^‚Ìj“ú‚àl—¶‚³‚ê‚Ü‚·", _
+                                     "“ú•tƒVƒtƒg", 0, Type:=1)
     
     If VarType(shiftDays) = vbBoolean Then Exit Sub
     If shiftDays = 0 Then
-        MsgBox "ã‚·ãƒ•ãƒˆæ—¥æ•°ãŒ0ã®ãŸã‚å‡¦ç†ã‚’ä¸­æ­¢ã—ã¾ã—ãŸ", vbInformation
+        MsgBox "ƒVƒtƒg“ú”‚ª0‚Ì‚½‚ßˆ—‚ğ’†~‚µ‚Ü‚µ‚½", vbInformation
         Exit Sub
     End If
     
-    ' ç¥æ—¥ãƒã‚¹ã‚¿ã‚’å–å¾—
+    ' j“úƒ}ƒXƒ^‚ğæ“¾
     Dim wsHoliday As Worksheet
     Dim holidays As Range
     On Error Resume Next
@@ -1458,19 +1458,19 @@ Sub ShiftDates()
     Application.EnableEvents = True
     Application.ScreenUpdating = True
     
-    MsgBox shiftCount & " å€‹ã®æ—¥ä»˜ã‚’ " & shiftDays & " å–¶æ¥­æ—¥ã‚·ãƒ•ãƒˆã—ã¾ã—ãŸ" & vbCrLf & _
-           "(ç¥æ—¥ãƒã‚¹ã‚¿: " & IIf(holidays Is Nothing, "æœªä½¿ç”¨", "ä½¿ç”¨") & ")", _
-           vbInformation, "æ—¥ä»˜ã‚·ãƒ•ãƒˆ"
+    MsgBox shiftCount & " ŒÂ‚Ì“ú•t‚ğ " & shiftDays & " ‰c‹Æ“úƒVƒtƒg‚µ‚Ü‚µ‚½" & vbCrLf & _
+           "(j“úƒ}ƒXƒ^: " & IIf(holidays Is Nothing, "–¢g—p", "g—p") & ")", _
+           vbInformation, "“ú•tƒVƒtƒg"
     Exit Sub
     
 ErrorHandler:
     Application.EnableEvents = True
     Application.ScreenUpdating = True
-    MsgBox "æ—¥ä»˜ã‚·ãƒ•ãƒˆã‚¨ãƒ©ãƒ¼: " & Err.Description, vbCritical
+    MsgBox "“ú•tƒVƒtƒgƒGƒ‰[: " & Err.Description, vbCritical
 End Sub
 
 ' ==========================================
-'  PDFã‚¨ã‚¯ã‚¹ãƒãƒ¼ãƒˆï¼ˆå½“æœˆã‚¬ãƒ³ãƒˆå«ã‚€ï¼‰
+'  PDFƒGƒNƒXƒ|[ƒgi“–ŒƒKƒ“ƒgŠÜ‚Şj
 ' ==========================================
 Sub ExportToPDF()
     On Error GoTo ErrorHandler
@@ -1482,7 +1482,7 @@ Sub ExportToPDF()
     lastRow = GetLastDataRow(ws)
     If lastRow < ROW_DATA_START Then lastRow = ROW_DATA_START + 10
     
-    ' é–‹å§‹æ—¥ã‹ã‚‰å½“æœˆæœ«ã¾ã§ã®ã‚¬ãƒ³ãƒˆåˆ—ã‚’è¨ˆç®—
+    ' ŠJn“ú‚©‚ç“–Œ––‚Ü‚Å‚ÌƒKƒ“ƒg—ñ‚ğŒvZ
     Dim ganttStartDate As Date
     If IsDate(ws.Range(CELL_PROJECT_START).Value) Then
         ganttStartDate = CDate(ws.Range(CELL_PROJECT_START).Value)
@@ -1490,24 +1490,24 @@ Sub ExportToPDF()
         ganttStartDate = Date
     End If
     
-    ' å½“æœˆæœ«æ—¥ã‚’è¨ˆç®—
+    ' “–Œ––“ú‚ğŒvZ
     Dim monthEndDate As Date
     monthEndDate = DateSerial(Year(Date), Month(Date) + 1, 0)
     
-    ' ã‚¬ãƒ³ãƒˆçµ‚äº†åˆ—ã‚’è¨ˆç®—
+    ' ƒKƒ“ƒgI—¹—ñ‚ğŒvZ
     Dim ganttEndCol As Long
     Dim daysToShow As Long
     daysToShow = monthEndDate - ganttStartDate + 1
-    If daysToShow < 1 Then daysToShow = 31  ' æœ€ä½31æ—¥
+    If daysToShow < 1 Then daysToShow = 31  ' Å’á31“ú
     If daysToShow > GANTT_DAYS Then daysToShow = GANTT_DAYS
     
     ganttEndCol = Columns(COL_GANTT_START).Column + daysToShow - 1
     
-    ' å‡ºåŠ›ç¯„å›²ã‚’è¨­å®šï¼ˆAåˆ—ã‹ã‚‰å½“æœˆæœ«ã®ã‚¬ãƒ³ãƒˆåˆ—ã¾ã§ï¼‰
+    ' o—Í”ÍˆÍ‚ğİ’èiA—ñ‚©‚ç“–Œ––‚ÌƒKƒ“ƒg—ñ‚Ü‚Åj
     Dim exportRange As Range
     Set exportRange = ws.Range(ws.Cells(1, 1), ws.Cells(lastRow, ganttEndCol))
     
-    ' ãƒ•ã‚¡ã‚¤ãƒ«ä¿å­˜ãƒ€ã‚¤ã‚¢ãƒ­ã‚°
+    ' ƒtƒ@ƒCƒ‹•Û‘¶ƒ_ƒCƒAƒƒO
     Dim savePath As String
     savePath = Application.GetSaveAsFilename( _
         InitialFileName:="InazumaGantt_" & Format(Date, "yyyymmdd"), _
@@ -1515,7 +1515,7 @@ Sub ExportToPDF()
     
     If savePath = "False" Then Exit Sub
     
-    ' å°åˆ·è¨­å®šã‚’èª¿æ•´
+    ' ˆóüİ’è‚ğ’²®
     With ws.PageSetup
         .Orientation = xlLandscape
         .Zoom = False
@@ -1528,17 +1528,17 @@ Sub ExportToPDF()
         Filename:=savePath, _
         Quality:=xlQualityStandard
     
-    MsgBox "PDFã‚’å‡ºåŠ›ã—ã¾ã—ãŸ:" & vbCrLf & savePath & vbCrLf & vbCrLf & _
-           "å‡ºåŠ›ç¯„å›²: Aåˆ—ã€œ" & Format(monthEndDate, "m/d") & "ã¾ã§", _
-           vbInformation, "PDFå‡ºåŠ›å®Œäº†"
+    MsgBox "PDF‚ğo—Í‚µ‚Ü‚µ‚½:" & vbCrLf & savePath & vbCrLf & vbCrLf & _
+           "o—Í”ÍˆÍ: A—ñ?" & Format(monthEndDate, "m/d") & "‚Ü‚Å", _
+           vbInformation, "PDFo—ÍŠ®—¹"
     Exit Sub
     
 ErrorHandler:
-    MsgBox "PDFå‡ºåŠ›ã‚¨ãƒ©ãƒ¼: " & Err.Description, vbCritical
+    MsgBox "PDFo—ÍƒGƒ‰[: " & Err.Description, vbCritical
 End Sub
 
 ' ==========================================
-'  æ—¥ä»˜ãƒãƒªãƒ‡ãƒ¼ã‚·ãƒ§ãƒ³ï¼ˆK-Nåˆ—ï¼‰
+'  “ú•tƒoƒŠƒf[ƒVƒ‡ƒ“iK-N—ñj
 ' ==========================================
 Public Sub ValidateDateInput(ByVal ws As Worksheet, ByVal Target As Range)
     On Error Resume Next
@@ -1547,7 +1547,7 @@ Public Sub ValidateDateInput(ByVal ws As Worksheet, ByVal Target As Range)
     If Target.Value = "" Then Exit Sub
     
     If Not IsDate(Target.Value) Then
-        MsgBox "æ—¥ä»˜å½¢å¼ã§å…¥åŠ›ã—ã¦ãã ã•ã„ï¼ˆä¾‹: 26/01/10ï¼‰", vbExclamation, "å…¥åŠ›ã‚¨ãƒ©ãƒ¼"
+        MsgBox "“ú•tŒ`®‚Å“ü—Í‚µ‚Ä‚­‚¾‚³‚¢i—á: 26/01/10j", vbExclamation, "“ü—ÍƒGƒ‰["
         Application.EnableEvents = False
         Target.ClearContents
         Application.EnableEvents = True
@@ -1560,13 +1560,13 @@ Public Sub ValidateDateInput(ByVal ws As Worksheet, ByVal Target As Range)
     
     If IsDate(startPlan) And IsDate(endPlan) Then
         If CDate(startPlan) > CDate(endPlan) Then
-            MsgBox "é–‹å§‹äºˆå®šæ—¥ãŒå®Œäº†äºˆå®šæ—¥ã‚ˆã‚Šå¾Œã«ãªã£ã¦ã„ã¾ã™", vbExclamation, "æ—¥ä»˜ã‚¨ãƒ©ãƒ¼"
+            MsgBox "ŠJn—\’è“ú‚ªŠ®—¹—\’è“ú‚æ‚èŒã‚É‚È‚Á‚Ä‚¢‚Ü‚·", vbExclamation, "“ú•tƒGƒ‰["
         End If
     End If
 End Sub
 
 ' ==========================================
-'  é€²æ—ç‡ãƒãƒªãƒ‡ãƒ¼ã‚·ãƒ§ãƒ³ï¼ˆIåˆ—ï¼‰
+'  i’»—¦ƒoƒŠƒf[ƒVƒ‡ƒ“iI—ñj
 ' ==========================================
 Public Sub ValidateProgressInput(ByVal ws As Worksheet, ByVal Target As Range)
     On Error Resume Next
@@ -1576,7 +1576,7 @@ Public Sub ValidateProgressInput(ByVal ws As Worksheet, ByVal Target As Range)
     
     Dim rate As Double
     If Not IsNumeric(Target.Value) Then
-        MsgBox "æ•°å€¤ã§å…¥åŠ›ã—ã¦ãã ã•ã„ï¼ˆä¾‹: 0.5 ã¾ãŸã¯ 50ï¼‰", vbExclamation, "å…¥åŠ›ã‚¨ãƒ©ãƒ¼"
+        MsgBox "”’l‚Å“ü—Í‚µ‚Ä‚­‚¾‚³‚¢i—á: 0.5 ‚Ü‚½‚Í 50j", vbExclamation, "“ü—ÍƒGƒ‰["
         Application.EnableEvents = False
         Target.ClearContents
         Application.EnableEvents = True
@@ -1587,10 +1587,589 @@ Public Sub ValidateProgressInput(ByVal ws As Worksheet, ByVal Target As Range)
     
     If rate < 0 Or rate > 100 Then
         If rate > 1 And rate <= 100 Then
-            ' ãƒ‘ãƒ¼ã‚»ãƒ³ãƒˆè¡¨è¨˜ OK
+            ' ƒp[ƒZƒ“ƒg•\‹L OK
         Else
-            MsgBox "é€²æ—ç‡ã¯ 0ã€œ100ï¼ˆã¾ãŸã¯ 0ã€œ1ï¼‰ã§å…¥åŠ›ã—ã¦ãã ã•ã„", vbExclamation, "å…¥åŠ›ã‚¨ãƒ©ãƒ¼"
+            MsgBox "i’»—¦‚Í 0?100i‚Ü‚½‚Í 0?1j‚Å“ü—Í‚µ‚Ä‚­‚¾‚³‚¢", vbExclamation, "“ü—ÍƒGƒ‰["
         End If
     End If
 End Sub
 
+
+
+' ============================================================================
+' # HierarchyColor Module
+' ============================================================================
+' ==========================================
+'  ŠK‘wF•ª‚¯ƒ‚ƒWƒ…[ƒ‹iğŒ•t‚«‘®”Åj
+' ==========================================
+' ‚±‚Ìƒ‚ƒWƒ…[ƒ‹‚ÍğŒ•t‚«‘®‚ğİ’è‚µ‚Ü‚·B
+' ˆê“xÀs‚·‚ê‚ÎAˆÈ~‚Í©“®“I‚ÉF•ª‚¯‚ª“K—p‚³‚ê‚Ü‚·B
+' 
+' “h‚è”ÍˆÍƒ‹[ƒ‹:
+'   LV1 (A—ñ=1): C`N—ñ‚ğ“h‚é
+'   LV2 (A—ñ=2): D`N—ñ‚ğ“h‚é
+'   LV3 (A—ñ=3): E`N—ñ‚ğ“h‚é
+'   LV4 (A—ñ=4): F`N—ñ‚ğ“h‚é
+
+' ŠK‘w•Ê‚ÌF’è‹`
+Public Const COLOR_LV1 As Long = 14083324  ' RGB(252,228,214) ƒT[ƒ‚ƒ“
+Public Const COLOR_LV2 As Long = 15983322  ' RGB(218,227,243) ”–‚¢Â
+Public Const COLOR_LV3 As Long = 14348514  ' RGB(226,239,218) ”–‚¢—Î
+Public Const COLOR_LV4 As Long = 13434879  ' RGB(255,242,204) ”–‚¢‰©F
+
+' F“h‚èI—¹—ñiƒKƒ“ƒgŠJn—ñ‚Ìè‘Oj
+Public Const COL_COLOR_END As String = "N"
+
+' ==========================================
+'  ŠK‘wF•ª‚¯‚ÌğŒ•t‚«‘®‚ğİ’è
+' ==========================================
+Sub SetupHierarchyColors()
+    On Error GoTo ErrorHandler
+    
+    Dim ws As Worksheet
+    Set ws = ActiveSheet
+    
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
+    
+    Dim lastRow As Long
+    lastRow = ROW_DATA_START + DATA_ROWS_DEFAULT - 1
+    
+    ' Šù‘¶‚ÌğŒ•t‚«‘®‚ğƒNƒŠƒAiB`N—ñj
+    ws.Range("B" & ROW_DATA_START & ":" & COL_COLOR_END & lastRow).FormatConditions.Delete
+    
+    ' LV1: A—ñ‚ª1‚Ì‚Æ‚«AC`N—ñ‚ğƒT[ƒ‚ƒ“F‚É
+    Dim rangeLV1 As Range
+    Set rangeLV1 = ws.Range("C" & ROW_DATA_START & ":" & COL_COLOR_END & lastRow)
+    Dim cf1 As FormatCondition
+    Set cf1 = rangeLV1.FormatConditions.Add(Type:=xlExpression, _
+        Formula1:="=$A" & ROW_DATA_START & "=1")
+    cf1.Interior.Color = COLOR_LV1
+    cf1.StopIfTrue = True
+    
+    ' LV2: A—ñ‚ª2‚Ì‚Æ‚«AD`N—ñ‚ğ”–‚¢Â‚É
+    Dim rangeLV2 As Range
+    Set rangeLV2 = ws.Range("D" & ROW_DATA_START & ":" & COL_COLOR_END & lastRow)
+    Dim cf2 As FormatCondition
+    Set cf2 = rangeLV2.FormatConditions.Add(Type:=xlExpression, _
+        Formula1:="=$A" & ROW_DATA_START & "=2")
+    cf2.Interior.Color = COLOR_LV2
+    cf2.StopIfTrue = True
+    
+    ' LV3: A—ñ‚ª3‚Ì‚Æ‚«AE`N—ñ‚ğ”–‚¢—Î‚É
+    Dim rangeLV3 As Range
+    Set rangeLV3 = ws.Range("E" & ROW_DATA_START & ":" & COL_COLOR_END & lastRow)
+    Dim cf3 As FormatCondition
+    Set cf3 = rangeLV3.FormatConditions.Add(Type:=xlExpression, _
+        Formula1:="=$A" & ROW_DATA_START & "=3")
+    cf3.Interior.Color = COLOR_LV3
+    cf3.StopIfTrue = True
+    
+    ' LV4: A—ñ‚ª4‚Ì‚Æ‚«AF`N—ñ‚ğ”–‚¢‰©F‚É
+    Dim rangeLV4 As Range
+    Set rangeLV4 = ws.Range("F" & ROW_DATA_START & ":" & COL_COLOR_END & lastRow)
+    Dim cf4 As FormatCondition
+    Set cf4 = rangeLV4.FormatConditions.Add(Type:=xlExpression, _
+        Formula1:="=$A" & ROW_DATA_START & "=4")
+    cf4.Interior.Color = COLOR_LV4
+    cf4.StopIfTrue = True
+    
+    Application.Calculation = xlCalculationAutomatic
+    Application.ScreenUpdating = True
+    
+    MsgBox "ŠK‘wF•ª‚¯‚ÌğŒ•t‚«‘®‚ğİ’è‚µ‚Ü‚µ‚½I" & vbCrLf & vbCrLf & _
+           "“h‚è”ÍˆÍƒ‹[ƒ‹:" & vbCrLf & _
+           "  LV1: C`N—ñ" & vbCrLf & _
+           "  LV2: D`N—ñ" & vbCrLf & _
+           "  LV3: E`N—ñ" & vbCrLf & _
+           "  LV4: F`N—ñ", vbInformation, "ŠK‘wF•ª‚¯"
+    Exit Sub
+    
+ErrorHandler:
+    Application.Calculation = xlCalculationAutomatic
+    Application.ScreenUpdating = True
+    MsgBox "ğŒ•t‚«‘®İ’èƒGƒ‰[: " & Err.Description, vbCritical, "ƒGƒ‰["
+End Sub
+
+' ==========================================
+'  ŠK‘wF•ª‚¯‚ÌğŒ•t‚«‘®‚ğƒNƒŠƒA
+' ==========================================
+Sub ClearHierarchyColors()
+    On Error GoTo ErrorHandler
+    
+    Dim ws As Worksheet
+    Set ws = ActiveSheet
+    
+    Dim lastRow As Long
+    lastRow = ROW_DATA_START + DATA_ROWS_DEFAULT - 1
+    
+    ' ‘ÎÛ”ÍˆÍ‚ÌğŒ•t‚«‘®‚ğƒNƒŠƒAiB`N—ñj
+    ws.Range("B" & ROW_DATA_START & ":" & COL_COLOR_END & lastRow).FormatConditions.Delete
+    
+    MsgBox "ŠK‘wF•ª‚¯‚ÌğŒ•t‚«‘®‚ğƒNƒŠƒA‚µ‚Ü‚µ‚½I", vbInformation, "ŠK‘wF•ª‚¯"
+    Exit Sub
+    
+ErrorHandler:
+    MsgBox "ƒNƒŠƒAƒGƒ‰[: " & Err.Description, vbCritical, "ƒGƒ‰["
+End Sub
+
+' ==========================================
+'  ‹ŒŒİŠ·: ApplyHierarchyColors
+' ==========================================
+' ‹Œƒo[ƒWƒ‡ƒ“‚Æ‚ÌŒİŠ·«‚Ì‚½‚ßASetupHierarchyColors‚ğŒÄ‚Ño‚·
+Sub ApplyHierarchyColors()
+    Call SetupHierarchyColors
+End Sub
+
+
+' ============================================================================
+' # DataMigration Module
+' ============================================================================
+' ==========================================
+'  ƒf[ƒ^ˆÚŠÇƒ‚ƒWƒ…[ƒ‹
+' ==========================================
+' Šù‘¶‚ÌƒKƒ“ƒgƒ`ƒƒ[ƒgŒ`®‚©‚çv2Œ`®‚Öƒf[ƒ^‚ğˆÚŠÇ‚·‚é
+
+' ==========================================
+'  v2Œ`®‚Ö‚ÌˆÚŠÇÀs
+' ==========================================
+Sub MigrateToV2Format()
+    On Error GoTo ErrorHandler
+    
+    Dim oldSheet As Worksheet
+    Dim newSheet As Worksheet
+    
+    Set oldSheet = ActiveSheet
+    
+    ' Šm”F
+    Dim result As VbMsgBoxResult
+    result = MsgBox("‚±‚ÌƒV[ƒg‚Ìƒf[ƒ^‚ğv2Œ`®‚ÉˆÚŠÇ‚µ‚Ü‚·‚©H" & vbCrLf & vbCrLf & _
+                   "ˆÚŠÇŒ³: " & oldSheet.Name & vbCrLf & _
+                   "ˆÚŠÇæ: InazumaGantt_v2 ƒV[ƒgiV‹Kì¬j", _
+                   vbQuestion + vbYesNo, "ƒf[ƒ^ˆÚŠÇ")
+    
+    If result <> vbYes Then
+        MsgBox "ˆÚŠÇ‚ğƒLƒƒƒ“ƒZƒ‹‚µ‚Ü‚µ‚½B", vbInformation
+        Exit Sub
+    End If
+    
+    ' v2ƒV[ƒg‚ğæ“¾‚Ü‚½‚Íì¬
+    On Error Resume Next
+    Set newSheet = ThisWorkbook.Worksheets(MAIN_SHEET_NAME)
+    On Error GoTo ErrorHandler
+    
+    If newSheet Is Nothing Then
+        Set newSheet = ThisWorkbook.Worksheets.Add(After:=oldSheet)
+        newSheet.Name = MAIN_SHEET_NAME
+    End If
+    
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
+    
+    ' ˆÚŠÇˆ—
+    Dim oldRow As Long, newRow As Long
+    Dim lastOldRow As Long
+    
+    ' Œ³ƒf[ƒ^‚ÌÅIs‚ğæ“¾iC—ñŠî€j
+    lastOldRow = oldSheet.Cells(oldSheet.Rows.Count, "C").End(xlUp).Row
+    If lastOldRow < 2 Then lastOldRow = 2
+    
+    ' ƒf[ƒ^s‚ÌŠJniv2Œ`®j
+    newRow = ROW_DATA_START
+    
+    ' ƒwƒbƒ_[s‚ğƒXƒLƒbƒv‚µ‚ÄˆÚŠÇ
+    For oldRow = 2 To lastOldRow
+        ' ‹ós‚ÍƒXƒLƒbƒv
+        If Trim$(CStr(oldSheet.Cells(oldRow, "C").Value)) <> "" Then
+            ' ƒ^ƒXƒN–¼iC—ñj
+            newSheet.Cells(newRow, "C").Value = oldSheet.Cells(oldRow, "C").Value
+            
+            ' ‰Â”\‚È—ñ‚ğƒ}ƒbƒsƒ“ƒO
+            If oldSheet.Cells(1, "D").Value Like "*Ú×*" Or oldSheet.Cells(1, "D").Value Like "*“à—e*" Then
+                newSheet.Cells(newRow, "G").Value = oldSheet.Cells(oldRow, "D").Value
+            End If
+            
+            ' “ú•t—ñ‚Ìƒ}ƒbƒsƒ“ƒO
+            MapDateColumns oldSheet, newSheet, oldRow, newRow
+            
+            ' i’»—¦‚Ìƒ}ƒbƒsƒ“ƒO
+            MapProgressColumn oldSheet, newSheet, oldRow, newRow
+            
+            ' ’S“–Ò‚Ìƒ}ƒbƒsƒ“ƒO
+            MapAssigneeColumn oldSheet, newSheet, oldRow, newRow
+            
+            newRow = newRow + 1
+        End If
+    Next oldRow
+    
+    Application.Calculation = xlCalculationAutomatic
+    Application.ScreenUpdating = True
+    
+    ' ŠK‘w©“®”»’è
+    newSheet.Activate
+    AutoDetectTaskLevel
+    
+    MsgBox "ˆÚŠÇŠ®—¹I" & vbCrLf & vbCrLf & _
+           "ˆÚŠÇŒ³: " & oldSheet.Name & vbCrLf & _
+           "ˆÚŠÇæ: " & newSheet.Name & vbCrLf & _
+           "ˆÚŠÇs”: " & (newRow - ROW_DATA_START), _
+           vbInformation, "ƒf[ƒ^ˆÚŠÇ"
+    Exit Sub
+    
+ErrorHandler:
+    Application.Calculation = xlCalculationAutomatic
+    Application.ScreenUpdating = True
+    MsgBox "ˆÚŠÇƒGƒ‰[: " & Err.Description, vbCritical, "ƒGƒ‰["
+End Sub
+
+' ==========================================
+'  “ú•t—ñ‚Ìƒ}ƒbƒsƒ“ƒO
+' ==========================================
+Private Sub MapDateColumns(ByVal oldSheet As Worksheet, ByVal newSheet As Worksheet, ByVal oldRow As Long, ByVal newRow As Long)
+    Dim col As Long
+    
+    For col = 1 To oldSheet.Cells(1, oldSheet.Columns.Count).End(xlToLeft).Column
+        Dim header As String
+        header = CStr(oldSheet.Cells(1, col).Value)
+        
+        If header Like "*ŠJn—\’è*" Or header Like "*Start*" Then
+            If IsDate(oldSheet.Cells(oldRow, col).Value) Then
+                newSheet.Cells(newRow, "K").Value = oldSheet.Cells(oldRow, col).Value
+            End If
+        ElseIf header Like "*Š®—¹—\’è*" Or header Like "*End*" Or header Like "*I—¹—\’è*" Then
+            If IsDate(oldSheet.Cells(oldRow, col).Value) Then
+                newSheet.Cells(newRow, "L").Value = oldSheet.Cells(oldRow, col).Value
+            End If
+        ElseIf header Like "*ŠJnÀÑ*" Then
+            If IsDate(oldSheet.Cells(oldRow, col).Value) Then
+                newSheet.Cells(newRow, "M").Value = oldSheet.Cells(oldRow, col).Value
+            End If
+        ElseIf header Like "*Š®—¹ÀÑ*" Then
+            If IsDate(oldSheet.Cells(oldRow, col).Value) Then
+                newSheet.Cells(newRow, "N").Value = oldSheet.Cells(oldRow, col).Value
+            End If
+        End If
+    Next col
+End Sub
+
+' ==========================================
+'  i’»—¦‚Ìƒ}ƒbƒsƒ“ƒO
+' ==========================================
+Private Sub MapProgressColumn(ByVal oldSheet As Worksheet, ByVal newSheet As Worksheet, ByVal oldRow As Long, ByVal newRow As Long)
+    Dim col As Long
+    
+    For col = 1 To oldSheet.Cells(1, oldSheet.Columns.Count).End(xlToLeft).Column
+        Dim header As String
+        header = CStr(oldSheet.Cells(1, col).Value)
+        
+        If header Like "*i’»*" Or header Like "*Progress*" Then
+            Dim progressValue As Variant
+            progressValue = oldSheet.Cells(oldRow, col).Value
+            
+            If IsNumeric(progressValue) Then
+                Dim rate As Double
+                rate = CDbl(progressValue)
+                If rate > 1 Then rate = rate / 100
+                newSheet.Cells(newRow, "I").Value = rate
+            End If
+            Exit For
+        End If
+    Next col
+End Sub
+
+' ==========================================
+'  ’S“–Ò‚Ìƒ}ƒbƒsƒ“ƒO
+' ==========================================
+Private Sub MapAssigneeColumn(ByVal oldSheet As Worksheet, ByVal newSheet As Worksheet, ByVal oldRow As Long, ByVal newRow As Long)
+    Dim col As Long
+    
+    For col = 1 To oldSheet.Cells(1, oldSheet.Columns.Count).End(xlToLeft).Column
+        Dim header As String
+        header = CStr(oldSheet.Cells(1, col).Value)
+        
+        If header Like "*’S“–*" Or header Like "*Assignee*" Then
+            newSheet.Cells(newRow, "J").Value = oldSheet.Cells(oldRow, col).Value
+            Exit For
+        End If
+    Next col
+End Sub
+
+
+' ============================================================================
+' # SetupWizard Module
+' ============================================================================
+' ==========================================
+'  ƒZƒbƒgƒAƒbƒvƒEƒBƒU[ƒhƒ‚ƒWƒ…[ƒ‹
+' ==========================================
+' ‘Î˜bŒ`®‚ÅƒZƒbƒgƒAƒbƒv‚ği‚ß‚éƒEƒBƒU[ƒh‹@”\
+' ==========================================
+
+' ==========================================
+'  ƒEƒBƒU[ƒhÀs
+' ==========================================
+Sub RunSetupWizard()
+    On Error GoTo ErrorHandler
+    
+    Dim result As VbMsgBoxResult
+    
+    ' ƒXƒeƒbƒv1: ŠJnŠm”F
+    result = MsgBox("InazumaGantt ƒZƒbƒgƒAƒbƒvƒEƒBƒU[ƒh‚Ö‚æ‚¤‚±‚»I" & vbCrLf & vbCrLf & _
+                   "‚±‚ÌƒEƒBƒU[ƒh‚Å‚ÍˆÈ‰º‚ğİ’è‚µ‚Ü‚·:" & vbCrLf & _
+                   "1. ƒƒCƒ“ƒV[ƒg‚Ìì¬" & vbCrLf & _
+                   "2. j“úƒ}ƒXƒ^ƒV[ƒg‚Ìì¬" & vbCrLf & _
+                   "3. ƒTƒ“ƒvƒ‹ƒf[ƒ^‚Ì’Ç‰Ái”CˆÓj" & vbCrLf & vbCrLf & _
+                   "‘±s‚µ‚Ü‚·‚©H", _
+                   vbQuestion + vbYesNo, "ƒZƒbƒgƒAƒbƒvƒEƒBƒU[ƒh")
+    
+    If result <> vbYes Then
+        MsgBox "ƒZƒbƒgƒAƒbƒv‚ğƒLƒƒƒ“ƒZƒ‹‚µ‚Ü‚µ‚½B", vbInformation
+        Exit Sub
+    End If
+    
+    ' ƒXƒeƒbƒv2: ƒV[ƒgì¬Šm”F
+    result = MsgBox("V‚µ‚¢ƒV[ƒguInazumaGantt_v2v‚ğì¬‚µ‚Ü‚·‚©H" & vbCrLf & vbCrLf & _
+                   "’ˆÓ: “¯–¼‚ÌƒV[ƒg‚ªŠù‚É‘¶İ‚·‚éê‡‚Íã‘‚«‚³‚ê‚Ü‚¹‚ñB", _
+                   vbQuestion + vbYesNo, "ƒXƒeƒbƒv 1/3: ƒV[ƒgì¬")
+    
+    If result = vbYes Then
+        CreateMainSheet
+    End If
+    
+    ' ƒXƒeƒbƒv3: ƒTƒ“ƒvƒ‹ƒf[ƒ^
+    result = MsgBox("ƒTƒ“ƒvƒ‹ƒf[ƒ^‚ğ’Ç‰Á‚µ‚Ü‚·‚©H" & vbCrLf & vbCrLf & _
+                   "ƒTƒ“ƒvƒ‹ƒf[ƒ^‚É‚ÍˆÈ‰º‚ªŠÜ‚Ü‚ê‚Ü‚·:" & vbCrLf & _
+                   "- 3‚Â‚ÌƒtƒF[ƒYiLV1j" & vbCrLf & _
+                   "- ŠeƒtƒF[ƒY‚É2-3ŒÂ‚Ìƒ^ƒXƒNiLV2-LV3j", _
+                   vbQuestion + vbYesNo, "ƒXƒeƒbƒv 2/3: ƒTƒ“ƒvƒ‹ƒf[ƒ^")
+    
+    If result = vbYes Then
+        AddSampleData
+    End If
+    
+    ' ƒXƒeƒbƒv4: ŠK‘wF•ª‚¯‚ÆƒKƒ“ƒg•`‰æ‚ğ©“®Às
+    ' ‚Ü‚¸ƒƒCƒ“ƒV[ƒg‚ğƒAƒNƒeƒBƒu‚É‚·‚é
+    ThisWorkbook.Worksheets(MAIN_SHEET_NAME).Activate
+    
+    Application.ScreenUpdating = False
+    
+    ' v2.2: İ’èƒ}ƒXƒ^ƒV[ƒg‚ğì¬
+    EnsureSettingsSheet
+    
+    ' ŠK‘wF•ª‚¯‚ÌğŒ•t‚«‘®‚ğİ’è
+    SetupHierarchyColors
+    
+    ' ƒKƒ“ƒgƒ`ƒƒ[ƒg‚ğ•`‰æ
+    RefreshInazumaGantt
+    
+    Application.ScreenUpdating = True
+    
+    ' ƒXƒeƒbƒv5: Š®—¹
+    MsgBox "ƒZƒbƒgƒAƒbƒvƒEƒBƒU[ƒh‚ªŠ®—¹‚µ‚Ü‚µ‚½I" & vbCrLf & vbCrLf & _
+           "ˆÈ‰º‚Ìİ’è‚ªŠ®—¹‚µ‚Ü‚µ‚½:" & vbCrLf & _
+           "- ƒV[ƒgì¬iƒƒCƒ“Aj“úƒ}ƒXƒ^Aİ’èƒ}ƒXƒ^j" & vbCrLf & _
+           "- ŠK‘wF•ª‚¯iğŒ•t‚«‘®j" & vbCrLf & _
+           "- ƒKƒ“ƒgƒ`ƒƒ[ƒg•`‰æ" & vbCrLf & vbCrLf & _
+           "yƒV[ƒgƒ‚ƒWƒ…[ƒ‹‚Ìİ’èz" & vbCrLf & _
+           "ƒ_ƒuƒ‹ƒNƒŠƒbƒNŠ®—¹EÜ‚è‚½‚½‚İ‹@”\‚ğg‚¤‚É‚ÍA" & vbCrLf & _
+           "SheetModule_SJIS.bas ‚ğƒV[ƒgƒ‚ƒWƒ…[ƒ‹‚É“\‚è•t‚¯‚Ä‚­‚¾‚³‚¢B", _
+           vbInformation, "ƒZƒbƒgƒAƒbƒvŠ®—¹"
+    Exit Sub
+    
+ErrorHandler:
+    MsgBox "ƒZƒbƒgƒAƒbƒv’†‚ÉƒGƒ‰[‚ª”­¶‚µ‚Ü‚µ‚½: " & Err.Description, vbCritical, "ƒGƒ‰["
+End Sub
+
+
+' ==========================================
+'  ƒƒCƒ“ƒV[ƒg‚Ìì¬
+' ==========================================
+Private Sub CreateMainSheet()
+    Dim ws As Worksheet
+    
+    On Error Resume Next
+    Set ws = ThisWorkbook.Worksheets(MAIN_SHEET_NAME)
+    On Error GoTo 0
+    
+    If ws Is Nothing Then
+        Set ws = ThisWorkbook.Worksheets.Add
+        ws.Name = MAIN_SHEET_NAME
+    End If
+    
+    ws.Activate
+    SetupInazumaGantt
+End Sub
+
+' ==========================================
+'  ƒTƒ“ƒvƒ‹ƒf[ƒ^‚Ì’Ç‰Á
+' ==========================================
+Private Sub AddSampleData()
+    On Error GoTo ErrorHandler
+    
+    Dim ws As Worksheet
+    ' ActiveSheet‚Å‚Í‚È‚­A–¾¦“I‚ÉƒƒCƒ“ƒV[ƒg‚ğw’è
+    Set ws = ThisWorkbook.Worksheets(MAIN_SHEET_NAME)
+    
+    Dim startRow As Long
+    startRow = ROW_DATA_START
+    
+    Dim baseDate As Date
+    baseDate = Date  ' ¡“ú‚ğŠî€‚É‚·‚é
+    
+    ' ƒtƒF[ƒY1: Œv‰æƒtƒF[ƒY
+    ws.Cells(startRow, "C").Value = "Œv‰æƒtƒF[ƒY"
+    ws.Cells(startRow, "H").Value = "Š®—¹"
+    ws.Cells(startRow, "I").Value = 1
+    ws.Cells(startRow, "J").Value = "R“c"
+    ws.Cells(startRow, "K").Value = baseDate - 14
+    ws.Cells(startRow, "L").Value = baseDate - 7
+    ws.Cells(startRow, "M").Value = baseDate - 14
+    ws.Cells(startRow, "N").Value = baseDate - 8
+    
+    ws.Cells(startRow + 1, "D").Value = "—vŒ’è‹`"
+    ws.Cells(startRow + 1, "H").Value = "Š®—¹"
+    ws.Cells(startRow + 1, "I").Value = 1
+    ws.Cells(startRow + 1, "J").Value = "R“c"
+    ws.Cells(startRow + 1, "K").Value = baseDate - 14
+    ws.Cells(startRow + 1, "L").Value = baseDate - 10
+    ws.Cells(startRow + 1, "M").Value = baseDate - 14
+    ws.Cells(startRow + 1, "N").Value = baseDate - 10
+    
+    ws.Cells(startRow + 2, "D").Value = "İŒv‘ì¬"
+    ws.Cells(startRow + 2, "H").Value = "Š®—¹"
+    ws.Cells(startRow + 2, "I").Value = 1
+    ws.Cells(startRow + 2, "J").Value = "—é–Ø"
+    ws.Cells(startRow + 2, "K").Value = baseDate - 10
+    ws.Cells(startRow + 2, "L").Value = baseDate - 7
+    ws.Cells(startRow + 2, "M").Value = baseDate - 10
+    ws.Cells(startRow + 2, "N").Value = baseDate - 8
+    
+    ' ƒtƒF[ƒY2: ŠJ”­ƒtƒF[ƒY
+    ws.Cells(startRow + 3, "C").Value = "ŠJ”­ƒtƒF[ƒY"
+    ws.Cells(startRow + 3, "H").Value = "is’†"
+    ws.Cells(startRow + 3, "I").Value = 0.6
+    ws.Cells(startRow + 3, "J").Value = "“c’†"
+    ws.Cells(startRow + 3, "K").Value = baseDate - 7
+    ws.Cells(startRow + 3, "L").Value = baseDate + 14
+    ws.Cells(startRow + 3, "M").Value = baseDate - 7
+    
+    ws.Cells(startRow + 4, "D").Value = "‹@”\ŠJ”­"
+    ws.Cells(startRow + 4, "H").Value = "is’†"
+    ws.Cells(startRow + 4, "I").Value = 0.7
+    ws.Cells(startRow + 4, "J").Value = "“c’†"
+    ws.Cells(startRow + 4, "K").Value = baseDate - 7
+    ws.Cells(startRow + 4, "L").Value = baseDate + 7
+    ws.Cells(startRow + 4, "M").Value = baseDate - 7
+    
+    ws.Cells(startRow + 5, "E").Value = "‹@”\AŠJ”­"
+    ws.Cells(startRow + 5, "H").Value = "Š®—¹"
+    ws.Cells(startRow + 5, "I").Value = 1
+    ws.Cells(startRow + 5, "J").Value = "“c’†"
+    ws.Cells(startRow + 5, "K").Value = baseDate - 7
+    ws.Cells(startRow + 5, "L").Value = baseDate - 3
+    ws.Cells(startRow + 5, "M").Value = baseDate - 7
+    ws.Cells(startRow + 5, "N").Value = baseDate - 2
+    
+    ws.Cells(startRow + 6, "E").Value = "‹@”\BŠJ”­"
+    ws.Cells(startRow + 6, "H").Value = "is’†"
+    ws.Cells(startRow + 6, "I").Value = 0.5
+    ws.Cells(startRow + 6, "J").Value = "²“¡"
+    ws.Cells(startRow + 6, "K").Value = baseDate - 3
+    ws.Cells(startRow + 6, "L").Value = baseDate + 4
+    ws.Cells(startRow + 6, "M").Value = baseDate - 3
+    
+    ws.Cells(startRow + 7, "D").Value = "ƒeƒXƒg"
+    ws.Cells(startRow + 7, "H").Value = "–¢’…è"
+    ws.Cells(startRow + 7, "I").Value = 0
+    ws.Cells(startRow + 7, "J").Value = "—é–Ø"
+    ws.Cells(startRow + 7, "K").Value = baseDate + 5
+    ws.Cells(startRow + 7, "L").Value = baseDate + 14
+    
+    ' ƒtƒF[ƒY3: ƒŠƒŠ[ƒXƒtƒF[ƒY
+    ws.Cells(startRow + 8, "C").Value = "ƒŠƒŠ[ƒXƒtƒF[ƒY"
+    ws.Cells(startRow + 8, "H").Value = "–¢’…è"
+    ws.Cells(startRow + 8, "I").Value = 0
+    ws.Cells(startRow + 8, "J").Value = "R“c"
+    ws.Cells(startRow + 8, "K").Value = baseDate + 14
+    ws.Cells(startRow + 8, "L").Value = baseDate + 21
+    
+    ws.Cells(startRow + 9, "D").Value = "–{”ÔŠÂ‹«\’z"
+    ws.Cells(startRow + 9, "H").Value = "–¢’…è"
+    ws.Cells(startRow + 9, "I").Value = 0
+    ws.Cells(startRow + 9, "J").Value = "²“¡"
+    ws.Cells(startRow + 9, "K").Value = baseDate + 14
+    ws.Cells(startRow + 9, "L").Value = baseDate + 18
+    
+    ws.Cells(startRow + 10, "D").Value = "ƒŠƒŠ[ƒXì‹Æ"
+    ws.Cells(startRow + 10, "H").Value = "–¢’…è"
+    ws.Cells(startRow + 10, "I").Value = 0
+    ws.Cells(startRow + 10, "J").Value = "R“c"
+    ws.Cells(startRow + 10, "K").Value = baseDate + 19
+    ws.Cells(startRow + 10, "L").Value = baseDate + 21
+    
+    ' ŠK‘w©“®”»’è
+    AutoDetectTaskLevel
+    
+    Exit Sub
+    
+ErrorHandler:
+    MsgBox "ƒTƒ“ƒvƒ‹ƒf[ƒ^’Ç‰ÁƒGƒ‰[: " & Err.Description, vbCritical, "ƒGƒ‰["
+End Sub
+
+' ==========================================
+'  ƒV[ƒgƒ‚ƒWƒ…[ƒ‹İ’èè‡‚Ì•\¦
+' ==========================================
+Sub ShowSheetModuleInstructions()
+    Dim instructions As String
+    
+    instructions = "yƒV[ƒgƒ‚ƒWƒ…[ƒ‹‚Ìİ’èè‡z" & vbCrLf & vbCrLf & _
+                  "1. Alt + F11 ‚ÅVBAƒGƒfƒBƒ^‚ğŠJ‚­" & vbCrLf & _
+                  "2. ƒvƒƒWƒFƒNƒgƒGƒNƒXƒvƒ[ƒ‰[‚Å" & vbCrLf & _
+                  "   uInazumaGantt_v2vƒV[ƒg‚ğƒ_ƒuƒ‹ƒNƒŠƒbƒN" & vbCrLf & _
+                  "3. vba/SheetModule_SJIS.bas ‚Ì“à—e‚ğ" & vbCrLf & _
+                  "   ƒRƒs[•“\‚è•t‚¯" & vbCrLf & _
+                  "4. •Û‘¶‚µ‚Ä•Â‚¶‚é" & vbCrLf & vbCrLf & _
+                  "‚±‚ê‚É‚æ‚èˆÈ‰º‚Ì‹@”\‚ª—LŒø‚É‚È‚è‚Ü‚·:" & vbCrLf & _
+                  "- ƒ^ƒXƒN“ü—Í‚ÌŠK‘w©“®”»’è" & vbCrLf & _
+                  "- i’»—¦•ÏX‚Ìó‹µ©“®XV" & vbCrLf & _
+                  "- ƒ_ƒuƒ‹ƒNƒŠƒbƒN‚Åƒ^ƒXƒNŠ®—¹"
+    
+    MsgBox instructions, vbInformation, "ƒV[ƒgƒ‚ƒWƒ…[ƒ‹İ’è"
+End Sub
+
+' ==========================================
+'  ƒ‚ƒWƒ…[ƒ‹‘¶İŠm”F
+' ==========================================
+Public Function IsModuleInstalled(ByVal moduleName As String) As Boolean
+    On Error Resume Next
+    Dim vbComp As Object
+    
+    For Each vbComp In ThisWorkbook.VBProject.VBComponents
+        If StrComp(vbComp.Name, moduleName, vbTextCompare) = 0 Then
+            IsModuleInstalled = True
+            Exit Function
+        End If
+    Next vbComp
+    
+    IsModuleInstalled = False
+End Function
+
+' ==========================================
+'  ƒCƒ“ƒXƒg[ƒ‹ó‘Ô‚ÌŠm”F
+' ==========================================
+Sub CheckInstallation()
+    Dim status As String
+    
+    status = "yƒ‚ƒWƒ…[ƒ‹ƒCƒ“ƒXƒg[ƒ‹ó‘Ôz" & vbCrLf & vbCrLf
+    
+    ' •K{ƒ‚ƒWƒ…[ƒ‹
+    status = status & "•K{ƒ‚ƒWƒ…[ƒ‹:" & vbCrLf
+    status = status & "  InazumaGantt_v2: " & IIf(IsModuleInstalled("InazumaGantt_v2"), "OK", "–¢ƒCƒ“ƒXƒg[ƒ‹") & vbCrLf
+    status = status & "  HierarchyColor: " & IIf(IsModuleInstalled("HierarchyColor"), "OK", "–¢ƒCƒ“ƒXƒg[ƒ‹") & vbCrLf
+    
+    ' ƒIƒvƒVƒ‡ƒ“ƒ‚ƒWƒ…[ƒ‹
+    status = status & vbCrLf & "ƒIƒvƒVƒ‡ƒ“ƒ‚ƒWƒ…[ƒ‹:" & vbCrLf
+    status = status & "  DataMigration: " & IIf(IsModuleInstalled("DataMigration"), "OK", "–¢ƒCƒ“ƒXƒg[ƒ‹") & vbCrLf
+    status = status & "  ErrorHandler: " & IIf(IsModuleInstalled("ErrorHandler"), "OK", "–¢ƒCƒ“ƒXƒg[ƒ‹") & vbCrLf
+    
+    MsgBox status, vbInformation, "ƒCƒ“ƒXƒg[ƒ‹ó‘Ô"
+End Sub
