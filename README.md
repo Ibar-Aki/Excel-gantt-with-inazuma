@@ -20,22 +20,30 @@ Alt + F11 → ファイル → ファイルのインポート
 
 - ✅ `InazumaGantt_v2_SJIS.bas` （必須）
 - ✅ `HierarchyColor_SJIS.bas` （必須）
-- ✅ `SetupWizard_SJIS.bas` （推奨）
-- 🔹 `DataMigration_SJIS.bas` （任意）
+- ✅ `SetupWizard_SJIS.bas` （必須）
+- 🔹 `DataMigration_SJIS.bas` （任意：旧形式からの移行用）
 
 ### 2. シートモジュールを設定
 
-1. VBAエディタで「InazumaGantt_v2」シートをダブルクリック
+1. VBAエディタで「Sheet1」（または対象シート）をダブルクリック
 2. `vba/SheetModule_SJIS.bas` の内容を貼り付け
 3. 保存して閉じる
 
-### 3. セットアップ実行
+### 3. セットアップウィザードを実行
 
 ```
 Alt + F8 → RunSetupWizard → 実行
 ```
 
-👉 **詳細は [SETUP.md](SETUP.md) を参照**
+> **ウィザードが自動的に以下を設定します:**
+>
+> - メインシート（InazumaGantt_v2）作成
+> - 祝日マスタシート作成
+> - 設定マスタシート作成
+> - 階層色分け（条件付き書式）
+> - ガントチャート描画
+
+👉 **詳細は [dev/docs/SETUP.md](dev/docs/SETUP.md) を参照**
 
 ---
 
@@ -57,8 +65,10 @@ Alt + F8 → RunSetupWizard → 実行
 
 ```
 📁 vba/               ← VBAモジュール（_SJIS.bas をインポート）
+📁 vba/統合版/        ← 統合版モジュール（1ファイルで全機能）
 📁 docs/              ← 利用者向けドキュメント
 📁 dev/               ← 開発者用ドキュメント・仕様
+📁 output/            ← ビルド済みExcelファイル
 ```
 
 ---
@@ -69,8 +79,7 @@ Alt + F8 → RunSetupWizard → 実行
 
 | ファイル | 内容 |
 |----------|------|
-| [SETUP.md](SETUP.md) | セットアップ手順 |
-| [dev/docs/利用者ガイド.md](dev/docs/利用者ガイド.md) | **操作マニュアル** |
+| [docs/利用者ガイド.md](docs/利用者ガイド.md) | **操作マニュアル** |
 | [docs/FEATURES.md](docs/FEATURES.md) | 機能詳細 |
 | [docs/CUSTOMIZE.md](docs/CUSTOMIZE.md) | カスタマイズ方法 |
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | 問題解決 |
@@ -80,8 +89,8 @@ Alt + F8 → RunSetupWizard → 実行
 
 | ファイル | 内容 |
 |----------|------|
+| [dev/docs/SETUP.md](dev/docs/SETUP.md) | セットアップ詳細手順 |
 | [dev/docs/ARCHITECTURE.md](dev/docs/ARCHITECTURE.md) | アーキテクチャ |
-| [dev/docs/ganttマクロ改善メモ.md](dev/docs/ganttマクロ改善メモ.md) | 改善仕様 |
 | [vba/README.md](vba/README.md) | VBAモジュール説明 |
 
 ---
@@ -90,17 +99,19 @@ Alt + F8 → RunSetupWizard → 実行
 
 ### 基本フロー
 
-1. **タスクを入力**（C〜F列）→ No.・進捗率・状況が自動入力
-2. **日付を入力**（K〜N列）
-3. **`RefreshInazumaGantt`** でガント更新
+1. **セットアップウィザード実行** → `RunSetupWizard`
+2. **タスクを入力**（C〜F列）→ No.・進捗率・状況が自動入力
+3. **日付を入力**（K〜N列）
+4. **ガント更新ボタン** または `RefreshInazumaGantt` でガント更新
 
 ### よく使うマクロ
 
 | マクロ | 機能 |
 |--------|------|
-| `SetupInazumaGantt` | 初回セットアップ |
+| `RunSetupWizard` | **初回セットアップ（推奨）** |
 | `RefreshInazumaGantt` | ガント更新（バー・イナズマ線描画） |
-| `SetupHierarchyColors` | 階層色分け（条件付き書式設定） |
+| `ResetFormatting` | 書式リセット（罫線・色の修復） |
+| `ExportToPDF` | PDF出力 |
 
 ---
 
