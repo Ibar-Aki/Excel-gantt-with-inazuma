@@ -32,7 +32,7 @@ Private Sub Worksheet_BeforeDoubleClick(ByVal Target As Range, Cancel As Boolean
     If Target.Column <> 2 Then Exit Sub
     
     ' 設定マスタから機能有効を確認
-    If Not InazumaGantt_v2.GetSettingValue(3) Then Exit Sub
+    If Not InazumaGantt_v2.GetSettingValue(4) Then Exit Sub
     
     ' 既に完了済みの場合は変更しない
     If Me.Cells(Target.Row, "H").Value = "完了" Then Exit Sub
@@ -46,7 +46,7 @@ Private Sub Worksheet_BeforeDoubleClick(ByVal Target As Range, Cancel As Boolean
     Me.Cells(Target.Row, "H").Value = "完了"
     
     ' 設定：完了日自動入力
-    If InazumaGantt_v2.GetSettingValue(4) Then
+    If InazumaGantt_v2.GetSettingValue(5) Then
         If IsDate(Me.Cells(Target.Row, "M").Value) Then
             If Trim$(CStr(Me.Cells(Target.Row, "N").Value)) = "" Then
                 Me.Cells(Target.Row, "N").Value = Date
@@ -55,12 +55,12 @@ Private Sub Worksheet_BeforeDoubleClick(ByVal Target As Range, Cancel As Boolean
     End If
     
     ' 設定：取り消し線
-    If InazumaGantt_v2.GetSettingValue(5) Then
+    If InazumaGantt_v2.GetSettingValue(6) Then
         Me.Range("C" & Target.Row & ":F" & Target.Row).Font.Strikethrough = True
     End If
     
     ' 設定：濃い灰色に変更
-    If InazumaGantt_v2.GetSettingValue(6) Then
+    If InazumaGantt_v2.GetSettingValue(7) Then
         Me.Range("C" & Target.Row & ":F" & Target.Row).Font.Color = RGB(128, 128, 128)
     End If
     

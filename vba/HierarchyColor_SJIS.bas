@@ -79,12 +79,14 @@ Sub SetupHierarchyColors()
     Application.Calculation = xlCalculationAutomatic
     Application.ScreenUpdating = True
     
-    MsgBox "ŠK‘wF•ª‚¯‚ÌğŒ•t‚«‘®‚ğİ’è‚µ‚Ü‚µ‚½I" & vbCrLf & vbCrLf & _
-           "“h‚è”ÍˆÍƒ‹[ƒ‹:" & vbCrLf & _
-           "  LV1: C`N—ñ" & vbCrLf & _
-           "  LV2: D`N—ñ" & vbCrLf & _
-           "  LV3: E`N—ñ" & vbCrLf & _
-           "  LV4: F`N—ñ", vbInformation, "ŠK‘wF•ª‚¯"
+    If Application.DisplayAlerts Then
+        MsgBox "ŠK‘wF•ª‚¯‚ÌğŒ•t‚«‘®‚ğİ’è‚µ‚Ü‚µ‚½I" & vbCrLf & vbCrLf & _
+               "“h‚è”ÍˆÍƒ‹[ƒ‹:" & vbCrLf & _
+               "  LV1: C`N—ñ" & vbCrLf & _
+               "  LV2: D`N—ñ" & vbCrLf & _
+               "  LV3: E`N—ñ" & vbCrLf & _
+               "  LV4: F`N—ñ", vbInformation, "ŠK‘wF•ª‚¯"
+    End If
     Exit Sub
     
 ErrorHandler:

@@ -79,12 +79,14 @@ Sub SetupHierarchyColors()
     Application.Calculation = xlCalculationAutomatic
     Application.ScreenUpdating = True
     
-    MsgBox "階層色分けの条件付き書式を設定しました！" & vbCrLf & vbCrLf & _
-           "塗り範囲ルール:" & vbCrLf & _
-           "  LV1: C～N列" & vbCrLf & _
-           "  LV2: D～N列" & vbCrLf & _
-           "  LV3: E～N列" & vbCrLf & _
-           "  LV4: F～N列", vbInformation, "階層色分け"
+    If Application.DisplayAlerts Then
+        MsgBox "階層色分けの条件付き書式を設定しました！" & vbCrLf & vbCrLf & _
+               "塗り範囲ルール:" & vbCrLf & _
+               "  LV1: C～N列" & vbCrLf & _
+               "  LV2: D～N列" & vbCrLf & _
+               "  LV3: E～N列" & vbCrLf & _
+               "  LV4: F～N列", vbInformation, "階層色分け"
+    End If
     Exit Sub
     
 ErrorHandler:

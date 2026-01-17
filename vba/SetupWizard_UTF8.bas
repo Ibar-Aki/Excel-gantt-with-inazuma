@@ -8,6 +8,55 @@ Option Explicit
 ' ==========================================
 
 ' ==========================================
+'  サイレントセットアップ（自動テスト用）
+' ==========================================
+' MsgBoxなしで自動実行。PowerShell等からの呼び出し用。
+' 引数: addSampleData - サンプルデータを追加するか
+Public Sub SilentSetup(Optional ByVal addSampleData As Boolean = True)
+    On Error GoTo ErrorHandler
+    
+    Application.ScreenUpdating = False
+    Application.DisplayAlerts = False
+    
+    ' 開始日を計算（14日前の範囲内で最も近い月曜日）
+    Dim startDate As Date
+    startDate = Date - 14
+    ' 月曜日に調整（Weekday: 1=日, 2=月, ..., 7=土）
+    Dim dayOffset As Long
+    dayOffset = Weekday(startDate, vbMonday) - 1 ' 月曜からのオフセット
+    startDate = startDate - dayOffset
+    
+    ' シート作成（サイレントモード・開始日指定）
+    CreateMainSheetSilent Format(startDate, "yy/mm/dd")
+    
+    ' サンプルデータ追加
+    If addSampleData Then
+        AddSampleDataSilent
+    End If
+    
+    ' 設定マスタシート作成
+    InazumaGantt_v2.EnsureSettingsSheet
+    
+    ' メインシートをアクティブに（重要：設定マスタではなくメインシートで描画）
+    ThisWorkbook.Worksheets(InazumaGantt_v2.MAIN_SHEET_NAME).Activate
+    
+    ' 階層色分け設定
+    HierarchyColor.SetupHierarchyColors
+    
+    ' ガントチャート描画
+    InazumaGantt_v2.RefreshInazumaGantt
+    
+    Application.ScreenUpdating = True
+    Application.DisplayAlerts = True
+    Exit Sub
+    
+ErrorHandler:
+    Application.ScreenUpdating = True
+    Application.DisplayAlerts = True
+    Err.Raise Err.Number, "SilentSetup", Err.Description
+End Sub
+
+' ==========================================
 '  ウィザード実行
 ' ==========================================
 Sub RunSetupWizard()
@@ -99,7 +148,26 @@ Private Sub CreateMainSheet()
     End If
     
     ws.Activate
-    InazumaGantt_v2.SetupInazumaGantt
+    InazumaGantt_v2.SetupInazumaGantt False, Null
+End Sub
+
+' ==========================================
+'  メインシートの作成（サイレント版）
+' ==========================================
+Private Sub CreateMainSheetSilent(ByVal startDateStr As String)
+    Dim ws As Worksheet
+    
+    On Error Resume Next
+    Set ws = ThisWorkbook.Worksheets(InazumaGantt_v2.MAIN_SHEET_NAME)
+    On Error GoTo 0
+    
+    If ws Is Nothing Then
+        Set ws = ThisWorkbook.Worksheets.Add
+        ws.Name = InazumaGantt_v2.MAIN_SHEET_NAME
+    End If
+    
+    ws.Activate
+    InazumaGantt_v2.SetupInazumaGantt True, startDateStr
 End Sub
 
 ' ==========================================
@@ -217,6 +285,94 @@ Private Sub AddSampleData()
 ErrorHandler:
     MsgBox "サンプルデータ追加エラー: " & Err.Description, vbCritical, "エラー"
 End Sub
+
+' ==========================================
+'  サンプルデータの追加（サイレント版）
+' ==========================================
+Private Sub AddSampleDataSilent()
+    On Error GoTo ErrorHandler
+    
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Worksheets(InazumaGantt_v2.MAIN_SHEET_NAME)
+    
+    Dim startRow As Long
+    startRow = InazumaGantt_v2.ROW_DATA_START
+    
+    Dim baseDate As Date
+    baseDate = Date
+    
+    ' フェーズ1: 計画フェーズ（完了フェーズ）
+    ws.Cells(startRow, "C").Value = "計画フェーズ"
+    ws.Cells(startRow, "H").Value = "完了"
+    ws.Cells(startRow, "I").Value = 1
+    ws.Cells(startRow, "J").Value = "山田"
+    ws.Cells(startRow, "K").Value = GetWorkday(baseDate - 14)
+    ws.Cells(startRow, "L").Value = GetWorkday(baseDate - 7)
+    ws.Cells(startRow, "M").Value = GetWorkday(baseDate - 14)
+    ws.Cells(startRow, "N").Value = GetWorkday(baseDate - 8)
+    
+    ws.Cells(startRow + 1, "D").Value = "要件定義"
+    ws.Cells(startRow + 1, "H").Value = "完了"
+    ws.Cells(startRow + 1, "I").Value = 1
+    ws.Cells(startRow + 1, "J").Value = "山田"
+    ws.Cells(startRow + 1, "K").Value = GetWorkday(baseDate - 14)
+    ws.Cells(startRow + 1, "L").Value = GetWorkday(baseDate - 10)
+    
+    ws.Cells(startRow + 2, "D").Value = "設計書作成"
+    ws.Cells(startRow + 2, "H").Value = "完了"
+    ws.Cells(startRow + 2, "I").Value = 1
+    ws.Cells(startRow + 2, "J").Value = "鈴木"
+    ws.Cells(startRow + 2, "K").Value = GetWorkday(baseDate - 10)
+    ws.Cells(startRow + 2, "L").Value = GetWorkday(baseDate - 7)
+    
+    ' フェーズ2: 開発フェーズ（進行中）
+    ws.Cells(startRow + 3, "C").Value = "開発フェーズ"
+    ws.Cells(startRow + 3, "H").Value = "進行中"
+    ws.Cells(startRow + 3, "I").Value = 0.6
+    ws.Cells(startRow + 3, "J").Value = "田中"
+    ws.Cells(startRow + 3, "K").Value = GetWorkday(baseDate - 7)
+    ws.Cells(startRow + 3, "L").Value = GetWorkday(baseDate + 14)
+    
+    ws.Cells(startRow + 4, "D").Value = "機能開発"
+    ws.Cells(startRow + 4, "H").Value = "進行中"
+    ws.Cells(startRow + 4, "I").Value = 0.7
+    ws.Cells(startRow + 4, "J").Value = "田中"
+    ws.Cells(startRow + 4, "K").Value = GetWorkday(baseDate - 7)
+    ws.Cells(startRow + 4, "L").Value = GetWorkday(baseDate + 7)
+    
+    ' フェーズ3: リリースフェーズ（未着手）
+    ws.Cells(startRow + 5, "C").Value = "リリースフェーズ"
+    ws.Cells(startRow + 5, "H").Value = "未着手"
+    ws.Cells(startRow + 5, "I").Value = 0
+    ws.Cells(startRow + 5, "J").Value = "山田"
+    ws.Cells(startRow + 5, "K").Value = GetWorkday(baseDate + 14)
+    ws.Cells(startRow + 5, "L").Value = GetWorkday(baseDate + 21)
+    
+    ' 階層自動判定
+    InazumaGantt_v2.AutoDetectTaskLevel
+    Exit Sub
+    
+ErrorHandler:
+    Err.Raise Err.Number, "AddSampleDataSilent", Err.Description
+End Sub
+
+' ==========================================
+'  平日（土日を避けた日付）を取得
+' ==========================================
+Private Function GetWorkday(ByVal targetDate As Date) As Date
+    ' 土曜の場合は前の金曜に
+    ' 日曜の場合は次の月曜に
+    Dim dow As Long
+    dow = Weekday(targetDate, vbSunday) ' 1=日, 2=月, ..., 7=土
+    
+    If dow = 1 Then ' 日曜
+        GetWorkday = targetDate + 1 ' 月曜に
+    ElseIf dow = 7 Then ' 土曜
+        GetWorkday = targetDate - 1 ' 金曜に
+    Else
+        GetWorkday = targetDate
+    End If
+End Function
 
 ' ==========================================
 '  シートモジュール設定手順の表示

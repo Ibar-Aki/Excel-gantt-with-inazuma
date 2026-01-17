@@ -59,7 +59,7 @@ Public Const ACTUAL_LINE_WEIGHT As Double = 4
 ' ==========================================
 '  初期セットアップ (ヘッダー作成＆書式設定)
 ' ==========================================
-Sub SetupInazumaGantt()
+Sub SetupInazumaGantt(Optional ByVal silentMode As Boolean = False, Optional ByVal overrideStartDate As Variant = Null)
     On Error GoTo ErrorHandler
     
     Dim ws As Worksheet
@@ -133,15 +133,20 @@ Sub SetupInazumaGantt()
     ws.Rows.RowHeight = 22
 
 
-    EnsureHolidaySheet
     EnsureGuideSheet
     
     ' 日付開始日を入力させる（キャンセル時はロールバック）
     Dim startDateInput As Variant
-    startDateInput = Application.InputBox("ガントチャートの開始日を入力してください (例: 24/12/25)", "開始日設定", Format(Date, "yy/mm/dd"), Type:=2)
+    If silentMode And Not IsNull(overrideStartDate) Then
+        startDateInput = overrideStartDate
+    ElseIf silentMode Then
+        startDateInput = Format(Date, "yy/mm/dd")
+    Else
+        startDateInput = Application.InputBox("ガントチャートの開始日を入力してください (例: 24/12/25)", "開始日設定", Format(Date, "yy/mm/dd"), Type:=2)
+    End If
     
     ' キャンセル処理（ロールバック）
-    If startDateInput = False Or VarType(startDateInput) = vbBoolean Then
+    If Not silentMode And (startDateInput = False Or VarType(startDateInput) = vbBoolean) Then
         ' シートの内容をクリア（ロールバック）: 想定範囲のみ
         Dim rollbackEndCol As Long
         rollbackEndCol = ws.Columns(COL_GANTT_START).Column + GANTT_DAYS - 1
@@ -189,14 +194,14 @@ Sub SetupInazumaGantt()
         colIndex = ganttStartCol + i - 1
         currentDate = ganttStartDate + i - 1
         
-        ' 7行目: 日付（日のみ）- ヘッダーと同じ色
+        ' 6行目: 日付（日のみ）- ヘッダーと同じ色
         ws.Cells(ROW_DATE_HEADER, colIndex).Value = Day(currentDate)
         ws.Cells(ROW_DATE_HEADER, colIndex).Font.Size = 9
         ws.Cells(ROW_DATE_HEADER, colIndex).HorizontalAlignment = xlCenter
         ws.Cells(ROW_DATE_HEADER, colIndex).Interior.Color = COLOR_HEADER_BG
         ws.Cells(ROW_DATE_HEADER, colIndex).Font.Color = RGB(255, 255, 255)
         
-        ' 8行目: 曜日 - ヘッダーと同じ色
+        ' 7行目: 曜日 - ヘッダーと同じ色
         ws.Cells(ROW_HEADER, colIndex).Value = Format$(currentDate, "aaa")
         ws.Cells(ROW_HEADER, colIndex).Font.Size = 8
         ws.Cells(ROW_HEADER, colIndex).HorizontalAlignment = xlCenter
@@ -236,9 +241,9 @@ Sub SetupInazumaGantt()
     ' 目盛線をオフ
     ActiveWindow.DisplayGridlines = False
     
-    ' フィルタ自動設定 (8行目A-N列)
+    ' フィルタ自動設定 (7行目（日付行）A-N列)
     If Not ws.AutoFilterMode Then
-        ws.Range("A" & ROW_HEADER & ":N" & ROW_HEADER).AutoFilter
+        ws.Range("A" & ROW_DATE_HEADER & ":N" & ROW_DATE_HEADER).AutoFilter
     End If
     
     ' No.1〜400の初期採番
@@ -253,7 +258,9 @@ Sub SetupInazumaGantt()
     Application.Calculation = prevCalc  ' P2修正: 元設定に復元
     Application.ScreenUpdating = True
     
-    MsgBox "セットアップ完了！" & vbCrLf & "データを入力後、RefreshInazumaGantt を実行してください。", vbInformation, "イナズマガント"
+    If Application.DisplayAlerts Then
+        MsgBox "セットアップ完了！" & vbCrLf & "データを入力後、RefreshInazumaGantt を実行してください。", vbInformation, "イナズマガント"
+    End If
     Exit Sub
     
 ErrorHandler:
@@ -364,23 +371,32 @@ End Function
 '  説明シートの作成
 ' ==========================================
 Private Sub EnsureGuideSheet()
+    On Error GoTo ErrorHandler
+    
+    Dim prevAlerts As Boolean
+    prevAlerts = Application.DisplayAlerts
+    Application.DisplayAlerts = False
+    
     Dim wsGuide As Worksheet
     On Error Resume Next
     Set wsGuide = ThisWorkbook.Worksheets(GUIDE_SHEET_NAME)
     On Error GoTo 0
     
-    If wsGuide Is Nothing Then
-        Set wsGuide = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
-        wsGuide.Name = GUIDE_SHEET_NAME
-    Else
-        wsGuide.Cells.Clear
+    If Not wsGuide Is Nothing Then
+        wsGuide.Delete
     End If
+    
+    Set wsGuide = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
+    wsGuide.Name = GUIDE_SHEET_NAME
+    
+    ' エラーハンドリングのためにAlerts設定を戻す（描画中は戻しても良いが、再度エラー時にFalseにするなど複雑になるため、最後に復元）
+    ' ただしActiveWindow操作などがあるため、念のためここで復元せず、最後に復元する
     
     ' 目盛線オフ
     ActiveWindow.DisplayGridlines = False
     
     ' タイトル
-    wsGuide.Cells(1, 1).Value = "進捗管理表 操作マニュアル"
+    wsGuide.Cells(1, 1).Value = "マクロ機能"
     wsGuide.Cells(1, 1).Font.Bold = True
     wsGuide.Cells(1, 1).Font.Size = 14
     
@@ -397,6 +413,9 @@ Private Sub EnsureGuideSheet()
     wsGuide.Cells(8, 2).Value = "崩れた罫線・書式を修復します。"
     wsGuide.Cells(9, 2).Value = "表示がおかしくなった時に使用してください。"
     
+    ' 描画処理の合間にDoEventsを入れる（描画更新のため）
+    DoEvents
+    
     ' ダブルクリック完了
     wsGuide.Cells(11, 1).Value = "■ ダブルクリックでタスク完了"
     wsGuide.Cells(11, 1).Font.Bold = True
@@ -409,9 +428,29 @@ Private Sub EnsureGuideSheet()
     wsGuide.Cells(18, 1).Value = ""
     wsGuide.Cells(19, 1).Value = "※ すでに完了しているタスクは変更されません。"
     
+    DoEvents
+    
+    ' SHIFT+右クリック折りたたみ
+    wsGuide.Cells(21, 1).Value = "■ SHIFT+右クリックで折りたたみ"
+    wsGuide.Cells(21, 1).Font.Bold = True
+    wsGuide.Cells(22, 1).Value = "LV1タスク（C列）でSHIFT+右クリックすると、"
+    wsGuide.Cells(23, 1).Value = "配下のLV2-4タスクを折りたたみ/展開します。"
+    wsGuide.Cells(24, 1).Value = ""
+    wsGuide.Cells(25, 1).Value = "  ・ 再度SHIFT+右クリックで展開"
+    wsGuide.Cells(26, 1).Value = "  ・ LV1タスクのみ対象"
+    wsGuide.Cells(27, 1).Value = ""
+    wsGuide.Cells(28, 1).Value = "※ 大規模プロジェクトの概要把握に便利です。"
+    
     ' 列幅設定
     wsGuide.Columns(1).ColumnWidth = 35
     wsGuide.Columns(2).ColumnWidth = 45
+    
+    Application.DisplayAlerts = prevAlerts
+    Exit Sub
+
+ErrorHandler:
+    Application.DisplayAlerts = prevAlerts
+    MsgBox "EnsureGuideSheet Error: " & Err.Description, vbCritical
 End Sub
 
 ' ==========================================
@@ -886,7 +925,9 @@ Sub RefreshInazumaGantt()
     Application.Calculation = prevCalc  ' P2修正: 元設定に復元
     Application.ScreenUpdating = True
     
-    MsgBox "イナズマガント更新完了！", vbInformation, "イナズマガント"
+    If Application.DisplayAlerts Then
+        MsgBox "イナズマガント更新完了！", vbInformation, "イナズマガント"
+    End If
     Exit Sub
     
 ErrorHandler:
@@ -897,15 +938,15 @@ End Sub
 
 
 ' ==========================================
-'  祝日列の色塗り（祝日マスタ A列）
+'  祝日列の色塗り（設定マスタ B13:B28）
 ' ==========================================
 Private Sub ApplyHolidayColors(ByVal ws As Worksheet, ByVal lastRow As Long)
-    Dim wsHoliday As Worksheet
+    Dim wsSettings As Worksheet
     On Error Resume Next
-    Set wsHoliday = ThisWorkbook.Worksheets(HOLIDAY_SHEET_NAME)
+    Set wsSettings = ThisWorkbook.Worksheets(SETTINGS_SHEET_NAME)
     On Error GoTo 0
     
-    If wsHoliday Is Nothing Then Exit Sub
+    If wsSettings Is Nothing Then Exit Sub
     
     Dim ganttStartCol As Long
     ganttStartCol = ws.Columns(COL_GANTT_START).Column
@@ -918,16 +959,16 @@ Private Sub ApplyHolidayColors(ByVal ws As Worksheet, ByVal lastRow As Long)
     End If
     
     Dim lastHolidayRow As Long
-    lastHolidayRow = wsHoliday.Cells(wsHoliday.Rows.Count, "A").End(xlUp).Row
-    If lastHolidayRow < 2 Then Exit Sub
+    lastHolidayRow = wsSettings.Cells(wsSettings.Rows.Count, "A").End(xlUp).Row
+    If lastHolidayRow < 13 Then Exit Sub
     
     Dim r As Long
     Dim holidayDate As Date
     Dim colIndex As Long
     
-    For r = 2 To lastHolidayRow
-        If IsDate(wsHoliday.Cells(r, "A").Value) Then
-            holidayDate = CDate(wsHoliday.Cells(r, "A").Value)
+    For r = 13 To lastHolidayRow
+        If IsDate(wsSettings.Cells(r, "A").Value) Then
+            holidayDate = CDate(wsSettings.Cells(r, "A").Value)
             colIndex = DateToColumn(ganttStartDate, holidayDate, ganttStartCol)
             If colIndex >= ganttStartCol And colIndex <= ganttStartCol + GANTT_DAYS - 1 Then
                 ws.Range(ws.Cells(ROW_DATE_HEADER, colIndex), ws.Cells(lastRow, colIndex)).Interior.Color = COLOR_HOLIDAY
@@ -1279,32 +1320,69 @@ Sub EnsureSettingsSheet()
     Set wsSettings = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
     wsSettings.Name = SETTINGS_SHEET_NAME
     
-    wsSettings.Range("A1").Value = "ダブルクリック完了設定"
+    ' === タイトル (A1) ===
+    wsSettings.Range("A1").Value = "設定マスタ"
     wsSettings.Range("A1").Font.Bold = True
     wsSettings.Range("A1").Font.Size = 14
     
-    wsSettings.Range("A3").Value = "機能有効"
-    wsSettings.Range("B3").Value = True
-    wsSettings.Range("C3").Value = "← TRUE: ダブルクリックで完了処理を行う"
+    ' === ダブルクリック機能セクション (A3-C7) ===
+    wsSettings.Range("A3").Value = "ダブルクリック機能"
+    wsSettings.Range("A3").Font.Bold = True
     
-    wsSettings.Range("A4").Value = "完了日自動入力"
+    wsSettings.Range("A4").Value = "機能有効"
     wsSettings.Range("B4").Value = True
-    wsSettings.Range("C4").Value = "← TRUE: 完了実績日に今日を入力"
+    wsSettings.Range("C4").Value = "← TRUE: ダブルクリックで完了処理を行う"
     
-    wsSettings.Range("A5").Value = "取り消し線"
+    wsSettings.Range("A5").Value = "完了日自動入力"
     wsSettings.Range("B5").Value = True
-    wsSettings.Range("C5").Value = "← TRUE: タスクに取り消し線を入れる"
+    wsSettings.Range("C5").Value = "← TRUE: 完了実績日に今日を入力"
     
-    wsSettings.Range("A6").Value = "灰色変更"
+    wsSettings.Range("A6").Value = "取り消し線"
     wsSettings.Range("B6").Value = True
-    wsSettings.Range("C6").Value = "← TRUE: タスクを濃い灰色に変更"
+    wsSettings.Range("C6").Value = "← TRUE: タスクに取り消し線を入れる"
+    
+    wsSettings.Range("A7").Value = "灰色変更"
+    wsSettings.Range("B7").Value = True
+    wsSettings.Range("C7").Value = "← TRUE: タスクを濃い灰色に変更"
     
     wsSettings.Columns("A").ColumnWidth = 18
     wsSettings.Columns("B").ColumnWidth = 8
-    wsSettings.Columns("C").ColumnWidth = 40
-    wsSettings.Range("B3:B6").HorizontalAlignment = xlCenter
+    wsSettings.Columns("C").ColumnWidth = 45
+    wsSettings.Range("B4:B7").HorizontalAlignment = xlCenter
     
-    MsgBox "設定マスタシートを作成しました", vbInformation
+    ' ダブルクリック設定エリアの罫線 (A4:C7)
+    With wsSettings.Range("A4:C7").Borders
+        .LineStyle = xlContinuous
+        .Weight = xlThin
+        .ColorIndex = 48
+    End With
+    
+    ' === 祝日マスタセクション (A12, A13-A27, B12-B18) ===
+    wsSettings.Range("A12").Value = "祝日マスタ"
+    wsSettings.Range("A12").Font.Bold = True
+    wsSettings.Range("A12").Interior.Color = RGB(48, 84, 150)
+    wsSettings.Range("A12").Font.Color = RGB(255, 255, 255)
+    
+    wsSettings.Range("B12").Value = "【祝日マスタの使い方】"
+    wsSettings.Range("B12").Font.Bold = True
+    
+    ' 祝日入力エリア（A13:A27）
+    wsSettings.Range("A13:A27").NumberFormat = "yy/mm/dd"
+    With wsSettings.Range("A13:A27").Borders
+        .LineStyle = xlContinuous
+        .Weight = xlThin
+        .ColorIndex = 48
+    End With
+    
+    ' 説明テキスト（B列）
+    wsSettings.Range("B13").Value = "A列に祝日の日付を入力してください。"
+    wsSettings.Range("B14").Value = "入力した日付はガントチャート上で濃い灰色で表示されます。"
+    wsSettings.Range("B16").Value = "例: 26/01/01, 26/01/13, 26/02/11 ..."
+    wsSettings.Range("B16").Font.Color = RGB(128, 128, 128)
+    wsSettings.Range("B18").Value = "※ ガント更新後に反映されます。"
+    
+    ' 目盛線オフ
+    ActiveWindow.DisplayGridlines = False
 End Sub
 
 ' ==========================================

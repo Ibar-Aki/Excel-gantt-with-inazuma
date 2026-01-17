@@ -7,8 +7,20 @@ Option Explicit
 ' 既存のガントチャート形式からv2形式へデータを移管する
 
 ' ==========================================
-'  v2形式への移管実行
+'  柔軟な移管ウィザード（推奨）
 ' ==========================================
+' WBS番号型のガントチャートから柔軟に移管できます
+' 最初に MigrationFormBuilder.CreateMigrationWizardForm() を実行して
+' UserFormを作成してください（一度だけ）
+Sub MigrateWithWizard()
+    DataMigrationWizard.ShowMigrationWizard
+End Sub
+
+' ==========================================
+'  v2形式への移管実行（旧バージョン）
+' ==========================================
+' 後方互換性のため維持されています
+' 新しい移管には MigrateWithWizard() を使用してください
 Sub MigrateToV2Format()
     On Error GoTo ErrorHandler
     
