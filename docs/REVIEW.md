@@ -1,64 +1,87 @@
-# Excel-gantt-with-inazuma コードレビュー
+# Excel-gantt-with-inazuma 辛口コードレビュー
 
-対象: `vba/*_UTF8.bas`, `vba/addons/DataMigration/*_UTF8.bas`, `BuildInazumaGantt.ps1`, `FixEncoding.ps1`
+対象: `vba/**/*.bas`, `vba/addons/**`, `BuildInazumaGantt*.ps1`, `FixEncoding.ps1`, `README.md`  
 レビュー日: 2026-01-17
 
 ## 重大/高
-- **設定マスタの破壊リスク**: データ移管の保存/読込が `設定マスタ` を使うため、ダブルクリック設定や祝日マスタを上書き/混在させます。結果として祝日色付け・完了処理設定・移管設定が競合し、データ損失や誤動作が起きます。  
-  参照: `vba/addons/DataMigration/DataMigrationWizard_UTF8.bas:238,244,299,306,353,358` / `vba/InazumaGantt_v2_UTF8.bas:1241,1244,1320,1323` / `vba/SheetModule_UTF8.bas:189,193`
-  - **改善案**: 移管設定専用シート（例: `移管設定`）を新設し、`設定マスタ` から完全分離。既存の `設定マスタ` を検知した場合は上書きしないガードを追加。
+- **[重大] コンパイル不能: 変数の二重宣言**
+  - `vba/HierarchyColor_UTF8.bas:37-38,112-113` / `vba/HierarchyColor_SJIS.bas:37-38,112-113`
+  - 影響: モジュールの読み込み時点でコンパイルエラーになり、階層色分けが一切動作しません。ビルドスクリプト経由でも失敗します。
+  - 改善案: 重複宣言を削除（`Dim lastRow As Long` を1つに統一）。
+
+- **[高] UTF8ビルドでシートモジュールが文字化け**
+  - `BuildInazumaGantt_UTF8.ps1:76`
+  - 影響: `SheetModule_UTF8.bas` を `-Encoding Default` で読み込み注入しているため、UTF-8前提の日本語が崩れ、環境によってはコード文字列が壊れます。
+  - 改善案: `Get-Content -Encoding UTF8 -Raw` に変更（または `ReadAllText` で明示的にUTF-8）。
+
+- **[高] セットアップキャンセル時に計算モードが強制変更**
+  - `vba/InazumaGantt_v2_UTF8.bas:148-157`
+  - 影響: `prevCalc` を保存しているのに、キャンセル分岐で `xlCalculationAutomatic` を固定的に設定しており、ユーザーの計算モードが意図せず変わります。
+  - 改善案: キャンセル分岐も `prevCalc` を復元する。
 
 ## 中
-- **UTF8/SJIS 差分によるビルド破綻**: `HOLIDAY_SHEET_NAME` が UTF8 版に定義されておらず、`ShiftDates` で参照されるため `FixEncoding.ps1` でSJIS生成するとコンパイルエラーになります。  
-  参照: `vba/InazumaGantt_v2_UTF8.bas:1437,1455`（定義はSJIS側のみ）
-  - **改善案**: UTF8側に定数を追加し、SJISと同一内容に同期。ソースはUTF8のみ正とし、SJISは生成物扱いにする運用も検討。
+- **[中] イナズマ線の座標が未初期化になり得る**
+  - `vba/InazumaGantt_v2_UTF8.bas:668-689`
+  - 影響: `useTodayPosition=True` かつ「今日がガント範囲外」の場合、`inazumaX` が未設定のまま `0` 扱いになり、不正な位置に線が引かれる可能性。
+  - 改善案: 今日が範囲外ならスキップ、または `inazumaX` を安全な位置に初期化。
 
-- **祝日マスタ参照の不整合**: 祝日情報は `設定マスタ` に置かれているのに `ShiftDates` は `HOLIDAY_SHEET_NAME`（別シート）を参照します。結果として営業日シフトで祝日が無視されます。  
-  参照: `vba/InazumaGantt_v2_UTF8.bas:1241,1289,1442,1455`
-  - **改善案**: `ShiftDates` の祝日取得を `設定マスタ`（A13以降）へ統一、または `祝日マスタ` シートを復活させて一貫性を持たせる。
+- **[中] ActiveSheet/未修飾参照が多く、誤シート破壊リスク**
+  - 例: `vba/InazumaGantt_v2_UTF8.bas:545,802,372-375,502-505,1038-1042`
+  - 影響: 別シートをアクティブにしたまま実行すると、意図しないシートを加工・破壊します。
+  - 改善案: `ThisWorkbook.Worksheets(MAIN_SHEET_NAME)` を基準にし、`Columns` などの未修飾参照を `ws.Columns` へ統一。
 
-- **最終行検出の欠落**: `GetLastDataRow` が C/G/K/L/M/N 列のみを参照しており、D/E/F（下位タスク）だけ入力された行を見逃します。結果として書式・検証・ガント描画の対象外になる可能性があります。  
-  参照: `vba/InazumaGantt_v2_UTF8.bas:266-274`
-  - **改善案**: D/E/F 列も最終行判定に追加。
-
-- **土日非表示状態のリセット**: `RegenerateDateHeaders` が全列幅を `3` に上書きするため、`ToggleWeekends` で隠した土日が `Refresh/Reset` 後に復活します。  
-  参照: `vba/InazumaGantt_v2_UTF8.bas:1156,1192` / `vba/InazumaGantt_v2_UTF8.bas:1040`
-  - **改善案**: 週末列の幅は保持し、再生成時は既存の幅を尊重する。
+- **[中] 移管ウィザードの開始行が数値以外で例外**
+  - `vba/addons/DataMigration/MigrationFormBuilder_UTF8.bas:524-536`
+  - 影響: `txtDataStartRow` が数値以外だと `CLng` で落ちます（UI側での入力ガードがない）。
+  - 改善案: `IsNumeric` 検証＋エラーメッセージ。
 
 ## 低
-- **階層色分けの適用範囲が固定**: `DATA_ROWS_DEFAULT` までしか条件付き書式を適用していないため、行を増やすと色分けが切れます。  
-  参照: `vba/HierarchyColor_UTF8.bas:38,108`
-  - **改善案**: 実データの最終行に合わせて再設定、または列全体へ適用。
+- **[低] 移管ウィザードの列リストがA-Z/AA-AZで頭打ち**
+  - `vba/addons/DataMigration/MigrationFormBuilder_UTF8.bas:470-483`
+  - 影響: BA列以降のマッピング不可。大規模シートでは機能不足。
+  - 改善案: 動的生成（実際の使用列まで）または AAA まで拡張。
 
-- **移管ウィザードの列選択がA–Z限定**: 大きいシート（AA列以降）を扱えません。  
-  参照: `vba/addons/DataMigration/MigrationFormBuilder_UTF8.bas:404`
-  - **改善案**: A–ZZ まで生成、または実際の使用列から動的生成。
+- **[低] SheetModuleに Option Explicit が無い**
+  - `vba/SheetModule_UTF8.bas` / `vba/SheetModule_SJIS.bas`
+  - 影響: タイプミスが静かに混入しやすく、保守性低下。
+  - 改善案: `Option Explicit` を追加。
 
-- **移管マッピングの機能未露出**: `StartPlan/StartActual/EndActual` の設定項目があるのに、フォーム側の入力UIがありません。  
-  参照: `vba/addons/DataMigration/DataMigrationWizard_UTF8.bas:165-199` / `vba/addons/DataMigration/MigrationFormBuilder_UTF8.bas`（該当コントロール未生成）
+- **[低] 計算モードが元に戻らないケース**
+  - 例: `vba/HierarchyColor_UTF8.bas:34-35,84` / `vba/addons/DataMigration/DataMigrationWizard_UTF8.bas:99-100,220`
+  - 影響: 手動計算のブックで強制的に自動計算に戻る。
+  - 改善案: `prevCalc` を保存・復元。
 
-## パフォーマンス/最適化提案
-- **イベント処理の重複計算**: `Worksheet_Change` 内でセル単位に `AutoDetectTaskLevel` と `GetNextNo` を繰り返すため、貼り付け時に遅くなります。  
-  参照: `vba/SheetModule_UTF8.bas:95-147`  
-  - **改善案**: 変更行を集合化し、行単位で一度だけ判定。`GetNextNo` は最大値を一回だけ計算して使い回す。
+- **[低] READMEの記載が実態とズレ**
+  - `README.md:7,40-42,66-69`
+  - 影響: 「祝日マスタ」独立シートや `vba/統合版` など、現状存在しない前提の説明。
+  - 改善案: 実装に合わせて更新。
 
-- **ガント描画のシェイプ乱造**: `DrawGanttBars` が行数分のシェイプを毎回生成・削除するため、行数が多いと重くなります。  
-  参照: `vba/InazumaGantt_v2_UTF8.bas:546-794`  
-  - **改善案**: 進捗バーは条件付き書式 or セル塗りに寄せ、シェイプは「今日線/イナズマ線」など最小限に限定。
+## パフォーマンス
+- **貼り付け時のO(n^2)化**
+  - `vba/SheetModule_UTF8.bas:95-130` と `:255-272`
+  - 影響: まとめ貼り付けで `GetNextNo` が行数分ループ → 体感で大幅に遅くなる。
+  - 改善案: 変更行を一括収集し、最大No.は一度だけ算出して使い回す。
+
+- **シェイプ乱造による描画コスト**
+  - `vba/InazumaGantt_v2_UTF8.bas:568-737`
+  - 影響: 行数が多いほど極端に遅くなる。Excelの安定性にも影響。
+  - 改善案: 進捗バーはセル塗り/条件付き書式に寄せ、シェイプは最小限に。
 
 ## テスト不足
-- 自動テストが存在しません。変更後は最低でも以下の手動確認が必要です。  
-  1) 週末非表示→更新で維持されるか  
-  2) LV2/LV3のみ入力で書式・検証が適用されるか  
-  3) 祝日マスタ入力後の色付けと `ShiftDates` の反映  
-  4) データ移管ウィザード使用時に `設定マスタ` が壊れないか
+- 自動テストがありません。最低限、以下を手動確認してください。
+  1) 階層色分けがエラーなく適用される（重複宣言修正後）  
+  2) UTF8ビルドで日本語が文字化けしない  
+  3) 週末非表示が再生成後も保持される  
+  4) 大量貼り付け時の入力速度  
+  5) 移管ウィザードで数値以外入力時の挙動
 
----
+## 確認したい前提
+- マクロは「必ず InazumaGantt_v2 シート上から実行する」前提ですか？  
+  → 前提なら、冒頭でシート名チェックを入れてガードした方が安全です。
 
-### 参考: 主要ファイル
-- `vba/InazumaGantt_v2_UTF8.bas`
-- `vba/SheetModule_UTF8.bas`
-- `vba/HierarchyColor_UTF8.bas`
-- `vba/addons/DataMigration/*.bas`
-- `BuildInazumaGantt.ps1`
-- `FixEncoding.ps1`
+## 変更優先度（提案）
+1) **HierarchyColor のコンパイルエラー修正**  
+2) **UTF8ビルドのエンコーディング修正**  
+3) **計算モードの復元漏れ修正**  
+4) ActiveSheet依存の削減  
+5) パフォーマンス改善（No採番・シェイプ描画）

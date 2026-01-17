@@ -31,10 +31,11 @@ Sub SetupHierarchyColors()
     Dim ws As Worksheet
     Set ws = ActiveSheet
     
+    Dim prevCalc As XlCalculation
+    prevCalc = Application.Calculation
     Application.ScreenUpdating = False
     Application.Calculation = xlCalculationManual
     
-    Dim lastRow As Long
     Dim lastRow As Long
     ' 最終行を動的に取得 (最低でも DATA_ROWS_DEFAULT 分は確保)
     lastRow = InazumaGantt_v2.GetLastDataRow(ws)
@@ -81,7 +82,7 @@ Sub SetupHierarchyColors()
     cf4.Interior.Color = COLOR_LV4
     cf4.StopIfTrue = True
     
-    Application.Calculation = xlCalculationAutomatic
+    Application.Calculation = prevCalc
     Application.ScreenUpdating = True
     
     If Application.DisplayAlerts Then
@@ -95,7 +96,7 @@ Sub SetupHierarchyColors()
     Exit Sub
     
 ErrorHandler:
-    Application.Calculation = xlCalculationAutomatic
+    Application.Calculation = prevCalc
     Application.ScreenUpdating = True
     MsgBox "条件付き書式設定エラー: " & Err.Description, vbCritical, "エラー"
 End Sub
@@ -110,7 +111,7 @@ Sub ClearHierarchyColors()
     Set ws = ActiveSheet
     
     Dim lastRow As Long
-    Dim lastRow As Long
+
     ' 最終行を動的に取得 (最低でも DATA_ROWS_DEFAULT 分は確保)
     lastRow = InazumaGantt_v2.GetLastDataRow(ws)
     If lastRow < InazumaGantt_v2.ROW_DATA_START + InazumaGantt_v2.DATA_ROWS_DEFAULT - 1 Then

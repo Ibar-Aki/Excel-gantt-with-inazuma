@@ -523,6 +523,11 @@ Private Sub AddFormCode(ByRef vbComp As Object)
     
     ' btnExecute_Click
     code = code & "Private Sub btnExecute_Click()" & vbCrLf
+    code = code & "    ' Item 6: 数値チェック追加" & vbCrLf
+    code = code & "    If Not IsNumeric(txtDataStartRow.Text) Then" & vbCrLf
+    code = code & "        MsgBox ""データ開始行には数値を入力してください。"", vbExclamation" & vbCrLf
+    code = code & "        Exit Sub" & vbCrLf
+    code = code & "    End If" & vbCrLf
     code = code & "    Dim config As DataMigrationWizard.MappingConfig" & vbCrLf
     code = code & "    config.SourceSheetName = cboSourceSheet.Text" & vbCrLf
     code = code & "    config.WBSColumn = cboWBSColumn.Text" & vbCrLf

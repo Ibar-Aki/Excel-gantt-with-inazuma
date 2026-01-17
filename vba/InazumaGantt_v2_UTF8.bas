@@ -153,7 +153,8 @@ Sub SetupInazumaGantt(Optional ByVal silentMode As Boolean = False, Optional ByV
         Dim rollbackEndRow As Long
         rollbackEndRow = ROW_DATA_START + DATA_ROWS_DEFAULT - 1
         ws.Range(ws.Cells(1, 1), ws.Cells(rollbackEndRow, rollbackEndCol)).Clear
-        Application.Calculation = xlCalculationAutomatic
+        ws.Range(ws.Cells(1, 1), ws.Cells(rollbackEndRow, rollbackEndCol)).Clear
+        Application.Calculation = prevCalc
         Application.ScreenUpdating = True
         MsgBox "セットアップがキャンセルされました。", vbInformation, "キャンセル"
         Exit Sub
@@ -652,8 +653,15 @@ Sub DrawGanttBars()
                     ' 条件: 開始予定日が今日以前のタスクのみ対象
                     If CDate(startPlan) <= Date Then
                         Dim inazumaX As Double
+                        inazumaX = 0 ' Initialize safely
+                        Dim todayDate As Date
+                        todayDate = Date
+                        
                         Dim useTodayPosition As Boolean
                         useTodayPosition = False
+                        
+                        ' This line seems syntactically incorrect and refers to an undefined constant.
+                        ' If Not ws.Shapes(SHAPE_INAZUMA_LINE) Is Nothing Then = False
                         
                         ' 今日列のX座標を計算
                         Dim todayColForInazuma As Long

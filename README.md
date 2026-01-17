@@ -16,17 +16,18 @@ Excelベースのイナズマガントチャート管理ツール
 Alt + F11 → ファイル → ファイルのインポート
 ```
 
-`vba/` フォルダから以下をインポート：
+`- **vba/** : 最新のソースコード (UTF-8)
 
-- ✅ `InazumaGantt_v2_SJIS.bas` （必須）
-- ✅ `HierarchyColor_SJIS.bas` （必須）
-- ✅ `SetupWizard_SJIS.bas` （必須）
-- 🔹 `DataMigration_SJIS.bas` （任意：旧形式からの移行用）
+- `InazumaGantt_v2_UTF8.bas` : メインロジック
+- `SheetModule_UTF8.bas` : シートイベント制御
+- `SetupWizard_UTF8.bas` : セットアップ機能
+- `HierarchyColor_UTF8.bas` : 階層色分け機能
+- `addons/` : 拡張機能（データ移管など）（任意：旧形式からの移行用）
 
 ### 2. シートモジュールを設定
 
 1. VBAエディタで「Sheet1」（または対象シート）をダブルクリック
-2. `vba/SheetModule_SJIS.bas` の内容を貼り付け
+2. `vba/SheetModule_UTF8.bas` の内容を貼り付け
 3. 保存して閉じる
 
 ### 3. セットアップウィザードを実行
