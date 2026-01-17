@@ -264,7 +264,7 @@ End Sub
 ' ==========================================
 '  データ最終行の取得
 ' ==========================================
-Private Function GetLastDataRow(ByVal ws As Worksheet) As Long
+Public Function GetLastDataRow(ByVal ws As Worksheet) As Long
     Dim lastRow As Long
     lastRow = ROW_HEADER
     
