@@ -19,14 +19,14 @@
 #End If
 
 ' データ開始行（InazumaGantt_v2モジュールと同期）
-Private Const ROW_DATA_START As Long = 9
+' Private Const ROW_DATA_START As Long = 9
 
 Private Sub Worksheet_BeforeDoubleClick(ByVal Target As Range, Cancel As Boolean)
     ' タスク行のダブルクリック処理
     ' B列: 完了処理
     On Error GoTo ErrorHandler
     
-    If Target.Row < ROW_DATA_START Then Exit Sub
+    If Target.Row < InazumaGantt_v2.ROW_DATA_START Then Exit Sub
     
     ' B列(2): 完了処理
     If Target.Column <> 2 Then Exit Sub
@@ -79,7 +79,7 @@ Private Sub Worksheet_BeforeRightClick(ByVal Target As Range, Cancel As Boolean)
     ' Shiftキーが押されていない場合は通常の右クリックメニュー
     If (GetKeyState(vbKeyShift) And &H8000) = 0 Then Exit Sub
     
-    If Target.Row < ROW_DATA_START Then Exit Sub
+    If Target.Row < InazumaGantt_v2.ROW_DATA_START Then Exit Sub
     
     ' C-F列(3-6)でのみ有効
     If Target.Column < 3 Or Target.Column > 6 Then Exit Sub
@@ -102,7 +102,7 @@ Private Sub Worksheet_Change(ByVal Target As Range)
     If Not Intersect(Target, Me.Range("C:F")) Is Nothing Then
         Dim cell As Range
         For Each cell In Intersect(Target, Me.Range("C:F"))
-            If cell.Row >= ROW_DATA_START Then
+            If cell.Row >= InazumaGantt_v2.ROW_DATA_START Then
                 ' タスクが入力された場合
                 If Trim$(CStr(cell.Value)) <> "" Then
                     ' 階層を自動判定
@@ -134,7 +134,7 @@ Private Sub Worksheet_Change(ByVal Target As Range)
     If Not Intersect(Target, Me.Columns("I")) Is Nothing Then
         Dim progressCell As Range
         For Each progressCell In Intersect(Target, Me.Columns("I"))
-            If progressCell.Row >= ROW_DATA_START Then
+            If progressCell.Row >= InazumaGantt_v2.ROW_DATA_START Then
                 UpdateStatusByProgress progressCell.Row
             End If
         Next progressCell
@@ -149,7 +149,7 @@ Private Sub Worksheet_Change(ByVal Target As Range)
         Dim warningMsg As String
         
         For Each dateCell In Intersect(Target, Me.Range("K:L"))
-            If dateCell.Row >= ROW_DATA_START Then
+            If dateCell.Row >= InazumaGantt_v2.ROW_DATA_START Then
                 If IsDate(dateCell.Value) Then
                     inputDate = CDate(dateCell.Value)
                     isWeekend = (Weekday(inputDate, vbMonday) >= 6)
@@ -187,22 +187,24 @@ End Sub
 '  祝日チェック
 ' ==========================================
 Private Function CheckHoliday(ByVal targetDate As Date) As Boolean
-    Dim wsHoliday As Worksheet
+    Dim wsSettings As Worksheet
     On Error Resume Next
-    Set wsHoliday = ThisWorkbook.Worksheets("祝日マスタ")
+    ' InazumaGantt_v2の定数を使用
+    Set wsSettings = ThisWorkbook.Worksheets(InazumaGantt_v2.SETTINGS_SHEET_NAME)
     On Error GoTo 0
     
     CheckHoliday = False
-    If wsHoliday Is Nothing Then Exit Function
+    If wsSettings Is Nothing Then Exit Function
     
+    ' 祝日マスタハ設定マスタのA13から
     Dim lastRow As Long
-    lastRow = wsHoliday.Cells(wsHoliday.Rows.Count, "A").End(xlUp).Row
-    If lastRow < 2 Then Exit Function
+    lastRow = wsSettings.Cells(wsSettings.Rows.Count, "A").End(xlUp).Row
+    If lastRow < 13 Then Exit Function
     
     Dim r As Long
-    For r = 2 To lastRow
-        If IsDate(wsHoliday.Cells(r, "A").Value) Then
-            If CDate(wsHoliday.Cells(r, "A").Value) = targetDate Then
+    For r = 13 To lastRow
+        If IsDate(wsSettings.Cells(r, "A").Value) Then
+            If CDate(wsSettings.Cells(r, "A").Value) = targetDate Then
                 CheckHoliday = True
                 Exit Function
             End If
@@ -258,7 +260,7 @@ Private Function GetNextNo() As Long
     lastNo = 0
     
     ' B列から最大のNo.を探す
-    For r = ROW_DATA_START To Me.Cells(Me.Rows.Count, "B").End(xlUp).Row
+    For r = InazumaGantt_v2.ROW_DATA_START To Me.Cells(Me.Rows.Count, "B").End(xlUp).Row
         cellValue = Me.Cells(r, "B").Value
         If IsNumeric(cellValue) Then
             If CLng(cellValue) > lastNo Then

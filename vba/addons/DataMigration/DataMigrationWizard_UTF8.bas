@@ -21,6 +21,8 @@ Public Type MappingConfig
     HierarchyMode As Long            ' 階層判定モード (0: WBS, 1: Level)
 End Type
 
+Public Const MIGRATION_SETTINGS_SHEET_NAME As String = "移管設定"
+
 ' ==========================================
 '  ウィザード起動（エントリーポイント）
 ' ==========================================
@@ -241,12 +243,12 @@ Public Sub SaveMappingConfig(ByRef config As MappingConfig)
     ' 設定マスタシートを取得または作成
     Dim ws As Worksheet
     On Error Resume Next
-    Set ws = ThisWorkbook.Worksheets(InazumaGantt_v2.SETTINGS_SHEET_NAME)
+    Set ws = ThisWorkbook.Worksheets(MIGRATION_SETTINGS_SHEET_NAME)
     On Error GoTo ErrorHandler
     
     If ws Is Nothing Then
         Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
-        ws.Name = InazumaGantt_v2.SETTINGS_SHEET_NAME
+        ws.Name = MIGRATION_SETTINGS_SHEET_NAME
         
         ' ヘッダーを作成
         ws.Range("A1").Value = "設定名"
@@ -303,7 +305,7 @@ Public Function LoadMappingConfig(ByVal templateName As String) As MappingConfig
     Dim ws As Worksheet
     
     On Error Resume Next
-    Set ws = ThisWorkbook.Worksheets(InazumaGantt_v2.SETTINGS_SHEET_NAME)
+    Set ws = ThisWorkbook.Worksheets(MIGRATION_SETTINGS_SHEET_NAME)
     On Error GoTo ErrorHandler
     
     If ws Is Nothing Then
@@ -355,7 +357,7 @@ Public Function GetSavedTemplates() As Variant
     
     Dim ws As Worksheet
     On Error Resume Next
-    Set ws = ThisWorkbook.Worksheets(InazumaGantt_v2.SETTINGS_SHEET_NAME)
+    Set ws = ThisWorkbook.Worksheets(MIGRATION_SETTINGS_SHEET_NAME)
     On Error GoTo ErrorHandler
     
     If ws Is Nothing Then

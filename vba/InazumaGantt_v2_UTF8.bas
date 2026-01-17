@@ -31,7 +31,7 @@ Public Const ROW_HEADER As Long = 8           ' 曜日行（ガント）/ 項目
 Public Const ROW_DATA_START As Long = 9       ' データ開始行
 Public Const GANTT_DAYS As Long = 120         ' ガントチャートの日数
 Public Const DATA_ROWS_DEFAULT As Long = 200  ' 初期入力範囲の行数
-Public Const HOLIDAY_SHEET_NAME As String = "祝日マスタ"
+
 Public Const GUIDE_SHEET_NAME As String = "InazumaGantt_説明"
 Public Const MAIN_SHEET_NAME As String = "InazumaGantt_v2"
 Public Const SETTINGS_SHEET_NAME As String = "設定マスタ"  ' v2.2追加
@@ -183,49 +183,8 @@ Sub SetupInazumaGantt(Optional ByVal silentMode As Boolean = False, Optional ByV
         todayDate = CDate(ws.Range(CELL_TODAY).Value)
     End If
     
-    ' 週・日付・曜日ヘッダーの作成
-    Dim weekStartCol As Long
-    Dim weekEndCol As Long
-    Dim currentDate As Date
-    Dim colIndex As Long
-    Dim i As Long
-    
-    For i = 1 To GANTT_DAYS
-        colIndex = ganttStartCol + i - 1
-        currentDate = ganttStartDate + i - 1
-        
-        ' 6行目: 日付（日のみ）- ヘッダーと同じ色
-        ws.Cells(ROW_DATE_HEADER, colIndex).Value = Day(currentDate)
-        ws.Cells(ROW_DATE_HEADER, colIndex).Font.Size = 9
-        ws.Cells(ROW_DATE_HEADER, colIndex).HorizontalAlignment = xlCenter
-        ws.Cells(ROW_DATE_HEADER, colIndex).Interior.Color = COLOR_HEADER_BG
-        ws.Cells(ROW_DATE_HEADER, colIndex).Font.Color = RGB(255, 255, 255)
-        
-        ' 7行目: 曜日 - ヘッダーと同じ色
-        ws.Cells(ROW_HEADER, colIndex).Value = Format$(currentDate, "aaa")
-        ws.Cells(ROW_HEADER, colIndex).Font.Size = 8
-        ws.Cells(ROW_HEADER, colIndex).HorizontalAlignment = xlCenter
-        ws.Cells(ROW_HEADER, colIndex).Interior.Color = COLOR_HEADER_BG
-        ws.Cells(ROW_HEADER, colIndex).Font.Color = RGB(255, 255, 255)
-        
-        ' 列幅を設定
-        ws.Columns(colIndex).ColumnWidth = 3
-        
-        ' 6行目: 週ヘッダー（7日単位）
-        If (i - 1) Mod 7 = 0 Then
-            weekStartCol = colIndex
-            weekEndCol = Application.WorksheetFunction.Min(ganttStartCol + GANTT_DAYS - 1, weekStartCol + 6)
-            With ws.Range(ws.Cells(ROW_WEEK_HEADER, weekStartCol), ws.Cells(ROW_WEEK_HEADER, weekEndCol))
-                .Merge
-                .Value = Format$(currentDate, "yyyy/m/d")
-                .HorizontalAlignment = xlCenter
-                .Font.Bold = True
-                .Font.Size = 9
-                .Borders(xlEdgeBottom).LineStyle = xlContinuous
-                .Borders(xlEdgeBottom).Weight = xlThin
-            End With
-        End If
-    Next i
+    ' 週・日付・曜日ヘッダーの作成（統合関数呼び出し）
+    RegenerateDateHeaders ws, ganttStartDate
     
     Dim lastRow As Long
     lastRow = GetLastDataRow(ws)
@@ -272,48 +231,7 @@ End Sub
 ' ==========================================
 '  祝日マスタの確保
 ' ==========================================
-Private Sub EnsureHolidaySheet()
-    Dim wsHoliday As Worksheet
-    On Error Resume Next
-    Set wsHoliday = ThisWorkbook.Worksheets(HOLIDAY_SHEET_NAME)
-    On Error GoTo 0
-    
-    If wsHoliday Is Nothing Then
-        Set wsHoliday = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
-        wsHoliday.Name = HOLIDAY_SHEET_NAME
-    Else
-        wsHoliday.Cells.Clear
-    End If
-    
-    ' ヘッダー
-    wsHoliday.Range("A1").Value = "祝日"
-    wsHoliday.Range("A1").Font.Bold = True
-    wsHoliday.Range("A1").Interior.Color = RGB(48, 84, 150)
-    wsHoliday.Range("A1").Font.Color = RGB(255, 255, 255)
-    wsHoliday.Columns("A").NumberFormat = "yy/mm/dd"
-    wsHoliday.Columns("A").ColumnWidth = 12
-    
-    ' 入力エリアの罫線（A2:A30）
-    With wsHoliday.Range("A2:A30").Borders
-        .LineStyle = xlContinuous
-        .Weight = xlThin
-        .ColorIndex = 48
-    End With
-    
-    ' 説明テキスト
-    wsHoliday.Range("C1").Value = "【祝日マスタの使い方】"
-    wsHoliday.Range("C1").Font.Bold = True
-    wsHoliday.Range("C2").Value = "A列に祝日の日付を入力してください。"
-    wsHoliday.Range("C3").Value = "入力した日付はガントチャート上でピンク色で表示されます。"
-    wsHoliday.Range("C4").Value = ""
-    wsHoliday.Range("C5").Value = "例: 26/01/01, 26/01/13, 26/02/11 ..."
-    wsHoliday.Range("C6").Value = ""
-    wsHoliday.Range("C7").Value = "※ ガント更新後に反映されます。"
-    wsHoliday.Columns("C").ColumnWidth = 40
-    
-    ' 目盛線オフ
-    ActiveWindow.DisplayGridlines = False
-End Sub
+
 
 ' ==========================================
 '  入力規則と日付書式の適用
@@ -350,6 +268,9 @@ Private Function GetLastDataRow(ByVal ws As Worksheet) As Long
     lastRow = ROW_HEADER
     
     lastRow = MaxRow(lastRow, ws.Cells(ws.Rows.Count, COL_TASK).End(xlUp).Row)
+    lastRow = MaxRow(lastRow, ws.Cells(ws.Rows.Count, "D").End(xlUp).Row) ' Lv2
+    lastRow = MaxRow(lastRow, ws.Cells(ws.Rows.Count, "E").End(xlUp).Row) ' Lv3
+    lastRow = MaxRow(lastRow, ws.Cells(ws.Rows.Count, "F").End(xlUp).Row) ' Lv4
     lastRow = MaxRow(lastRow, ws.Cells(ws.Rows.Count, COL_TASK_DETAIL).End(xlUp).Row)
     lastRow = MaxRow(lastRow, ws.Cells(ws.Rows.Count, COL_START_PLAN).End(xlUp).Row)
     lastRow = MaxRow(lastRow, ws.Cells(ws.Rows.Count, COL_END_PLAN).End(xlUp).Row)
@@ -380,70 +301,62 @@ Private Sub EnsureGuideSheet()
     Dim wsGuide As Worksheet
     On Error Resume Next
     Set wsGuide = ThisWorkbook.Worksheets(GUIDE_SHEET_NAME)
-    On Error GoTo 0
+    On Error GoTo ErrorHandler
     
-    If Not wsGuide Is Nothing Then
-        wsGuide.Delete
+    If wsGuide Is Nothing Then
+        Set wsGuide = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
+        wsGuide.Name = GUIDE_SHEET_NAME
+    Else
+        wsGuide.Cells.Clear
     End If
     
-    Set wsGuide = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
-    wsGuide.Name = GUIDE_SHEET_NAME
-    
-    ' エラーハンドリングのためにAlerts設定を戻す（描画中は戻しても良いが、再度エラー時にFalseにするなど複雑になるため、最後に復元）
-    ' ただしActiveWindow操作などがあるため、念のためここで復元せず、最後に復元する
-    
-    ' 目盛線オフ
+    wsGuide.Activate
     ActiveWindow.DisplayGridlines = False
     
+    ' コンテンツを配列に準備（一括書き込みで安定性を向上）
+    Dim content(1 To 30, 1 To 2) As Variant
+    
     ' タイトル
-    wsGuide.Cells(1, 1).Value = "マクロ機能"
-    wsGuide.Cells(1, 1).Font.Bold = True
-    wsGuide.Cells(1, 1).Font.Size = 14
+    content(1, 1) = "マクロ機能"
     
     ' ボタン機能
-    wsGuide.Cells(3, 1).Value = "■ ボタン機能"
-    wsGuide.Cells(3, 1).Font.Bold = True
-    wsGuide.Cells(4, 1).Value = "【ガント更新】"
-    wsGuide.Cells(4, 2).Value = "ガントチャートを最新状態に再描画します。"
-    wsGuide.Cells(5, 2).Value = "進捗率や日付を変更した後は必ずクリックしてください。"
-    wsGuide.Cells(6, 1).Value = "【土日切替】"
-    wsGuide.Cells(6, 2).Value = "土日列の表示/非表示を切替えます。"
-    wsGuide.Cells(7, 2).Value = "画面を広く使いたい時に便利です。"
-    wsGuide.Cells(8, 1).Value = "【書式リセット】"
-    wsGuide.Cells(8, 2).Value = "崩れた罫線・書式を修復します。"
-    wsGuide.Cells(9, 2).Value = "表示がおかしくなった時に使用してください。"
-    
-    ' 描画処理の合間にDoEventsを入れる（描画更新のため）
-    DoEvents
+    content(3, 1) = "■ ボタン機能"
+    content(4, 1) = "【ガント更新】": content(4, 2) = "ガントチャートを最新状態に再描画します。"
+    content(5, 2) = "進捗率や日付を変更した後は必ずクリックしてください。"
+    content(6, 1) = "【土日切替】": content(6, 2) = "土日列の表示/非表示を切替えます。"
+    content(7, 2) = "画面を広く使いたい時に便利です。"
+    content(8, 1) = "【書式リセット】": content(8, 2) = "崩れた罫線・書式を修復します。"
+    content(9, 2) = "表示がおかしくなった時に使用してください。"
     
     ' ダブルクリック完了
-    wsGuide.Cells(11, 1).Value = "■ ダブルクリックでタスク完了"
-    wsGuide.Cells(11, 1).Font.Bold = True
-    wsGuide.Cells(12, 1).Value = "No.列(B列) をダブルクリックすると、"
-    wsGuide.Cells(13, 1).Value = "そのタスクが完了になります。"
-    wsGuide.Cells(14, 1).Value = ""
-    wsGuide.Cells(15, 1).Value = "  ・ 状況 → 「完了」"
-    wsGuide.Cells(16, 1).Value = "  ・ 進捗率 → 100%"
-    wsGuide.Cells(17, 1).Value = "  ・ 完了実績 → 今日の日付"
-    wsGuide.Cells(18, 1).Value = ""
-    wsGuide.Cells(19, 1).Value = "※ すでに完了しているタスクは変更されません。"
-    
-    DoEvents
+    content(11, 1) = "■ ダブルクリックでタスク完了"
+    content(12, 1) = "No.列(B列) をダブルクリックすると、そのタスクが完了になります。"
+    content(13, 1) = ""
+    content(14, 1) = "  ・ 状況 → 「完了」"
+    content(15, 1) = "  ・ 進捗率 → 100%"
+    content(16, 1) = "  ・ 完了実績 → 今日の日付（設定マスタで「自動」時）"
+    content(17, 1) = ""
+    content(18, 1) = "※ すでに完了しているタスクは変更されません。"
     
     ' SHIFT+右クリック折りたたみ
-    wsGuide.Cells(21, 1).Value = "■ SHIFT+右クリックで折りたたみ"
-    wsGuide.Cells(21, 1).Font.Bold = True
-    wsGuide.Cells(22, 1).Value = "LV1タスク（C列）でSHIFT+右クリックすると、"
-    wsGuide.Cells(23, 1).Value = "配下のLV2-4タスクを折りたたみ/展開します。"
-    wsGuide.Cells(24, 1).Value = ""
-    wsGuide.Cells(25, 1).Value = "  ・ 再度SHIFT+右クリックで展開"
-    wsGuide.Cells(26, 1).Value = "  ・ LV1タスクのみ対象"
-    wsGuide.Cells(27, 1).Value = ""
-    wsGuide.Cells(28, 1).Value = "※ 大規模プロジェクトの概要把握に便利です。"
+    content(20, 1) = "■ SHIFT+右クリックで折りたたみ"
+    content(21, 1) = "LV1タスク（C列）でSHIFT+右クリックすると、"
+    content(22, 1) = "配下のLV2-4タスクを折りたたみ/展開します。"
+    content(23, 1) = ""
+    content(24, 1) = "  ・ 再度SHIFT+右クリックで展開"
+    content(25, 1) = "  ・ LV1タスク（大項目）のみ対象です"
     
-    ' 列幅設定
-    wsGuide.Columns(1).ColumnWidth = 35
-    wsGuide.Columns(2).ColumnWidth = 45
+    ' 一括書き込み
+    wsGuide.Range("A1").Resize(30, 2).Value = content
+    
+    ' 書式設定
+    With wsGuide
+        .Range("A1").Font.Size = 14
+        .Range("A1,A3,A11,A20").Font.Bold = True
+        ' インデントや列幅
+        .Columns(1).ColumnWidth = 35
+        .Columns(2).ColumnWidth = 55
+    End With
     
     Application.DisplayAlerts = prevAlerts
     Exit Sub
@@ -1235,11 +1148,14 @@ End Sub
 ' ==========================================
 '  日付ヘッダー再生成（開始日変更対応）
 ' ==========================================
-Private Sub RegenerateDateHeaders(ByVal ws As Worksheet)
+Private Sub RegenerateDateHeaders(ByVal ws As Worksheet, Optional ByVal startDate As Variant)
     On Error Resume Next
     
     Dim ganttStartDate As Date
-    If IsDate(ws.Range(CELL_PROJECT_START).Value) Then
+    
+    If Not IsMissing(startDate) And IsDate(startDate) Then
+        ganttStartDate = CDate(startDate)
+    ElseIf IsDate(ws.Range(CELL_PROJECT_START).Value) Then
         ganttStartDate = CDate(ws.Range(CELL_PROJECT_START).Value)
     Else
         ganttStartDate = Date
@@ -1248,6 +1164,14 @@ Private Sub RegenerateDateHeaders(ByVal ws As Worksheet)
     Dim ganttStartCol As Long
     ganttStartCol = ws.Columns(COL_GANTT_START).Column
     
+    ' クリア（書式と値）
+    ' Application.Intersectを使用すると重い可能性があるため、Range指定でクリア
+    ' 注意: 列幅はリセットしない（ToggleWeekendsの状態を維持したいため...いや、再生成時は3にする？）
+    ' 元のロジックでは列幅セットしている (ws.Columns(colIndex).ColumnWidth = 3)
+    ' 既存の列幅設定処理を追加
+    
+    Dim weekStartCol As Long
+    Dim weekEndCol As Long
     Dim currentDate As Date
     Dim colIndex As Long
     Dim i As Long
@@ -1255,12 +1179,14 @@ Private Sub RegenerateDateHeaders(ByVal ws As Worksheet)
     ' 週ヘッダーのマージ解除
     ws.Range(ws.Cells(ROW_WEEK_HEADER, ganttStartCol), ws.Cells(ROW_WEEK_HEADER, ganttStartCol + GANTT_DAYS - 1)).UnMerge
     
-    Dim weekStartCol As Long
-    Dim weekEndCol As Long
-    
     For i = 1 To GANTT_DAYS
         colIndex = ganttStartCol + i - 1
         currentDate = ganttStartDate + i - 1
+        
+        ' 列幅を設定 (標準は3、ただし非表示の場合は変更しない)
+        If ws.Columns(colIndex).ColumnWidth > 0 Then
+            ws.Columns(colIndex).ColumnWidth = 3
+        End If
         
         ' 7行目: 日付（日のみ）
         ws.Cells(ROW_DATE_HEADER, colIndex).Value = Day(currentDate)
@@ -1519,18 +1445,19 @@ Sub ShiftDates()
         Exit Sub
     End If
     
-    ' 祝日マスタを取得
-    Dim wsHoliday As Worksheet
+    ' 祝日マスタ（設定マスタ内）を取得
+    Dim wsSettings As Worksheet
     Dim holidays As Range
     On Error Resume Next
-    Set wsHoliday = ThisWorkbook.Worksheets(HOLIDAY_SHEET_NAME)
+    Set wsSettings = ThisWorkbook.Worksheets(SETTINGS_SHEET_NAME)
     On Error GoTo ErrorHandler
     
-    If Not wsHoliday Is Nothing Then
+    If Not wsSettings Is Nothing Then
         Dim lastHolidayRow As Long
-        lastHolidayRow = wsHoliday.Cells(wsHoliday.Rows.Count, "A").End(xlUp).Row
-        If lastHolidayRow >= 2 Then
-            Set holidays = wsHoliday.Range("A2:A" & lastHolidayRow)
+        lastHolidayRow = wsSettings.Cells(wsSettings.Rows.Count, "A").End(xlUp).Row
+        ' 設定マスタは13行目から祝日データ
+        If lastHolidayRow >= 13 Then
+            Set holidays = wsSettings.Range("A13:A" & lastHolidayRow)
         End If
     End If
     

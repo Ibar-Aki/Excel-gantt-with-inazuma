@@ -35,7 +35,12 @@ Sub SetupHierarchyColors()
     Application.Calculation = xlCalculationManual
     
     Dim lastRow As Long
-    lastRow = InazumaGantt_v2.ROW_DATA_START + InazumaGantt_v2.DATA_ROWS_DEFAULT - 1
+    Dim lastRow As Long
+    ' 最終行を動的に取得 (最低でも DATA_ROWS_DEFAULT 分は確保)
+    lastRow = InazumaGantt_v2.GetLastDataRow(ws)
+    If lastRow < InazumaGantt_v2.ROW_DATA_START + InazumaGantt_v2.DATA_ROWS_DEFAULT - 1 Then
+        lastRow = InazumaGantt_v2.ROW_DATA_START + InazumaGantt_v2.DATA_ROWS_DEFAULT - 1
+    End If
     
     ' 既存の条件付き書式をクリア（B～N列）
     ws.Range("B" & InazumaGantt_v2.ROW_DATA_START & ":" & COL_COLOR_END & lastRow).FormatConditions.Delete
@@ -105,7 +110,12 @@ Sub ClearHierarchyColors()
     Set ws = ActiveSheet
     
     Dim lastRow As Long
-    lastRow = InazumaGantt_v2.ROW_DATA_START + InazumaGantt_v2.DATA_ROWS_DEFAULT - 1
+    Dim lastRow As Long
+    ' 最終行を動的に取得 (最低でも DATA_ROWS_DEFAULT 分は確保)
+    lastRow = InazumaGantt_v2.GetLastDataRow(ws)
+    If lastRow < InazumaGantt_v2.ROW_DATA_START + InazumaGantt_v2.DATA_ROWS_DEFAULT - 1 Then
+        lastRow = InazumaGantt_v2.ROW_DATA_START + InazumaGantt_v2.DATA_ROWS_DEFAULT - 1
+    End If
     
     ' 対象範囲の条件付き書式をクリア（B～N列）
     ws.Range("B" & InazumaGantt_v2.ROW_DATA_START & ":" & COL_COLOR_END & lastRow).FormatConditions.Delete

@@ -12,7 +12,7 @@ Option Explicit
 ' ==========================================
 ' MsgBoxなしで自動実行。PowerShell等からの呼び出し用。
 ' 引数: addSampleData - サンプルデータを追加するか
-Public Sub SilentSetup(Optional ByVal addSampleData As Boolean = True)
+Public Sub SilentSetup(Optional ByVal isAddSampleData As Boolean = True)
     On Error GoTo ErrorHandler
     
     Application.ScreenUpdating = False
@@ -30,8 +30,9 @@ Public Sub SilentSetup(Optional ByVal addSampleData As Boolean = True)
     CreateMainSheetSilent Format(startDate, "yy/mm/dd")
     
     ' サンプルデータ追加
-    If addSampleData Then
-        AddSampleDataSilent
+    If isAddSampleData Then
+        ' startDateを基準にサンプルデータを追加
+        AddSampleData startDate
     End If
     
     ' 設定マスタシート作成
@@ -173,123 +174,10 @@ End Sub
 ' ==========================================
 '  サンプルデータの追加
 ' ==========================================
-Private Sub AddSampleData()
-    On Error GoTo ErrorHandler
-    
-    Dim ws As Worksheet
-    ' ActiveSheetではなく、明示的にメインシートを指定
-    Set ws = ThisWorkbook.Worksheets(InazumaGantt_v2.MAIN_SHEET_NAME)
-    
-    Dim startRow As Long
-    startRow = InazumaGantt_v2.ROW_DATA_START
-    
-    Dim baseDate As Date
-    baseDate = Date  ' 今日を基準にする
-    
-    ' フェーズ1: 計画フェーズ
-    ws.Cells(startRow, "C").Value = "計画フェーズ"
-    ws.Cells(startRow, "H").Value = "完了"
-    ws.Cells(startRow, "I").Value = 1
-    ws.Cells(startRow, "J").Value = "山田"
-    ws.Cells(startRow, "K").Value = baseDate - 14
-    ws.Cells(startRow, "L").Value = baseDate - 7
-    ws.Cells(startRow, "M").Value = baseDate - 14
-    ws.Cells(startRow, "N").Value = baseDate - 8
-    
-    ws.Cells(startRow + 1, "D").Value = "要件定義"
-    ws.Cells(startRow + 1, "H").Value = "完了"
-    ws.Cells(startRow + 1, "I").Value = 1
-    ws.Cells(startRow + 1, "J").Value = "山田"
-    ws.Cells(startRow + 1, "K").Value = baseDate - 14
-    ws.Cells(startRow + 1, "L").Value = baseDate - 10
-    ws.Cells(startRow + 1, "M").Value = baseDate - 14
-    ws.Cells(startRow + 1, "N").Value = baseDate - 10
-    
-    ws.Cells(startRow + 2, "D").Value = "設計書作成"
-    ws.Cells(startRow + 2, "H").Value = "完了"
-    ws.Cells(startRow + 2, "I").Value = 1
-    ws.Cells(startRow + 2, "J").Value = "鈴木"
-    ws.Cells(startRow + 2, "K").Value = baseDate - 10
-    ws.Cells(startRow + 2, "L").Value = baseDate - 7
-    ws.Cells(startRow + 2, "M").Value = baseDate - 10
-    ws.Cells(startRow + 2, "N").Value = baseDate - 8
-    
-    ' フェーズ2: 開発フェーズ
-    ws.Cells(startRow + 3, "C").Value = "開発フェーズ"
-    ws.Cells(startRow + 3, "H").Value = "進行中"
-    ws.Cells(startRow + 3, "I").Value = 0.6
-    ws.Cells(startRow + 3, "J").Value = "田中"
-    ws.Cells(startRow + 3, "K").Value = baseDate - 7
-    ws.Cells(startRow + 3, "L").Value = baseDate + 14
-    ws.Cells(startRow + 3, "M").Value = baseDate - 7
-    
-    ws.Cells(startRow + 4, "D").Value = "機能開発"
-    ws.Cells(startRow + 4, "H").Value = "進行中"
-    ws.Cells(startRow + 4, "I").Value = 0.7
-    ws.Cells(startRow + 4, "J").Value = "田中"
-    ws.Cells(startRow + 4, "K").Value = baseDate - 7
-    ws.Cells(startRow + 4, "L").Value = baseDate + 7
-    ws.Cells(startRow + 4, "M").Value = baseDate - 7
-    
-    ws.Cells(startRow + 5, "E").Value = "機能A開発"
-    ws.Cells(startRow + 5, "H").Value = "完了"
-    ws.Cells(startRow + 5, "I").Value = 1
-    ws.Cells(startRow + 5, "J").Value = "田中"
-    ws.Cells(startRow + 5, "K").Value = baseDate - 7
-    ws.Cells(startRow + 5, "L").Value = baseDate - 3
-    ws.Cells(startRow + 5, "M").Value = baseDate - 7
-    ws.Cells(startRow + 5, "N").Value = baseDate - 2
-    
-    ws.Cells(startRow + 6, "E").Value = "機能B開発"
-    ws.Cells(startRow + 6, "H").Value = "進行中"
-    ws.Cells(startRow + 6, "I").Value = 0.5
-    ws.Cells(startRow + 6, "J").Value = "佐藤"
-    ws.Cells(startRow + 6, "K").Value = baseDate - 3
-    ws.Cells(startRow + 6, "L").Value = baseDate + 4
-    ws.Cells(startRow + 6, "M").Value = baseDate - 3
-    
-    ws.Cells(startRow + 7, "D").Value = "テスト"
-    ws.Cells(startRow + 7, "H").Value = "未着手"
-    ws.Cells(startRow + 7, "I").Value = 0
-    ws.Cells(startRow + 7, "J").Value = "鈴木"
-    ws.Cells(startRow + 7, "K").Value = baseDate + 5
-    ws.Cells(startRow + 7, "L").Value = baseDate + 14
-    
-    ' フェーズ3: リリースフェーズ
-    ws.Cells(startRow + 8, "C").Value = "リリースフェーズ"
-    ws.Cells(startRow + 8, "H").Value = "未着手"
-    ws.Cells(startRow + 8, "I").Value = 0
-    ws.Cells(startRow + 8, "J").Value = "山田"
-    ws.Cells(startRow + 8, "K").Value = baseDate + 14
-    ws.Cells(startRow + 8, "L").Value = baseDate + 21
-    
-    ws.Cells(startRow + 9, "D").Value = "本番環境構築"
-    ws.Cells(startRow + 9, "H").Value = "未着手"
-    ws.Cells(startRow + 9, "I").Value = 0
-    ws.Cells(startRow + 9, "J").Value = "佐藤"
-    ws.Cells(startRow + 9, "K").Value = baseDate + 14
-    ws.Cells(startRow + 9, "L").Value = baseDate + 18
-    
-    ws.Cells(startRow + 10, "D").Value = "リリース作業"
-    ws.Cells(startRow + 10, "H").Value = "未着手"
-    ws.Cells(startRow + 10, "I").Value = 0
-    ws.Cells(startRow + 10, "J").Value = "山田"
-    ws.Cells(startRow + 10, "K").Value = baseDate + 19
-    ws.Cells(startRow + 10, "L").Value = baseDate + 21
-    
-    ' 階層自動判定
-    InazumaGantt_v2.AutoDetectTaskLevel
-    
-    Exit Sub
-    
-ErrorHandler:
-    MsgBox "サンプルデータ追加エラー: " & Err.Description, vbCritical, "エラー"
-End Sub
-
 ' ==========================================
-'  サンプルデータの追加（サイレント版）
+'  サンプルデータの追加（統合版）
 ' ==========================================
-Private Sub AddSampleDataSilent()
+Private Sub AddSampleData(Optional ByVal baseDate As Date = 0)
     On Error GoTo ErrorHandler
     
     Dim ws As Worksheet
@@ -298,8 +186,8 @@ Private Sub AddSampleDataSilent()
     Dim startRow As Long
     startRow = InazumaGantt_v2.ROW_DATA_START
     
-    Dim baseDate As Date
-    baseDate = Date
+    ' 日付指定がない場合は今日を基準
+    If baseDate = 0 Then baseDate = Date
     
     ' フェーズ1: 計画フェーズ（完了フェーズ）
     ws.Cells(startRow, "C").Value = "計画フェーズ"
@@ -353,7 +241,7 @@ Private Sub AddSampleDataSilent()
     Exit Sub
     
 ErrorHandler:
-    Err.Raise Err.Number, "AddSampleDataSilent", Err.Description
+    MsgBox "サンプルデータ追加エラー: " & Err.Description, vbCritical, "エラー"
 End Sub
 
 ' ==========================================

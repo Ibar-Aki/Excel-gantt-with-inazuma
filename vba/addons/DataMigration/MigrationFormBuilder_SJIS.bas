@@ -46,7 +46,7 @@ Public Sub CreateMigrationWizardForm()
     With vbComp.Properties
         .Item("Caption").Value = "データ移管ウィザード"
         .Item("Width").Value = 480
-        .Item("Height").Value = 360
+        .Item("Height").Value = 480 ' Item 8: 高さ拡張
     End With
     
     ' コントロールを追加
@@ -210,6 +210,29 @@ Public Sub CreateMigrationWizardForm()
     End With
     yPos = yPos + 30
     
+    ' アイテム8: 開始予定列
+    Set ctrl = vbComp.Designer.Controls.Add("Forms.Label.1")
+    With ctrl
+        .Name = "lblStartPlanColumn"
+        .Caption = "開始予定列:"
+        .Left = 10
+        .Top = yPos
+        .Width = 100
+        .Height = 18
+        .Visible = False
+    End With
+    
+    Set ctrl = vbComp.Designer.Controls.Add("Forms.ComboBox.1")
+    With ctrl
+        .Name = "cboStartPlanColumn"
+        .Left = 120
+        .Top = yPos
+        .Width = 80
+        .Height = 20
+        .Visible = False
+    End With
+    yPos = yPos + 30
+    
     ' 完了予定列
     Set ctrl = vbComp.Designer.Controls.Add("Forms.Label.1")
     With ctrl
@@ -233,6 +256,52 @@ Public Sub CreateMigrationWizardForm()
     End With
     yPos = yPos + 30
     
+    ' アイテム8: 開始実績列
+    Set ctrl = vbComp.Designer.Controls.Add("Forms.Label.1")
+    With ctrl
+        .Name = "lblStartActualColumn"
+        .Caption = "開始実績列:"
+        .Left = 10
+        .Top = yPos
+        .Width = 100
+        .Height = 18
+        .Visible = False
+    End With
+    
+    Set ctrl = vbComp.Designer.Controls.Add("Forms.ComboBox.1")
+    With ctrl
+        .Name = "cboStartActualColumn"
+        .Left = 120
+        .Top = yPos
+        .Width = 80
+        .Height = 20
+        .Visible = False
+    End With
+    yPos = yPos + 30
+    
+    ' アイテム8: 完了実績列
+    Set ctrl = vbComp.Designer.Controls.Add("Forms.Label.1")
+    With ctrl
+        .Name = "lblEndActualColumn"
+        .Caption = "完了実績列:"
+        .Left = 10
+        .Top = yPos
+        .Width = 100
+        .Height = 18
+        .Visible = False
+    End With
+    
+    Set ctrl = vbComp.Designer.Controls.Add("Forms.ComboBox.1")
+    With ctrl
+        .Name = "cboEndActualColumn"
+        .Left = 120
+        .Top = yPos
+        .Width = 80
+        .Height = 20
+        .Visible = False
+    End With
+    yPos = yPos + 30
+
     ' 進捗率列
     Set ctrl = vbComp.Designer.Controls.Add("Forms.Label.1")
     With ctrl
@@ -301,12 +370,12 @@ Public Sub CreateMigrationWizardForm()
         .Left = 10
         .Top = 40
         .Width = 460
-        .Height = 200
+        .Height = 320 ' 少し拡張
         .Visible = False
     End With
     
     ' ========== ナビゲーションボタン ==========
-    yPos = 280
+    yPos = 400 ' 下部に配置
     
     ' 戻るボタン
     Set ctrl = vbComp.Designer.Controls.Add("Forms.CommandButton.1")
@@ -391,25 +460,39 @@ Private Sub AddFormCode(ByRef vbComp As Object)
     code = code & "Private Sub LoadSheetList()" & vbCrLf
     code = code & "    Dim ws As Worksheet" & vbCrLf
     code = code & "    For Each ws In ThisWorkbook.Worksheets" & vbCrLf
-    code = code & "        If ws.Name <> ""InazumaGantt_v2"" And ws.Name <> ""設定マスタ"" And ws.Name <> ""祝日マスタ"" And ws.Name <> ""InazumaGantt_説明"" Then" & vbCrLf
+    code = code & "        If ws.Name <> ""InazumaGantt_v2"" And ws.Name <> ""設定マスタ"" And ws.Name <> ""移管設定"" And ws.Name <> ""祝日マスタ"" And ws.Name <> ""InazumaGantt_説明"" Then" & vbCrLf
     code = code & "            cboSourceSheet.AddItem ws.Name" & vbCrLf
     code = code & "        End If" & vbCrLf
     code = code & "    Next ws" & vbCrLf
     code = code & "    If cboSourceSheet.ListCount > 0 Then cboSourceSheet.ListIndex = 0" & vbCrLf
     code = code & "End Sub" & vbCrLf & vbCrLf
     
-    ' LoadColumnList
+    ' LoadColumnList - Item 7: A-Z limit removed
     code = code & "Private Sub LoadColumnList()" & vbCrLf
     code = code & "    Dim i As Long" & vbCrLf
+    code = code & "    Dim colName As String" & vbCrLf
+    ' A-Z
     code = code & "    For i = 1 To 26" & vbCrLf
-    code = code & "        Dim colName As String" & vbCrLf
     code = code & "        colName = Chr(64 + i)" & vbCrLf
-    code = code & "        cboWBSColumn.AddItem colName" & vbCrLf
-    code = code & "        cboTaskColumn.AddItem colName" & vbCrLf
-    code = code & "        cboAssigneeColumn.AddItem colName" & vbCrLf
-    code = code & "        cboEndPlanColumn.AddItem colName" & vbCrLf
-    code = code & "        cboProgressColumn.AddItem colName" & vbCrLf
+    code = code & "        AddColumnItem colName" & vbCrLf
     code = code & "    Next i" & vbCrLf
+    ' AA-AZ (Item 7)
+    code = code & "    For i = 1 To 26" & vbCrLf
+    code = code & "        colName = ""A"" & Chr(64 + i)" & vbCrLf
+    code = code & "        AddColumnItem colName" & vbCrLf
+    code = code & "    Next i" & vbCrLf
+    code = code & "End Sub" & vbCrLf & vbCrLf
+    
+    ' AddColumnItem Helper
+    code = code & "Private Sub AddColumnItem(colName As String)" & vbCrLf
+    code = code & "    cboWBSColumn.AddItem colName" & vbCrLf
+    code = code & "    cboTaskColumn.AddItem colName" & vbCrLf
+    code = code & "    cboAssigneeColumn.AddItem colName" & vbCrLf
+    code = code & "    cboEndPlanColumn.AddItem colName" & vbCrLf
+    code = code & "    cboProgressColumn.AddItem colName" & vbCrLf
+    code = code & "    cboStartPlanColumn.AddItem colName" & vbCrLf ' Item 8
+    code = code & "    cboStartActualColumn.AddItem colName" & vbCrLf ' Item 8
+    code = code & "    cboEndActualColumn.AddItem colName" & vbCrLf ' Item 8
     code = code & "End Sub" & vbCrLf & vbCrLf
     
     ' btnNext_Click
@@ -447,6 +530,9 @@ Private Sub AddFormCode(ByRef vbComp As Object)
     code = code & "    config.AssigneeColumn = cboAssigneeColumn.Text" & vbCrLf
     code = code & "    config.EndPlanColumn = cboEndPlanColumn.Text" & vbCrLf
     code = code & "    config.ProgressColumn = cboProgressColumn.Text" & vbCrLf
+    code = code & "    config.StartPlanColumn = cboStartPlanColumn.Text" & vbCrLf ' Item 8
+    code = code & "    config.StartActualColumn = cboStartActualColumn.Text" & vbCrLf ' Item 8
+    code = code & "    config.EndActualColumn = cboEndActualColumn.Text" & vbCrLf ' Item 8
     code = code & "    config.DataStartRow = CLng(txtDataStartRow.Text)" & vbCrLf
     code = code & "    If optModeWBS.Value Then" & vbCrLf
     code = code & "        config.HierarchyMode = 0 ' WBS" & vbCrLf
@@ -525,6 +611,14 @@ Private Sub AddFormCode(ByRef vbComp As Object)
     code = code & "    cboAssigneeColumn.Visible = True" & vbCrLf
     code = code & "    lblEndPlanColumn.Visible = True" & vbCrLf
     code = code & "    cboEndPlanColumn.Visible = True" & vbCrLf
+    ' Item 8 additions
+    code = code & "    lblStartPlanColumn.Visible = True" & vbCrLf
+    code = code & "    cboStartPlanColumn.Visible = True" & vbCrLf
+    code = code & "    lblStartActualColumn.Visible = True" & vbCrLf
+    code = code & "    cboStartActualColumn.Visible = True" & vbCrLf
+    code = code & "    lblEndActualColumn.Visible = True" & vbCrLf
+    code = code & "    cboEndActualColumn.Visible = True" & vbCrLf
+    '
     code = code & "    lblProgressColumn.Visible = True" & vbCrLf
     code = code & "    cboProgressColumn.Visible = True" & vbCrLf
     code = code & "    lblDataStartRow.Visible = True" & vbCrLf
@@ -545,6 +639,14 @@ Private Sub AddFormCode(ByRef vbComp As Object)
     code = code & "    cboAssigneeColumn.Visible = False" & vbCrLf
     code = code & "    lblEndPlanColumn.Visible = False" & vbCrLf
     code = code & "    cboEndPlanColumn.Visible = False" & vbCrLf
+    ' Item 8 additions
+    code = code & "    lblStartPlanColumn.Visible = False" & vbCrLf
+    code = code & "    cboStartPlanColumn.Visible = False" & vbCrLf
+    code = code & "    lblStartActualColumn.Visible = False" & vbCrLf
+    code = code & "    cboStartActualColumn.Visible = False" & vbCrLf
+    code = code & "    lblEndActualColumn.Visible = False" & vbCrLf
+    code = code & "    cboEndActualColumn.Visible = False" & vbCrLf
+    '
     code = code & "    lblProgressColumn.Visible = False" & vbCrLf
     code = code & "    cboProgressColumn.Visible = False" & vbCrLf
     code = code & "    lblDataStartRow.Visible = False" & vbCrLf

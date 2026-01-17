@@ -6,16 +6,11 @@ $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $vbaDir = Join-Path $scriptDir "vba"
 $outputDir = Join-Path $scriptDir "output"
 $timestamp = Get-Date -Format "yyyyMMdd_HHmm"
-$outputFile = Join-Path $outputDir "InazumaGantt_v2_$timestamp.xlsm"
+$outputFile = Join-Path $outputDir "InazumaGantt_v2_UTF8_$timestamp.xlsm"
 
-# エンコーディング修正スクリプトの実行（UTF8 -> SJIS）
-$fixEncodingScript = Join-Path $scriptDir "FixEncoding.ps1"
-if (Test-Path $fixEncodingScript) {
-    Write-Host "Running FixEncoding.ps1..."
-    & $fixEncodingScript
-} else {
-    Write-Warning "FixEncoding.ps1 not found!"
-}
+# エンコーディング修正スクリプトの実行（スキップ）
+# $fixEncodingScript = Join-Path $scriptDir "FixEncoding.ps1"
+# if (Test-Path $fixEncodingScript) { ... }
 
 # 出力ディレクトリ作成
 if (!(Test-Path $outputDir)) { New-Item -ItemType Directory -Path $outputDir | Out-Null }
@@ -38,17 +33,17 @@ try {
     
     # インポートするファイルリスト（必須モジュール）
     $coreModules = @(
-        "InazumaGantt_v2_SJIS.bas",
-        "HierarchyColor_SJIS.bas",
-        "SetupWizard_SJIS.bas"
+        "InazumaGantt_v2_UTF8.bas",
+        "HierarchyColor_UTF8.bas",
+        "SetupWizard_UTF8.bas"
     )
 
     # インポートするファイルリスト（データ移管アドオン）
     $addonModules = @(
-        "addons\DataMigration\DataMigration_SJIS.bas",
-        "addons\DataMigration\WBSParser_SJIS.bas",
-        "addons\DataMigration\DataMigrationWizard_SJIS.bas",
-        "addons\DataMigration\MigrationFormBuilder_SJIS.bas"
+        "addons\DataMigration\DataMigration_UTF8.bas",
+        "addons\DataMigration\WBSParser_UTF8.bas",
+        "addons\DataMigration\DataMigrationWizard_UTF8.bas",
+        "addons\DataMigration\MigrationFormBuilder_UTF8.bas"
     )
     
     # モジュールのインポート
@@ -75,7 +70,7 @@ try {
     }
     
     # シートモジュールのコード注入
-    $sheetModPath = Join-Path $vbaDir "SheetModule_SJIS.bas"
+    $sheetModPath = Join-Path $vbaDir "SheetModule_UTF8.bas"
     if (Test-Path $sheetModPath) {
         Write-Host "Injecting SheetModule code..."
         $code = Get-Content $sheetModPath -Encoding Default -Raw
