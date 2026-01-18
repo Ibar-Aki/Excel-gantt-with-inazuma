@@ -51,6 +51,10 @@ Sub MigrateToV2Format()
         newSheet.Name = InazumaGantt_v3.MAIN_SHEET_NAME
     End If
     
+    ' 元の計算設定を保存
+    Dim prevCalc As XlCalculation
+    prevCalc = Application.Calculation
+    
     Application.ScreenUpdating = False
     Application.Calculation = xlCalculationManual
     
@@ -90,7 +94,7 @@ Sub MigrateToV2Format()
         End If
     Next oldRow
     
-    Application.Calculation = xlCalculationAutomatic
+    Application.Calculation = prevCalc  ' 元の設定に復元
     Application.ScreenUpdating = True
     
     ' 階層自動判定
@@ -105,7 +109,7 @@ Sub MigrateToV2Format()
     Exit Sub
     
 ErrorHandler:
-    Application.Calculation = xlCalculationAutomatic
+    Application.Calculation = prevCalc  ' 元の設定に復元
     Application.ScreenUpdating = True
     MsgBox "移管エラー: " & Err.Description, vbCritical, "エラー"
 End Sub

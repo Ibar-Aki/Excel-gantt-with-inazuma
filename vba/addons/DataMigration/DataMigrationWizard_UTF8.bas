@@ -96,6 +96,10 @@ Public Sub ExecuteMigration(ByRef config As MappingConfig)
         End If
     End If
     
+    ' 元の計算設定を保存
+    Dim prevCalc As XlCalculation
+    prevCalc = Application.Calculation
+    
     Application.ScreenUpdating = False
     Application.Calculation = xlCalculationManual
     
@@ -217,7 +221,7 @@ Public Sub ExecuteMigration(ByRef config As MappingConfig)
         End If
     Next oldRow
     
-    Application.Calculation = xlCalculationAutomatic
+    Application.Calculation = prevCalc  ' 元の設定に復元
     Application.ScreenUpdating = True
     
     ' 移管完了メッセージ
@@ -229,7 +233,7 @@ Public Sub ExecuteMigration(ByRef config As MappingConfig)
     Exit Sub
     
 ErrorHandler:
-    Application.Calculation = xlCalculationAutomatic
+    Application.Calculation = prevCalc  ' 元の設定に復元
     Application.ScreenUpdating = True
     MsgBox "移管エラー: " & Err.Description, vbCritical, "エラー"
 End Sub

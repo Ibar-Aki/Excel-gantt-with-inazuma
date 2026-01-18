@@ -604,8 +604,16 @@ Sub DrawGanttBars()
         
         ' 進捗率を取得
         progress = 0
-        If IsNumeric(ws.Cells(r, COL_PROGRESS).Value) Then
-            progress = CDbl(ws.Cells(r, COL_PROGRESS).Value)
+        Dim progressValue As Variant
+        progressValue = ws.Cells(r, COL_PROGRESS).Value
+        
+        ' 文字列の場合は%を除去して数値化
+        If VarType(progressValue) = vbString Then
+            progressValue = Replace(CStr(progressValue), "%", "")
+        End If
+        
+        If IsNumeric(progressValue) Then
+            progress = CDbl(progressValue)
             If progress > 1 Then progress = progress / 100
             If progress < 0 Then progress = 0
             If progress > 1 Then progress = 1

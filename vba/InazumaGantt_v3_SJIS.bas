@@ -604,8 +604,16 @@ Sub DrawGanttBars()
         
         ' i’»—¦‚ðŽæ“¾
         progress = 0
-        If IsNumeric(ws.Cells(r, COL_PROGRESS).Value) Then
-            progress = CDbl(ws.Cells(r, COL_PROGRESS).Value)
+        Dim progressValue As Variant
+        progressValue = ws.Cells(r, COL_PROGRESS).Value
+        
+        ' •¶Žš—ñ‚Ìê‡‚Í%‚ðœ‹Ž‚µ‚Ä”’l‰»
+        If VarType(progressValue) = vbString Then
+            progressValue = Replace(CStr(progressValue), "%", "")
+        End If
+        
+        If IsNumeric(progressValue) Then
+            progress = CDbl(progressValue)
             If progress > 1 Then progress = progress / 100
             If progress < 0 Then progress = 0
             If progress > 1 Then progress = 1

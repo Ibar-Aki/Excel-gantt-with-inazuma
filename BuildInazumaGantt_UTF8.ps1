@@ -73,7 +73,7 @@ try {
     $sheetModPath = Join-Path $vbaDir "SheetModule_UTF8.bas"
     if (Test-Path $sheetModPath) {
         Write-Host "Injecting SheetModule code..."
-        $code = Get-Content $sheetModPath -Encoding Default -Raw
+        $code = Get-Content $sheetModPath -Encoding UTF8 -Raw
         $code = $code -replace "Attribute VB_Name = .*`r?`n", ""
         $mainSheetCode = $wb.VBProject.VBComponents.Item($mainSheet.CodeName).CodeModule
         $mainSheetCode.AddFromString($code)
