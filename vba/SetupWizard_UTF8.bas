@@ -36,16 +36,16 @@ Public Sub SilentSetup(Optional ByVal isAddSampleData As Boolean = True)
     End If
     
     ' 設定マスタシート作成
-    InazumaGantt_v2.EnsureSettingsSheet
+    InazumaGantt_v3.EnsureSettingsSheet
     
     ' メインシートをアクティブに（重要：設定マスタではなくメインシートで描画）
-    ThisWorkbook.Worksheets(InazumaGantt_v2.MAIN_SHEET_NAME).Activate
+    ThisWorkbook.Worksheets(InazumaGantt_v3.MAIN_SHEET_NAME).Activate
     
     ' 階層色分け設定
     HierarchyColor.SetupHierarchyColors
     
     ' ガントチャート描画
-    InazumaGantt_v2.RefreshInazumaGantt
+    InazumaGantt_v3.RefreshInazumaGantt
     
     Application.ScreenUpdating = True
     Application.DisplayAlerts = True
@@ -80,7 +80,7 @@ Sub RunSetupWizard()
     End If
     
     ' ステップ2: シート作成確認
-    result = MsgBox("新しいシート「InazumaGantt_v2」を作成しますか？" & vbCrLf & vbCrLf & _
+    result = MsgBox("新しいシート「InazumaGantt_v3」を作成しますか？" & vbCrLf & vbCrLf & _
                    "注意: 同名のシートが既に存在する場合は上書きされません。", _
                    vbQuestion + vbYesNo, "ステップ 1/3: シート作成")
     
@@ -101,18 +101,18 @@ Sub RunSetupWizard()
     
     ' ステップ4: 階層色分けとガント描画を自動実行
     ' まずメインシートをアクティブにする
-    ThisWorkbook.Worksheets(InazumaGantt_v2.MAIN_SHEET_NAME).Activate
+    ThisWorkbook.Worksheets(InazumaGantt_v3.MAIN_SHEET_NAME).Activate
     
     Application.ScreenUpdating = False
     
     ' v2.2: 設定マスタシートを作成
-    InazumaGantt_v2.EnsureSettingsSheet
+    InazumaGantt_v3.EnsureSettingsSheet
     
     ' 階層色分けの条件付き書式を設定
     HierarchyColor.SetupHierarchyColors
     
     ' ガントチャートを描画
-    InazumaGantt_v2.RefreshInazumaGantt
+    InazumaGantt_v3.RefreshInazumaGantt
     
     Application.ScreenUpdating = True
     
@@ -140,16 +140,16 @@ Private Sub CreateMainSheet()
     Dim ws As Worksheet
     
     On Error Resume Next
-    Set ws = ThisWorkbook.Worksheets(InazumaGantt_v2.MAIN_SHEET_NAME)
+    Set ws = ThisWorkbook.Worksheets(InazumaGantt_v3.MAIN_SHEET_NAME)
     On Error GoTo 0
     
     If ws Is Nothing Then
         Set ws = ThisWorkbook.Worksheets.Add
-        ws.Name = InazumaGantt_v2.MAIN_SHEET_NAME
+        ws.Name = InazumaGantt_v3.MAIN_SHEET_NAME
     End If
     
     ws.Activate
-    InazumaGantt_v2.SetupInazumaGantt False, Null
+    InazumaGantt_v3.SetupInazumaGantt False, Null
 End Sub
 
 ' ==========================================
@@ -159,16 +159,16 @@ Private Sub CreateMainSheetSilent(ByVal startDateStr As String)
     Dim ws As Worksheet
     
     On Error Resume Next
-    Set ws = ThisWorkbook.Worksheets(InazumaGantt_v2.MAIN_SHEET_NAME)
+    Set ws = ThisWorkbook.Worksheets(InazumaGantt_v3.MAIN_SHEET_NAME)
     On Error GoTo 0
     
     If ws Is Nothing Then
         Set ws = ThisWorkbook.Worksheets.Add
-        ws.Name = InazumaGantt_v2.MAIN_SHEET_NAME
+        ws.Name = InazumaGantt_v3.MAIN_SHEET_NAME
     End If
     
     ws.Activate
-    InazumaGantt_v2.SetupInazumaGantt True, startDateStr
+    InazumaGantt_v3.SetupInazumaGantt True, startDateStr
 End Sub
 
 ' ==========================================
@@ -181,10 +181,10 @@ Private Sub AddSampleData(Optional ByVal baseDate As Date = 0)
     On Error GoTo ErrorHandler
     
     Dim ws As Worksheet
-    Set ws = ThisWorkbook.Worksheets(InazumaGantt_v2.MAIN_SHEET_NAME)
+    Set ws = ThisWorkbook.Worksheets(InazumaGantt_v3.MAIN_SHEET_NAME)
     
     Dim startRow As Long
-    startRow = InazumaGantt_v2.ROW_DATA_START
+    startRow = InazumaGantt_v3.ROW_DATA_START
     
     ' 日付指定がない場合は今日を基準
     If baseDate = 0 Then baseDate = Date
@@ -237,7 +237,7 @@ Private Sub AddSampleData(Optional ByVal baseDate As Date = 0)
     ws.Cells(startRow + 5, "L").Value = GetWorkday(baseDate + 21)
     
     ' 階層自動判定
-    InazumaGantt_v2.AutoDetectTaskLevel
+    InazumaGantt_v3.AutoDetectTaskLevel
     Exit Sub
     
 ErrorHandler:
@@ -271,7 +271,7 @@ Sub ShowSheetModuleInstructions()
     instructions = "【シートモジュールの設定手順】" & vbCrLf & vbCrLf & _
                   "1. Alt + F11 でVBAエディタを開く" & vbCrLf & _
                   "2. プロジェクトエクスプローラーで" & vbCrLf & _
-                  "   「InazumaGantt_v2」シートをダブルクリック" & vbCrLf & _
+                  "   「InazumaGantt_v3」シートをダブルクリック" & vbCrLf & _
                   "3. vba/SheetModule_SJIS.bas の内容を" & vbCrLf & _
                   "   コピー＆貼り付け" & vbCrLf & _
                   "4. 保存して閉じる" & vbCrLf & vbCrLf & _
@@ -310,7 +310,7 @@ Sub CheckInstallation()
     
     ' 必須モジュール
     status = status & "必須モジュール:" & vbCrLf
-    status = status & "  InazumaGantt_v2: " & IIf(IsModuleInstalled("InazumaGantt_v2"), "OK", "未インストール") & vbCrLf
+    status = status & "  InazumaGantt_v3: " & IIf(IsModuleInstalled("InazumaGantt_v3"), "OK", "未インストール") & vbCrLf
     status = status & "  HierarchyColor: " & IIf(IsModuleInstalled("HierarchyColor"), "OK", "未インストール") & vbCrLf
     
     ' オプションモジュール

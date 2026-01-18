@@ -3,7 +3,7 @@
 
 $vbaDir = Join-Path $PSScriptRoot "vba"
 $coreModules = @(
-    "InazumaGantt_v2",
+    "InazumaGantt_v3",
     "HierarchyColor",
     "SetupWizard",
     "SheetModule"

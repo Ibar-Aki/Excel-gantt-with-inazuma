@@ -38,47 +38,47 @@ Sub SetupHierarchyColors()
     
     Dim lastRow As Long
     ' 最終行を動的に取得 (最低でも DATA_ROWS_DEFAULT 分は確保)
-    lastRow = InazumaGantt_v2.GetLastDataRow(ws)
-    If lastRow < InazumaGantt_v2.ROW_DATA_START + InazumaGantt_v2.DATA_ROWS_DEFAULT - 1 Then
-        lastRow = InazumaGantt_v2.ROW_DATA_START + InazumaGantt_v2.DATA_ROWS_DEFAULT - 1
+    lastRow = InazumaGantt_v3.GetLastDataRow(ws)
+    If lastRow < InazumaGantt_v3.ROW_DATA_START + InazumaGantt_v3.DATA_ROWS_DEFAULT - 1 Then
+        lastRow = InazumaGantt_v3.ROW_DATA_START + InazumaGantt_v3.DATA_ROWS_DEFAULT - 1
     End If
     
     ' 既存の条件付き書式をクリア（B～N列）
-    ws.Range("B" & InazumaGantt_v2.ROW_DATA_START & ":" & COL_COLOR_END & lastRow).FormatConditions.Delete
+    ws.Range("B" & InazumaGantt_v3.ROW_DATA_START & ":" & COL_COLOR_END & lastRow).FormatConditions.Delete
     
     ' LV1: A列が1のとき、C～N列をサーモン色に
     Dim rangeLV1 As Range
-    Set rangeLV1 = ws.Range("C" & InazumaGantt_v2.ROW_DATA_START & ":" & COL_COLOR_END & lastRow)
+    Set rangeLV1 = ws.Range("C" & InazumaGantt_v3.ROW_DATA_START & ":" & COL_COLOR_END & lastRow)
     Dim cf1 As FormatCondition
     Set cf1 = rangeLV1.FormatConditions.Add(Type:=xlExpression, _
-        Formula1:="=$A" & InazumaGantt_v2.ROW_DATA_START & "=1")
+        Formula1:="=$A" & InazumaGantt_v3.ROW_DATA_START & "=1")
     cf1.Interior.Color = COLOR_LV1
     cf1.StopIfTrue = True
     
     ' LV2: A列が2のとき、D～N列を薄い青に
     Dim rangeLV2 As Range
-    Set rangeLV2 = ws.Range("D" & InazumaGantt_v2.ROW_DATA_START & ":" & COL_COLOR_END & lastRow)
+    Set rangeLV2 = ws.Range("D" & InazumaGantt_v3.ROW_DATA_START & ":" & COL_COLOR_END & lastRow)
     Dim cf2 As FormatCondition
     Set cf2 = rangeLV2.FormatConditions.Add(Type:=xlExpression, _
-        Formula1:="=$A" & InazumaGantt_v2.ROW_DATA_START & "=2")
+        Formula1:="=$A" & InazumaGantt_v3.ROW_DATA_START & "=2")
     cf2.Interior.Color = COLOR_LV2
     cf2.StopIfTrue = True
     
     ' LV3: A列が3のとき、E～N列を薄い緑に
     Dim rangeLV3 As Range
-    Set rangeLV3 = ws.Range("E" & InazumaGantt_v2.ROW_DATA_START & ":" & COL_COLOR_END & lastRow)
+    Set rangeLV3 = ws.Range("E" & InazumaGantt_v3.ROW_DATA_START & ":" & COL_COLOR_END & lastRow)
     Dim cf3 As FormatCondition
     Set cf3 = rangeLV3.FormatConditions.Add(Type:=xlExpression, _
-        Formula1:="=$A" & InazumaGantt_v2.ROW_DATA_START & "=3")
+        Formula1:="=$A" & InazumaGantt_v3.ROW_DATA_START & "=3")
     cf3.Interior.Color = COLOR_LV3
     cf3.StopIfTrue = True
     
     ' LV4: A列が4のとき、F～N列を薄い黄色に
     Dim rangeLV4 As Range
-    Set rangeLV4 = ws.Range("F" & InazumaGantt_v2.ROW_DATA_START & ":" & COL_COLOR_END & lastRow)
+    Set rangeLV4 = ws.Range("F" & InazumaGantt_v3.ROW_DATA_START & ":" & COL_COLOR_END & lastRow)
     Dim cf4 As FormatCondition
     Set cf4 = rangeLV4.FormatConditions.Add(Type:=xlExpression, _
-        Formula1:="=$A" & InazumaGantt_v2.ROW_DATA_START & "=4")
+        Formula1:="=$A" & InazumaGantt_v3.ROW_DATA_START & "=4")
     cf4.Interior.Color = COLOR_LV4
     cf4.StopIfTrue = True
     
@@ -113,13 +113,13 @@ Sub ClearHierarchyColors()
     Dim lastRow As Long
 
     ' 最終行を動的に取得 (最低でも DATA_ROWS_DEFAULT 分は確保)
-    lastRow = InazumaGantt_v2.GetLastDataRow(ws)
-    If lastRow < InazumaGantt_v2.ROW_DATA_START + InazumaGantt_v2.DATA_ROWS_DEFAULT - 1 Then
-        lastRow = InazumaGantt_v2.ROW_DATA_START + InazumaGantt_v2.DATA_ROWS_DEFAULT - 1
+    lastRow = InazumaGantt_v3.GetLastDataRow(ws)
+    If lastRow < InazumaGantt_v3.ROW_DATA_START + InazumaGantt_v3.DATA_ROWS_DEFAULT - 1 Then
+        lastRow = InazumaGantt_v3.ROW_DATA_START + InazumaGantt_v3.DATA_ROWS_DEFAULT - 1
     End If
     
     ' 対象範囲の条件付き書式をクリア（B～N列）
-    ws.Range("B" & InazumaGantt_v2.ROW_DATA_START & ":" & COL_COLOR_END & lastRow).FormatConditions.Delete
+    ws.Range("B" & InazumaGantt_v3.ROW_DATA_START & ":" & COL_COLOR_END & lastRow).FormatConditions.Delete
     
     MsgBox "階層色分けの条件付き書式をクリアしました！", vbInformation, "階層色分け"
     Exit Sub

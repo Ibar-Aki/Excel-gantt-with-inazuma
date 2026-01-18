@@ -1,11 +1,11 @@
 ' ==========================================
-'  InazumaGantt_v2 シートモジュール用コード
+'  InazumaGantt_v3 シートモジュール用コード
 ' ==========================================
-' このコードは「InazumaGantt_v2」シートのシートモジュールに貼り付けてください
+' このコードは「InazumaGantt_v3」シートのシートモジュールに貼り付けてください
 '
 ' 【設定方法】
 ' 1. Excelで Alt+F11 を押してVBAエディタを開く
-' 2. プロジェクトエクスプローラーで「InazumaGantt_v2」シートをダブルクリック
+' 2. プロジェクトエクスプローラーで「InazumaGantt_v3」シートをダブルクリック
 ' 3. 開いたコードウィンドウに以下のコードを貼り付ける
 ' 4. VBAエディタを閉じる
 '
@@ -18,7 +18,7 @@
     Private Declare Function GetKeyState Lib "user32" (ByVal nVirtKey As Long) As Integer
 #End If
 
-' データ開始行（InazumaGantt_v2モジュールと同期）
+' データ開始行（InazumaGantt_v3モジュールと同期）
 ' Private Const ROW_DATA_START As Long = 9
 
 Private Sub Worksheet_BeforeDoubleClick(ByVal Target As Range, Cancel As Boolean)
@@ -26,13 +26,13 @@ Private Sub Worksheet_BeforeDoubleClick(ByVal Target As Range, Cancel As Boolean
     ' B列: 完了処理
     On Error GoTo ErrorHandler
     
-    If Target.Row < InazumaGantt_v2.ROW_DATA_START Then Exit Sub
+    If Target.Row < InazumaGantt_v3.ROW_DATA_START Then Exit Sub
     
     ' B列(2): 完了処理
     If Target.Column <> 2 Then Exit Sub
     
     ' 設定マスタから機能有効を確認
-    If Not InazumaGantt_v2.GetSettingValue(4) Then Exit Sub
+    If Not InazumaGantt_v3.GetSettingValue(4) Then Exit Sub
     
     ' 既に完了済みの場合は変更しない
     If Me.Cells(Target.Row, "H").Value = "完了" Then Exit Sub
@@ -46,7 +46,7 @@ Private Sub Worksheet_BeforeDoubleClick(ByVal Target As Range, Cancel As Boolean
     Me.Cells(Target.Row, "H").Value = "完了"
     
     ' 設定：完了日自動入力
-    If InazumaGantt_v2.GetSettingValue(5) Then
+    If InazumaGantt_v3.GetSettingValue(5) Then
         If IsDate(Me.Cells(Target.Row, "M").Value) Then
             If Trim$(CStr(Me.Cells(Target.Row, "N").Value)) = "" Then
                 Me.Cells(Target.Row, "N").Value = Date
@@ -55,12 +55,12 @@ Private Sub Worksheet_BeforeDoubleClick(ByVal Target As Range, Cancel As Boolean
     End If
     
     ' 設定：取り消し線
-    If InazumaGantt_v2.GetSettingValue(6) Then
+    If InazumaGantt_v3.GetSettingValue(6) Then
         Me.Range("C" & Target.Row & ":F" & Target.Row).Font.Strikethrough = True
     End If
     
     ' 設定：濃い灰色に変更
-    If InazumaGantt_v2.GetSettingValue(7) Then
+    If InazumaGantt_v3.GetSettingValue(7) Then
         Me.Range("C" & Target.Row & ":F" & Target.Row).Font.Color = RGB(128, 128, 128)
     End If
     
@@ -79,12 +79,12 @@ Private Sub Worksheet_BeforeRightClick(ByVal Target As Range, Cancel As Boolean)
     ' Shiftキーが押されていない場合は通常の右クリックメニュー
     If (GetKeyState(vbKeyShift) And &H8000) = 0 Then Exit Sub
     
-    If Target.Row < InazumaGantt_v2.ROW_DATA_START Then Exit Sub
+    If Target.Row < InazumaGantt_v3.ROW_DATA_START Then Exit Sub
     
     ' C-F列(3-6)でのみ有効
     If Target.Column < 3 Or Target.Column > 6 Then Exit Sub
     
-    InazumaGantt_v2.ToggleTaskCollapse Target.Row
+    InazumaGantt_v3.ToggleTaskCollapse Target.Row
     Cancel = True
     Exit Sub
     
@@ -102,11 +102,11 @@ Private Sub Worksheet_Change(ByVal Target As Range)
     If Not Intersect(Target, Me.Range("C:F")) Is Nothing Then
         Dim cell As Range
         For Each cell In Intersect(Target, Me.Range("C:F"))
-            If cell.Row >= InazumaGantt_v2.ROW_DATA_START Then
+            If cell.Row >= InazumaGantt_v3.ROW_DATA_START Then
                 ' タスクが入力された場合
                 If Trim$(CStr(cell.Value)) <> "" Then
                     ' 階層を自動判定
-                    InazumaGantt_v2.AutoDetectTaskLevel cell.Row
+                    InazumaGantt_v3.AutoDetectTaskLevel cell.Row
                     
                     ' No.が空なら自動入力
                     If Trim$(CStr(Me.Cells(cell.Row, "B").Value)) = "" Then
@@ -124,7 +124,7 @@ Private Sub Worksheet_Change(ByVal Target As Range)
                     End If
                 Else
                     ' タスクが削除された場合も階層を更新
-                    InazumaGantt_v2.AutoDetectTaskLevel cell.Row
+                    InazumaGantt_v3.AutoDetectTaskLevel cell.Row
                 End If
             End If
         Next cell
@@ -134,7 +134,7 @@ Private Sub Worksheet_Change(ByVal Target As Range)
     If Not Intersect(Target, Me.Columns("I")) Is Nothing Then
         Dim progressCell As Range
         For Each progressCell In Intersect(Target, Me.Columns("I"))
-            If progressCell.Row >= InazumaGantt_v2.ROW_DATA_START Then
+            If progressCell.Row >= InazumaGantt_v3.ROW_DATA_START Then
                 UpdateStatusByProgress progressCell.Row
             End If
         Next progressCell
@@ -149,7 +149,7 @@ Private Sub Worksheet_Change(ByVal Target As Range)
         Dim warningMsg As String
         
         For Each dateCell In Intersect(Target, Me.Range("K:L"))
-            If dateCell.Row >= InazumaGantt_v2.ROW_DATA_START Then
+            If dateCell.Row >= InazumaGantt_v3.ROW_DATA_START Then
                 If IsDate(dateCell.Value) Then
                     inputDate = CDate(dateCell.Value)
                     isWeekend = (Weekday(inputDate, vbMonday) >= 6)
@@ -189,8 +189,8 @@ End Sub
 Private Function CheckHoliday(ByVal targetDate As Date) As Boolean
     Dim wsSettings As Worksheet
     On Error Resume Next
-    ' InazumaGantt_v2の定数を使用
-    Set wsSettings = ThisWorkbook.Worksheets(InazumaGantt_v2.SETTINGS_SHEET_NAME)
+    ' InazumaGantt_v3の定数を使用
+    Set wsSettings = ThisWorkbook.Worksheets(InazumaGantt_v3.SETTINGS_SHEET_NAME)
     On Error GoTo 0
     
     CheckHoliday = False
@@ -260,7 +260,7 @@ Private Function GetNextNo() As Long
     lastNo = 0
     
     ' B列から最大のNo.を探す
-    For r = InazumaGantt_v2.ROW_DATA_START To Me.Cells(Me.Rows.Count, "B").End(xlUp).Row
+    For r = InazumaGantt_v3.ROW_DATA_START To Me.Cells(Me.Rows.Count, "B").End(xlUp).Row
         cellValue = Me.Cells(r, "B").Value
         If IsNumeric(cellValue) Then
             If CLng(cellValue) > lastNo Then

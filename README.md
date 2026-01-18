@@ -1,10 +1,10 @@
-﻿# 📊 InazumaGantt v2.2
+﻿# 📊 InazumaGantt v3
 
 Excelベースのイナズマガントチャート管理ツール
 
 > [!NOTE]
 > **Excelファイル名は自由に変更可能です**  
-> シート名（`InazumaGantt_v2`、`祝日マスタ`、`設定マスタ`）は変更しないでください。
+> シート名（`InazumaGantt_v3`、`祝日マスタ`、`設定マスタ`）は変更しないでください。
 
 ---
 
@@ -18,7 +18,7 @@ Alt + F11 → ファイル → ファイルのインポート
 
 `- **vba/** : 最新のソースコード (UTF-8)
 
-- `InazumaGantt_v2_UTF8.bas` : メインロジック
+- `InazumaGantt_v3_UTF8.bas` : メインロジック
 - `SheetModule_UTF8.bas` : シートイベント制御
 - `SetupWizard_UTF8.bas` : セットアップ機能
 - `HierarchyColor_UTF8.bas` : 階層色分け機能
@@ -38,7 +38,7 @@ Alt + F8 → RunSetupWizard → 実行
 
 > **ウィザードが自動的に以下を設定します:**
 >
-> - メインシート（InazumaGantt_v2）作成
+> - メインシート（InazumaGantt_v3）作成
 > - 設定マスタシート作成（祝日欄含む）
 > - 設定マスタシート作成
 > - 階層色分け（条件付き書式）

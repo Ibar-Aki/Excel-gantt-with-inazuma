@@ -1,4 +1,4 @@
-﻿Attribute VB_Name = "InazumaGantt_v2"
+﻿Attribute VB_Name = "InazumaGantt_v3"
 Option Explicit
 
 ' ==========================================
@@ -33,8 +33,8 @@ Public Const GANTT_DAYS As Long = 120         ' ガントチャートの日数
 Public Const DATA_ROWS_DEFAULT As Long = 200  ' 初期入力範囲の行数
 
 Public Const GUIDE_SHEET_NAME As String = "InazumaGantt_説明"
-Public Const MAIN_SHEET_NAME As String = "InazumaGantt_v2"
-Public Const SETTINGS_SHEET_NAME As String = "設定マスタ"  ' v2.2追加
+Public Const MAIN_SHEET_NAME As String = "InazumaGantt_v3"
+Public Const SETTINGS_SHEET_NAME As String = "設定マスタ"  ' v3
 Public Const GUIDE_LEGEND_START_CELL As String = "E1"
 Public Const CELL_PROJECT_START As String = "L2"
 Public Const CELL_DISPLAY_WEEK As String = "L3"
@@ -746,14 +746,18 @@ Sub DrawGanttBars()
             End If
             
             If actualStartCol >= ganttStartCol And actualStartCol <= ganttStartCol + GANTT_DAYS - 1 Then
-                If progressEndCol > ganttStartCol + GANTT_DAYS - 1 Then progressEndCol = ganttStartCol + GANTT_DAYS - 1
-                If progressEndCol >= actualStartCol Then
+                ' v3: 緑バーは予定終了日を超えないように制限
+                Dim greenEndCol As Long
+                greenEndCol = progressEndCol
+                If greenEndCol > planEndCol Then greenEndCol = planEndCol
+                If greenEndCol > ganttStartCol + GANTT_DAYS - 1 Then greenEndCol = ganttStartCol + GANTT_DAYS - 1
+                If greenEndCol >= actualStartCol Then
                     Dim actualBarHeight As Double
                     actualBarHeight = 6  ' 実績バーの高さ（予定より細め）
                     cellTop = ws.Cells(r, actualStartCol).Top + 10  ' 予定バーの下に配置
                     cellLeft = ws.Cells(r, actualStartCol).Left
-                    ' 右端は進捗バーの右端と揃える
-                    cellWidth = ws.Cells(r, progressEndCol).Left + ws.Cells(r, progressEndCol).Width - cellLeft
+                    ' 右端は予定終了日で制限（v3）
+                    cellWidth = ws.Cells(r, greenEndCol).Left + ws.Cells(r, greenEndCol).Width - cellLeft
                     
                     Set shp = ws.Shapes.AddShape(msoShapeRectangle, cellLeft, cellTop, cellWidth, actualBarHeight)
                     shp.Name = "Bar_Actual_" & r
@@ -1052,6 +1056,38 @@ Private Sub CreateControlButtons(ByVal ws As Worksheet)
         .TextFrame2.TextRange.ParagraphFormat.Alignment = msoAlignCenter
         .TextFrame2.VerticalAnchor = msoAnchorMiddle
         .OnAction = "ResetFormatting"
+    End With
+    
+    ' 日付シフトボタン (v3追加)
+    btnLeft = btnLeft + btnWidth + 10
+    Dim btnShift As Shape
+    Set btnShift = ws.Shapes.AddShape(msoShapeRoundedRectangle, btnLeft, btnTop, btnWidth, btnHeight)
+    With btnShift
+        .Name = "Btn_ShiftDates"
+        .Fill.ForeColor.RGB = RGB(0, 128, 128)
+        .Line.Visible = msoFalse
+        .TextFrame2.TextRange.Characters.Text = "日付シフト"
+        .TextFrame2.TextRange.Font.Fill.ForeColor.RGB = RGB(255, 255, 255)
+        .TextFrame2.TextRange.Font.Size = 10
+        .TextFrame2.TextRange.ParagraphFormat.Alignment = msoAlignCenter
+        .TextFrame2.VerticalAnchor = msoAnchorMiddle
+        .OnAction = "ShiftDates"
+    End With
+    
+    ' PDF出力ボタン (v3追加)
+    btnLeft = btnLeft + btnWidth + 10
+    Dim btnPDF As Shape
+    Set btnPDF = ws.Shapes.AddShape(msoShapeRoundedRectangle, btnLeft, btnTop, btnWidth, btnHeight)
+    With btnPDF
+        .Name = "Btn_ExportPDF"
+        .Fill.ForeColor.RGB = RGB(192, 0, 0)
+        .Line.Visible = msoFalse
+        .TextFrame2.TextRange.Characters.Text = "PDF出力"
+        .TextFrame2.TextRange.Font.Fill.ForeColor.RGB = RGB(255, 255, 255)
+        .TextFrame2.TextRange.Font.Size = 10
+        .TextFrame2.TextRange.ParagraphFormat.Alignment = msoAlignCenter
+        .TextFrame2.VerticalAnchor = msoAnchorMiddle
+        .OnAction = "ExportToPDF"
     End With
 End Sub
 

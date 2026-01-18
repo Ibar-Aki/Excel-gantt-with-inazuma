@@ -6,7 +6,7 @@ $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $vbaDir = Join-Path $scriptDir "vba"
 $outputDir = Join-Path $scriptDir "output"
 $timestamp = Get-Date -Format "yyyyMMdd_HHmm"
-$outputFile = Join-Path $outputDir "InazumaGantt_v2_UTF8_$timestamp.xlsm"
+$outputFile = Join-Path $outputDir "InazumaGantt_v3_UTF8_$timestamp.xlsm"
 
 # エンコーディング修正スクリプトの実行（スキップ）
 # $fixEncodingScript = Join-Path $scriptDir "FixEncoding.ps1"
@@ -27,13 +27,13 @@ try {
     Write-Host "Creating new workbook..."
     $wb = $excel.Workbooks.Add()
     
-    # シート名変更 (Sheet1 -> InazumaGantt_v2)
+    # シート名変更 (Sheet1 -> InazumaGantt_v3)
     $mainSheet = $wb.Worksheets.Item(1)
-    $mainSheet.Name = "InazumaGantt_v2"
+    $mainSheet.Name = "InazumaGantt_v3"
     
     # インポートするファイルリスト（必須モジュール）
     $coreModules = @(
-        "InazumaGantt_v2_UTF8.bas",
+        "InazumaGantt_v3_UTF8.bas",
         "HierarchyColor_UTF8.bas",
         "SetupWizard_UTF8.bas"
     )
