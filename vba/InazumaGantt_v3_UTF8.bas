@@ -35,6 +35,7 @@ Public Const DATA_ROWS_DEFAULT As Long = 200  ' 初期入力範囲の行数
 Public Const GUIDE_SHEET_NAME As String = "InazumaGantt_説明"
 Public Const MAIN_SHEET_NAME As String = "InazumaGantt_v3"
 Public Const SETTINGS_SHEET_NAME As String = "設定マスタ"  ' v3
+Public Const HOLIDAY_DATA_START_ROW As Long = 13  ' 設定マスタ内の祈日データ開始行
 Public Const GUIDE_LEGEND_START_CELL As String = "E1"
 Public Const CELL_PROJECT_START As String = "L2"
 Public Const CELL_DISPLAY_WEEK As String = "L3"
@@ -231,10 +232,6 @@ ErrorHandler:
     MsgBox "エラーが発生しました: " & Err.Description, vbCritical, "エラー"
 End Sub
 
-' ==========================================
-'  祝日マスタの確保
-' ==========================================
-
 
 ' ==========================================
 '  入力規則と日付書式の適用
@@ -349,12 +346,6 @@ Private Sub EnsureGuideSheet()
     content(24, 1) = "  ・ 再度SHIFT+右クリックで展開"
     content(25, 1) = "  ・ LV1タスク（大項目）のみ対象です"
     
-    ' DEBUG: 配列の内容を確認
-    Debug.Print "=== EnsureGuideSheet DEBUG ==="
-    Debug.Print "content(11,1) = " & CStr(content(11, 1))
-    Debug.Print "content(12,1) = " & CStr(content(12, 1))
-    Debug.Print "content(20,1) = " & CStr(content(20, 1))
-    
     ' 一括書き込み
     On Error Resume Next
     wsGuide.Range("A1").Resize(30, 2).Value = content
@@ -363,12 +354,6 @@ Private Sub EnsureGuideSheet()
         Err.Clear
     End If
     On Error GoTo ErrorHandler
-    
-    ' DEBUG: 書き込み後の値を確認
-    Debug.Print "=== 書き込み後確認 ==="
-    Debug.Print "A11 = " & CStr(wsGuide.Range("A11").Value)
-    Debug.Print "A12 = " & CStr(wsGuide.Range("A12").Value)
-    Debug.Print "A20 = " & CStr(wsGuide.Range("A20").Value)
     
     ' 書式設定
     With wsGuide
@@ -680,9 +665,6 @@ Sub DrawGanttBars()
                         Dim useTodayPosition As Boolean
                         useTodayPosition = False
                         
-                        ' This line seems syntactically incorrect and refers to an undefined constant.
-                        ' If Not ws.Shapes(SHAPE_INAZUMA_LINE) Is Nothing Then = False
-                        
                         ' 今日列のX座標を計算
                         Dim todayColForInazuma As Long
                         todayColForInazuma = DateToColumn(ganttStartDate, Date, ganttStartCol)
@@ -905,13 +887,13 @@ Private Sub ApplyHolidayColors(ByVal ws As Worksheet, ByVal lastRow As Long)
     
     Dim lastHolidayRow As Long
     lastHolidayRow = wsSettings.Cells(wsSettings.Rows.Count, "A").End(xlUp).Row
-    If lastHolidayRow < 13 Then Exit Sub
+    If lastHolidayRow < HOLIDAY_DATA_START_ROW Then Exit Sub
     
     Dim r As Long
     Dim holidayDate As Date
     Dim colIndex As Long
     
-    For r = 13 To lastHolidayRow
+    For r = HOLIDAY_DATA_START_ROW To lastHolidayRow
         If IsDate(wsSettings.Cells(r, "A").Value) Then
             holidayDate = CDate(wsSettings.Cells(r, "A").Value)
             colIndex = DateToColumn(ganttStartDate, holidayDate, ganttStartCol)
@@ -1514,18 +1496,19 @@ Sub ShiftDates()
     Set wsSettings = ThisWorkbook.Worksheets(SETTINGS_SHEET_NAME)
     On Error GoTo ErrorHandler
     
+
     If Not wsSettings Is Nothing Then
         Dim lastHolidayRow As Long
         lastHolidayRow = wsSettings.Cells(wsSettings.Rows.Count, "A").End(xlUp).Row
         ' 設定マスタは13行目から祝日データ
-        If lastHolidayRow >= 13 Then
-            Set holidays = wsSettings.Range("A13:A" & lastHolidayRow)
+        If lastHolidayRow >= HOLIDAY_DATA_START_ROW Then
+            Set holidays = wsSettings.Range("A" & HOLIDAY_DATA_START_ROW & ":A" & lastHolidayRow)
         End If
     End If
-    
+
     Application.ScreenUpdating = False
     Application.EnableEvents = False
-    
+
     Dim cell As Range
     Dim shiftCount As Long
     shiftCount = 0

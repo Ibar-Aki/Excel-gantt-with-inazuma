@@ -199,10 +199,10 @@ Private Function CheckHoliday(ByVal targetDate As Date) As Boolean
     ' 祝日マスタハ設定マスタのA13から
     Dim lastRow As Long
     lastRow = wsSettings.Cells(wsSettings.Rows.Count, "A").End(xlUp).Row
-    If lastRow < 13 Then Exit Function
+    If lastRow < InazumaGantt_v3.HOLIDAY_DATA_START_ROW Then Exit Function
     
     Dim r As Long
-    For r = 13 To lastRow
+    For r = InazumaGantt_v3.HOLIDAY_DATA_START_ROW To lastRow
         If IsDate(wsSettings.Cells(r, "A").Value) Then
             If CDate(wsSettings.Cells(r, "A").Value) = targetDate Then
                 CheckHoliday = True
