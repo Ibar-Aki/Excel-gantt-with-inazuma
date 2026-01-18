@@ -47,6 +47,7 @@ Public Const COLOR_PROGRESS As Long = 9851952    ' RGB(48,84,150) 紺色
 Public Const COLOR_HOLIDAY As Long = 5263430     ' RGB(70,70,80) 濃い灰色（休日祝日）
 Public Const COLOR_ROW_BAND As Long = 16316664
 Public Const COLOR_ACTUAL As Long = 5287936      ' RGB(0,176,80) 緑色
+Public Const COLOR_ACTUAL_OVERRUN As Long = 52377  ' RGB(137,204,0) 黄緑色（超過分）
 Public Const COLOR_TODAY As Long = 255           ' RGB(255,0,0) 赤
 Public Const COLOR_WARN As Long = 13434879
 Public Const COLOR_ERROR As Long = 13553151
@@ -714,7 +715,7 @@ Sub DrawGanttBars()
             End If
         End If
         
-        ' 実績バー（緑色の塗りつぶしバー、予定の下に配置、右端は進捗バーと揃える）
+        ' 実績バー（緑色の塗りつぶしバー、予定の下に配置）
         If IsDate(startActual) And IsDate(startPlan) And IsDate(endPlan) Then
             ' 実績バーの右端は進捗バーの右端と揃える
             Dim actualStartCol As Long
@@ -736,23 +737,47 @@ Sub DrawGanttBars()
             End If
             
             If actualStartCol >= ganttStartCol And actualStartCol <= ganttStartCol + GANTT_DAYS - 1 Then
-                ' v3: 緑バーは予定終了日を超えないように制限
+                ' 緑バーは予定終了日まで
                 Dim greenEndCol As Long
                 greenEndCol = progressEndCol
                 If greenEndCol > planEndCol Then greenEndCol = planEndCol
                 If greenEndCol > ganttStartCol + GANTT_DAYS - 1 Then greenEndCol = ganttStartCol + GANTT_DAYS - 1
                 If greenEndCol >= actualStartCol Then
                     Dim actualBarHeight As Double
-                    actualBarHeight = 6  ' 実績バーの高さ（予定より細め）
+                    actualBarHeight = 6  ' 実績バーの高さ
                     cellTop = ws.Cells(r, actualStartCol).Top + 10  ' 予定バーの下に配置
                     cellLeft = ws.Cells(r, actualStartCol).Left
-                    ' 右端は予定終了日で制限（v3）
                     cellWidth = ws.Cells(r, greenEndCol).Left + ws.Cells(r, greenEndCol).Width - cellLeft
                     
                     Set shp = ws.Shapes.AddShape(msoShapeRectangle, cellLeft, cellTop, cellWidth, actualBarHeight)
                     shp.Name = "Bar_Actual_" & r
                     shp.Fill.ForeColor.RGB = COLOR_ACTUAL
                     shp.Line.Visible = msoFalse
+                End If
+                
+                ' 完了時に実績で超過している場合は超過部分を別色で描画
+                If progress >= 1 And IsDate(endActual) Then
+                    Dim actualEndDate As Date
+                    actualEndDate = CDate(endActual)
+                    If actualEndDate > CDate(endPlan) Then
+                        Dim overrunStartCol As Long
+                        Dim overrunEndCol As Long
+                        overrunStartCol = planEndCol + 1
+                        overrunEndCol = DateToColumn(ganttStartDate, actualEndDate, ganttStartCol)
+                        If overrunEndCol > ganttStartCol + GANTT_DAYS - 1 Then overrunEndCol = ganttStartCol + GANTT_DAYS - 1
+                        
+                        If overrunStartCol <= ganttStartCol + GANTT_DAYS - 1 And overrunEndCol >= overrunStartCol Then
+                            Dim overrunLeft As Double
+                            Dim overrunWidth As Double
+                            overrunLeft = ws.Cells(r, overrunStartCol).Left
+                            overrunWidth = ws.Cells(r, overrunEndCol).Left + ws.Cells(r, overrunEndCol).Width - overrunLeft
+                            
+                            Set shp = ws.Shapes.AddShape(msoShapeRectangle, overrunLeft, cellTop, overrunWidth, actualBarHeight)
+                            shp.Name = "Bar_Overrun_" & r
+                            shp.Fill.ForeColor.RGB = COLOR_ACTUAL_OVERRUN
+                            shp.Line.Visible = msoFalse
+                        End If
+                    End If
                 End If
             End If
         End If
