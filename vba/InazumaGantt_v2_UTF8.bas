@@ -135,6 +135,9 @@ Sub SetupInazumaGantt(Optional ByVal silentMode As Boolean = False, Optional ByV
 
     EnsureGuideSheet
     
+    ' 説明シート作成後、メインシートに戻る
+    ws.Activate
+    
     ' 日付開始日を入力させる（キャンセル時はロールバック）
     Dim startDateInput As Variant
     If silentMode And Not IsNull(overrideStartDate) Then
@@ -175,7 +178,7 @@ Sub SetupInazumaGantt(Optional ByVal silentMode As Boolean = False, Optional ByV
     
     ' 日付列の生成
     Dim ganttStartCol As Long
-    ganttStartCol = Columns(COL_GANTT_START).Column
+    ganttStartCol = ws.Columns(COL_GANTT_START).Column
 
     Dim todayDate As Date
     todayDate = Date
@@ -346,8 +349,26 @@ Private Sub EnsureGuideSheet()
     content(24, 1) = "  ・ 再度SHIFT+右クリックで展開"
     content(25, 1) = "  ・ LV1タスク（大項目）のみ対象です"
     
+    ' DEBUG: 配列の内容を確認
+    Debug.Print "=== EnsureGuideSheet DEBUG ==="
+    Debug.Print "content(11,1) = " & CStr(content(11, 1))
+    Debug.Print "content(12,1) = " & CStr(content(12, 1))
+    Debug.Print "content(20,1) = " & CStr(content(20, 1))
+    
     ' 一括書き込み
+    On Error Resume Next
     wsGuide.Range("A1").Resize(30, 2).Value = content
+    If Err.Number <> 0 Then
+        MsgBox "配列書き込みエラー: " & Err.Description & vbCrLf & "Err.Number: " & Err.Number, vbCritical
+        Err.Clear
+    End If
+    On Error GoTo ErrorHandler
+    
+    ' DEBUG: 書き込み後の値を確認
+    Debug.Print "=== 書き込み後確認 ==="
+    Debug.Print "A11 = " & CStr(wsGuide.Range("A11").Value)
+    Debug.Print "A12 = " & CStr(wsGuide.Range("A12").Value)
+    Debug.Print "A20 = " & CStr(wsGuide.Range("A20").Value)
     
     ' 書式設定
     With wsGuide
@@ -371,7 +392,7 @@ End Sub
 ' ==========================================
 Private Sub ApplyGanttBorders(ByVal ws As Worksheet, ByVal lastRow As Long)
     Dim ganttStartCol As Long
-    ganttStartCol = Columns(COL_GANTT_START).Column
+    ganttStartCol = ws.Columns(COL_GANTT_START).Column
     
     Dim ganttEndCol As Long
     ganttEndCol = ganttStartCol + GANTT_DAYS - 1
@@ -501,7 +522,7 @@ End Sub
 ' ==========================================
 Private Sub DrawWeekSeparators(ByVal ws As Worksheet, ByVal lastRow As Long)
     Dim ganttStartCol As Long
-    ganttStartCol = Columns(COL_GANTT_START).Column
+    ganttStartCol = ws.Columns(COL_GANTT_START).Column
     
     Dim colIndex As Long
     Dim weekRange As Range
@@ -556,7 +577,7 @@ Sub DrawGanttBars()
     If lastRow < ROW_DATA_START Then lastRow = ROW_DATA_START
     
     Dim ganttStartCol As Long
-    ganttStartCol = Columns(COL_GANTT_START).Column
+    ganttStartCol = ws.Columns(COL_GANTT_START).Column
     
     Dim ganttStartDate As Date
     If IsDate(ws.Range(CELL_PROJECT_START).Value) Then
@@ -1044,7 +1065,7 @@ Sub ToggleWeekends()
     Set ws = ActiveSheet
     
     Dim ganttStartCol As Long
-    ganttStartCol = Columns(COL_GANTT_START).Column
+    ganttStartCol = ws.Columns(COL_GANTT_START).Column
     
     Dim ganttStartDate As Date
     If IsDate(ws.Range(CELL_PROJECT_START).Value) Then
@@ -1111,7 +1132,7 @@ Sub ResetFormatting()
     End If
     
     Dim ganttStartCol As Long
-    ganttStartCol = Columns(COL_GANTT_START).Column
+    ganttStartCol = ws.Columns(COL_GANTT_START).Column
     
     ' P2修正: 元の設定を保存
     Dim prevCalc As XlCalculation
@@ -1530,7 +1551,7 @@ Sub ExportToPDF()
     If daysToShow < 1 Then daysToShow = 31  ' 最低31日
     If daysToShow > GANTT_DAYS Then daysToShow = GANTT_DAYS
     
-    ganttEndCol = Columns(COL_GANTT_START).Column + daysToShow - 1
+    ganttEndCol = ws.Columns(COL_GANTT_START).Column + daysToShow - 1
     
     ' 出力範囲を設定（A列から当月末のガント列まで）
     Dim exportRange As Range
