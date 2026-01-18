@@ -210,39 +210,3 @@ Public Function ParseWBSNumber(ByVal wbsText As String, ByVal level As Long) As 
 ErrorHandler:
     ParseWBSNumber = 0
 End Function
-
-' ==========================================
-'  WBS番号のテスト（デバッグ用）
-' ==========================================
-Public Sub TestWBSParser()
-    Debug.Print "=== WBSParser テスト開始 ==="
-    
-    ' テストケース1: 基本的なWBS番号
-    Debug.Print "Test 1.1: " & ParseWBSLevel("1") & " (期待値: 1)"
-    Debug.Print "Test 1.2: " & ParseWBSLevel("1.1") & " (期待値: 2)"
-    Debug.Print "Test 1.3: " & ParseWBSLevel("1.1.1") & " (期待値: 3)"
-    Debug.Print "Test 1.4: " & ParseWBSLevel("1.1.1.1") & " (期待値: 4)"
-    
-    ' テストケース2: 複雑なWBS番号
-    Debug.Print "Test 2.1: " & ParseWBSLevel("2.3.4.5") & " (期待値: 4)"
-    Debug.Print "Test 2.2: " & ParseWBSLevel("10.20.30") & " (期待値: 3)"
-    
-    ' テストケース3: 無効なWBS番号
-    Debug.Print "Test 3.1: " & ParseWBSLevel("") & " (期待値: 0)"
-    Debug.Print "Test 3.2: " & ParseWBSLevel("abc") & " (期待値: 0)"
-    Debug.Print "Test 3.3: " & ParseWBSLevel("1.2.3.4.5") & " (期待値: 0)"
-    Debug.Print "Test 3.4: " & ParseWBSLevel("0.1") & " (期待値: 0)"
-    
-    ' テストケース4: ValidateWBS
-    Debug.Print "Test 4.1: " & ValidateWBS("1.2.3") & " (期待値: True)"
-    Debug.Print "Test 4.2: " & ValidateWBS("abc") & " (期待値: False)"
-    Debug.Print "Test 4.3: " & ValidateWBS("1..2") & " (期待値: False)"
-    
-    ' テストケース5: ParseWBSNumber
-    Debug.Print "Test 5.1: " & ParseWBSNumber("1.2.3.4", 1) & " (期待値: 1)"
-    Debug.Print "Test 5.2: " & ParseWBSNumber("1.2.3.4", 2) & " (期待値: 2)"
-    Debug.Print "Test 5.3: " & ParseWBSNumber("1.2.3.4", 3) & " (期待値: 3)"
-    Debug.Print "Test 5.4: " & ParseWBSNumber("1.2.3.4", 4) & " (期待値: 4)"
-    
-    Debug.Print "=== テスト完了 ==="
-End Sub

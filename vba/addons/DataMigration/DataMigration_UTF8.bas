@@ -33,7 +33,7 @@ Sub MigrateToV2Format()
     Dim result As VbMsgBoxResult
     result = MsgBox("このシートのデータをv2形式に移管しますか？" & vbCrLf & vbCrLf & _
                    "移管元: " & oldSheet.Name & vbCrLf & _
-                   "移管先: InazumaGantt_v2 シート（新規作成）", _
+                   "移管先: InazumaGantt_v3 シート（新規作成）", _
                    vbQuestion + vbYesNo, "データ移管")
     
     If result <> vbYes Then
@@ -43,12 +43,12 @@ Sub MigrateToV2Format()
     
     ' v2シートを取得または作成
     On Error Resume Next
-    Set newSheet = ThisWorkbook.Worksheets(InazumaGantt_v2.MAIN_SHEET_NAME)
+    Set newSheet = ThisWorkbook.Worksheets(InazumaGantt_v3.MAIN_SHEET_NAME)
     On Error GoTo ErrorHandler
     
     If newSheet Is Nothing Then
         Set newSheet = ThisWorkbook.Worksheets.Add(After:=oldSheet)
-        newSheet.Name = InazumaGantt_v2.MAIN_SHEET_NAME
+        newSheet.Name = InazumaGantt_v3.MAIN_SHEET_NAME
     End If
     
     Application.ScreenUpdating = False
@@ -63,7 +63,7 @@ Sub MigrateToV2Format()
     If lastOldRow < 2 Then lastOldRow = 2
     
     ' データ行の開始（v2形式）
-    newRow = InazumaGantt_v2.ROW_DATA_START
+    newRow = InazumaGantt_v3.ROW_DATA_START
     
     ' ヘッダー行をスキップして移管
     For oldRow = 2 To lastOldRow
@@ -95,12 +95,12 @@ Sub MigrateToV2Format()
     
     ' 階層自動判定
     newSheet.Activate
-    InazumaGantt_v2.AutoDetectTaskLevel
+    InazumaGantt_v3.AutoDetectTaskLevel
     
     MsgBox "移管完了！" & vbCrLf & vbCrLf & _
            "移管元: " & oldSheet.Name & vbCrLf & _
            "移管先: " & newSheet.Name & vbCrLf & _
-           "移管行数: " & (newRow - InazumaGantt_v2.ROW_DATA_START), _
+           "移管行数: " & (newRow - InazumaGantt_v3.ROW_DATA_START), _
            vbInformation, "データ移管"
     Exit Sub
     

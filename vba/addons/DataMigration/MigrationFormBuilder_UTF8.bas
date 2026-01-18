@@ -460,7 +460,7 @@ Private Sub AddFormCode(ByRef vbComp As Object)
     code = code & "Private Sub LoadSheetList()" & vbCrLf
     code = code & "    Dim ws As Worksheet" & vbCrLf
     code = code & "    For Each ws In ThisWorkbook.Worksheets" & vbCrLf
-    code = code & "        If ws.Name <> ""InazumaGantt_v2"" And ws.Name <> ""設定マスタ"" And ws.Name <> ""移管設定"" And ws.Name <> ""祝日マスタ"" And ws.Name <> ""InazumaGantt_説明"" Then" & vbCrLf
+    code = code & "        If ws.Name <> ""InazumaGantt_v3"" And ws.Name <> ""設定マスタ"" And ws.Name <> ""移管設定"" And ws.Name <> ""祝日マスタ"" And ws.Name <> ""InazumaGantt_説明"" Then" & vbCrLf
     code = code & "            cboSourceSheet.AddItem ws.Name" & vbCrLf
     code = code & "        End If" & vbCrLf
     code = code & "    Next ws" & vbCrLf

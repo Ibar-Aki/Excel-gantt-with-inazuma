@@ -78,16 +78,16 @@ Public Sub ExecuteMigration(ByRef config As MappingConfig)
     
     ' 移管先シートを取得または作成
     On Error Resume Next
-    Set newSheet = ThisWorkbook.Worksheets(InazumaGantt_v2.MAIN_SHEET_NAME)
+    Set newSheet = ThisWorkbook.Worksheets(InazumaGantt_v3.MAIN_SHEET_NAME)
     On Error GoTo ErrorHandler
     
     If newSheet Is Nothing Then
         Set newSheet = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
-        newSheet.Name = InazumaGantt_v2.MAIN_SHEET_NAME
+        newSheet.Name = InazumaGantt_v3.MAIN_SHEET_NAME
     Else
         ' 既存シートが存在する場合は確認
         Dim result As VbMsgBoxResult
-        result = MsgBox("'" & InazumaGantt_v2.MAIN_SHEET_NAME & "' シートが既に存在します。" & vbCrLf & _
+        result = MsgBox("'" & InazumaGantt_v3.MAIN_SHEET_NAME & "' シートが既に存在します。" & vbCrLf & _
                        "データを追加しますか？" & vbCrLf & vbCrLf & _
                        "はい: 既存データの下に追加" & vbCrLf & _
                        "いいえ: キャンセル", vbQuestion + vbYesNo, "既存シート確認")
@@ -114,8 +114,8 @@ Public Sub ExecuteMigration(ByRef config As MappingConfig)
     
     ' 移管先の開始行を取得（既存データがある場合は最終行の次）
     newRow = newSheet.Cells(newSheet.Rows.Count, "C").End(xlUp).Row + 1
-    If newRow < InazumaGantt_v2.ROW_DATA_START Then
-        newRow = InazumaGantt_v2.ROW_DATA_START
+    If newRow < InazumaGantt_v3.ROW_DATA_START Then
+        newRow = InazumaGantt_v3.ROW_DATA_START
     End If
     
     Dim migratedCount As Long
@@ -156,14 +156,14 @@ Public Sub ExecuteMigration(ByRef config As MappingConfig)
                 ' 担当者のマッピング
                 If config.AssigneeColumn <> "" Then
                     Dim assigneeCol As Long
-                    assigneeCol = Range(config.AssigneeColumn & "1").Column
+                    assigneeCol = oldSheet.Range(config.AssigneeColumn & "1").Column
                     newSheet.Cells(newRow, "J").Value = oldSheet.Cells(oldRow, assigneeCol).Value
                 End If
                 
                 ' 完了予定日のマッピング
                 If config.EndPlanColumn <> "" Then
                     Dim endPlanCol As Long
-                    endPlanCol = Range(config.EndPlanColumn & "1").Column
+                    endPlanCol = oldSheet.Range(config.EndPlanColumn & "1").Column
                     If IsDate(oldSheet.Cells(oldRow, endPlanCol).Value) Then
                         newSheet.Cells(newRow, "L").Value = oldSheet.Cells(oldRow, endPlanCol).Value
                     End If
@@ -172,7 +172,7 @@ Public Sub ExecuteMigration(ByRef config As MappingConfig)
                 ' 進捗率のマッピング
                 If config.ProgressColumn <> "" Then
                     Dim progressCol As Long
-                    progressCol = Range(config.ProgressColumn & "1").Column
+                    progressCol = oldSheet.Range(config.ProgressColumn & "1").Column
                     Dim progressValue As Variant
                     progressValue = oldSheet.Cells(oldRow, progressCol).Value
                     
@@ -187,7 +187,7 @@ Public Sub ExecuteMigration(ByRef config As MappingConfig)
                 ' 開始予定日のマッピング
                 If config.StartPlanColumn <> "" Then
                     Dim startPlanCol As Long
-                    startPlanCol = Range(config.StartPlanColumn & "1").Column
+                    startPlanCol = oldSheet.Range(config.StartPlanColumn & "1").Column
                     If IsDate(oldSheet.Cells(oldRow, startPlanCol).Value) Then
                         newSheet.Cells(newRow, "K").Value = oldSheet.Cells(oldRow, startPlanCol).Value
                     End If
@@ -196,7 +196,7 @@ Public Sub ExecuteMigration(ByRef config As MappingConfig)
                 ' 開始実績日のマッピング
                 If config.StartActualColumn <> "" Then
                     Dim startActualCol As Long
-                    startActualCol = Range(config.StartActualColumn & "1").Column
+                    startActualCol = oldSheet.Range(config.StartActualColumn & "1").Column
                     If IsDate(oldSheet.Cells(oldRow, startActualCol).Value) Then
                         newSheet.Cells(newRow, "M").Value = oldSheet.Cells(oldRow, startActualCol).Value
                     End If
@@ -205,7 +205,7 @@ Public Sub ExecuteMigration(ByRef config As MappingConfig)
                 ' 完了実績日のマッピング
                 If config.EndActualColumn <> "" Then
                     Dim endActualCol As Long
-                    endActualCol = Range(config.EndActualColumn & "1").Column
+                    endActualCol = oldSheet.Range(config.EndActualColumn & "1").Column
                     If IsDate(oldSheet.Cells(oldRow, endActualCol).Value) Then
                         newSheet.Cells(newRow, "N").Value = oldSheet.Cells(oldRow, endActualCol).Value
                     End If
@@ -224,7 +224,7 @@ Public Sub ExecuteMigration(ByRef config As MappingConfig)
     newSheet.Activate
     MsgBox "移管完了！" & vbCrLf & vbCrLf & _
            "移管元: " & config.SourceSheetName & vbCrLf & _
-           "移管先: " & InazumaGantt_v2.MAIN_SHEET_NAME & vbCrLf & _
+           "移管先: " & InazumaGantt_v3.MAIN_SHEET_NAME & vbCrLf & _
            "移管行数: " & migratedCount, vbInformation, "データ移管"
     Exit Sub
     
