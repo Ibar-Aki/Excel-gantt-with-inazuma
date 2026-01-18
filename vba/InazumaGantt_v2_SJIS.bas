@@ -153,7 +153,6 @@ Sub SetupInazumaGantt(Optional ByVal silentMode As Boolean = False, Optional ByV
         Dim rollbackEndRow As Long
         rollbackEndRow = ROW_DATA_START + DATA_ROWS_DEFAULT - 1
         ws.Range(ws.Cells(1, 1), ws.Cells(rollbackEndRow, rollbackEndCol)).Clear
-        ws.Range(ws.Cells(1, 1), ws.Cells(rollbackEndRow, rollbackEndCol)).Clear
         Application.Calculation = prevCalc
         Application.ScreenUpdating = True
         MsgBox "セットアップがキャンセルされました。", vbInformation, "キャンセル"
@@ -937,7 +936,7 @@ Public Sub AutoDetectTaskLevel(Optional ByVal targetRow As Long = 0)
         If endRow < ROW_DATA_START Then endRow = ROW_DATA_START + DATA_ROWS_DEFAULT - 1
     End If
     
-    Application.EnableEvents = False
+    ' Note: EnableEvents control is handled by the caller (Worksheet_Change)
     
     Dim r As Long
     Dim taskLevel As Long
@@ -962,11 +961,9 @@ Public Sub AutoDetectTaskLevel(Optional ByVal targetRow As Long = 0)
         End If
     Next r
     
-    Application.EnableEvents = True
     Exit Sub
     
 ErrorHandler:
-    Application.EnableEvents = True
     MsgBox "階層自動判定エラー: " & Err.Description, vbCritical, "エラー"
 End Sub
 

@@ -69,7 +69,7 @@ Sub RunSetupWizard()
     result = MsgBox("InazumaGantt セットアップウィザードへようこそ！" & vbCrLf & vbCrLf & _
                    "このウィザードでは以下を設定します:" & vbCrLf & _
                    "1. メインシートの作成" & vbCrLf & _
-                   "2. 祝日マスタシートの作成" & vbCrLf & _
+                   "2. 設定マスタ（祝日欄含む）の作成" & vbCrLf & _
                    "3. サンプルデータの追加（任意）" & vbCrLf & vbCrLf & _
                    "続行しますか？", _
                    vbQuestion + vbYesNo, "セットアップウィザード")

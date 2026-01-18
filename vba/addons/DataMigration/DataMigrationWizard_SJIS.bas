@@ -105,8 +105,8 @@ Public Sub ExecuteMigration(ByRef config As MappingConfig)
     Dim wbsCol As Long, taskCol As Long
     
     ' 列番号を取得
-    wbsCol = Range(config.WBSColumn & "1").Column
-    taskCol = Range(config.TaskNameColumn & "1").Column
+    wbsCol = oldSheet.Range(config.WBSColumn & "1").Column
+    taskCol = oldSheet.Range(config.TaskNameColumn & "1").Column
     
     ' 元データの最終行を取得
     lastOldRow = oldSheet.Cells(oldSheet.Rows.Count, wbsCol).End(xlUp).Row
