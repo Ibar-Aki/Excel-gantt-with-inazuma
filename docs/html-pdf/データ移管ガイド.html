@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>InazumaGantt データ移管ガイド</title>
+  <style>
+    /* Modern, readable styles for InazumaGantt documentation */
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap');
+
+    :root {
+      --primary-color: #2563eb;
+      --primary-dark: #1d4ed8;
+      --accent-color: #0891b2;
+      --success-color: #059669;
+      --warning-color: #d97706;
+      --text-color: #1f2937;
+      --text-light: #6b7280;
+      --bg-color: #ffffff;
+      --bg-subtle: #f8fafc;
+      --border-color: #e2e8f0;
+      --shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    html {
+      color: var(--text-color);
+      background-color: var(--bg-color);
+      font-size: 16px;
+    }
+
+    body {
+      font-family: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+      margin: 0 auto;
+      max-width: 48em;
+      padding: 3rem 2.5rem;
+      line-height: 1.8;
+      font-size: 1.1rem;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+
+    @media (max-width: 600px) {
+      body {
+        font-size: 1rem;
+        padding: 1.5rem 1rem;
+      }
+    }
+
+    @media print {
+      html {
+        background-color: white;
+      }
+
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 11pt;
+        max-width: 100%;
+        padding: 0;
+      }
+
+      p,
+      h2,
+      h3 {
+        orphans: 3;
+        widows: 3;
+      }
+
+      h2,
+      h3,
+      h4 {
+        page-break-after: avoid;
+      }
+
+      table {
+        page-break-inside: avoid;
+      }
+    }
+
+    /* Typography */
+    p {
+      margin: 1.2em 0;
+    }
+
+    a {
+      color: var(--primary-color);
+      text-decoration: none;
+      border-bottom: 1px solid transparent;
+      transition: border-color 0.2s;
+    }
+
+    a:hover {
+      border-bottom-color: var(--primary-color);
+    }
+
+    a:visited {
+      color: var(--primary-dark);
+    }
+
+    img,
+    svg {
+      max-width: 100%;
+      height: auto;
+    }
+
+    /* Headings */
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+      margin-top: 2em;
+      margin-bottom: 0.8em;
+      font-weight: 700;
+      line-height: 1.4;
+    }
+
+    h1 {
+      font-size: 2rem;
+      color: var(--primary-dark);
+      border-bottom: 3px solid var(--primary-color);
+      padding-bottom: 0.5rem;
+    }
+
+    h2 {
+      font-size: 1.5rem;
+      color: var(--text-color);
+      background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+      padding: 0.8rem 1.2rem;
+      border-left: 4px solid var(--primary-color);
+      border-radius: 0 8px 8px 0;
+      margin-left: -1.2rem;
+      margin-right: -1.2rem;
+    }
+
+    h3 {
+      font-size: 1.25rem;
+      color: var(--text-color);
+      border-bottom: 2px solid var(--border-color);
+      padding-bottom: 0.4rem;
+    }
+
+    h4,
+    h5,
+    h6 {
+      font-size: 1.1rem;
+      color: var(--text-light);
+    }
+
+    /* Lists */
+    ol,
+    ul {
+      padding-left: 1.8em;
+      margin: 1.2em 0;
+    }
+
+    li {
+      margin: 0.6em 0;
+    }
+
+    li>ol,
+    li>ul {
+      margin-top: 0.4em;
+      margin-bottom: 0.4em;
+    }
+
+    /* Blockquote - Tip/Note style */
+    blockquote {
+      margin: 1.5em 0;
+      padding: 1rem 1.2rem;
+      background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+      border-left: 4px solid var(--success-color);
+      border-radius: 0 8px 8px 0;
+      color: #166534;
+      font-size: 1rem;
+    }
+
+    blockquote p {
+      margin: 0.5em 0;
+    }
+
+    blockquote strong {
+      color: var(--success-color);
+    }
+
+    /* Code */
+    code {
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      font-size: 0.9em;
+      background-color: #f1f5f9;
+      padding: 0.2em 0.5em;
+      border-radius: 4px;
+      color: #0f172a;
+    }
+
+    pre {
+      margin: 1.5em 0;
+      padding: 1.2em;
+      background-color: #1e293b;
+      border-radius: 8px;
+      overflow-x: auto;
+    }
+
+    pre code {
+      background: none;
+      padding: 0;
+      color: #e2e8f0;
+    }
+
+    /* Horizontal Rule */
+    hr {
+      border: none;
+      height: 2px;
+      background: linear-gradient(90deg, var(--border-color) 0%, transparent 100%);
+      margin: 2.5em 0;
+    }
+
+    /* Tables - Modern, readable style */
+    table {
+      margin: 1.5em 0;
+      border-collapse: collapse;
+      width: 100%;
+      font-size: 1rem;
+      display: table;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+
+    thead {
+      background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+    }
+
+    th {
+      color: white;
+      font-weight: 600;
+      padding: 1em 1.2em;
+      text-align: left;
+      font-size: 0.95rem;
+      letter-spacing: 0.02em;
+    }
+
+    td {
+      padding: 0.9em 1.2em;
+      border-bottom: 1px solid var(--border-color);
+      vertical-align: top;
+    }
+
+    tbody tr {
+      background-color: var(--bg-color);
+      transition: background-color 0.2s;
+    }
+
+    tbody tr:nth-child(even) {
+      background-color: var(--bg-subtle);
+    }
+
+    tbody tr:hover {
+      background-color: #f0f9ff;
+    }
+
+    tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    /* Header */
+    header {
+      margin-bottom: 3rem;
+      text-align: center;
+      padding-bottom: 2rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    header h1.title {
+      font-size: 2.2rem;
+      color: var(--primary-dark);
+      margin-bottom: 0.5rem;
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    /* Table of Contents */
+    #TOC li {
+      list-style: none;
+    }
+
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+
+    #TOC>ul {
+      padding-left: 0;
+    }
+
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+
+    /* Utility classes */
+    code {
+      white-space: pre-wrap;
+    }
+
+    span.smallcaps {
+      font-variant: small-caps;
+    }
+
+    div.columns {
+      display: flex;
+      gap: min(4vw, 1.5em);
+    }
+
+    div.column {
+      flex: auto;
+      overflow-x: auto;
+    }
+
+    div.hanging-indent {
+      margin-left: 1.5em;
+      text-indent: -1.5em;
+    }
+
+    ul.task-list[class] {
+      list-style: none;
+    }
+
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+
+    .display.math {
+      display: block;
+      text-align: center;
+      margin: 0.5rem auto;
+    }
+  </style>
+</head>
+
+<body>
+  <header id="title-block-header">
+    <h1 class="title">InazumaGantt データ移管ガイド</h1>
+  </header>
+  <h1 id="データ移管ウィザード-利用ガイド">データ移管ウィザード
+    利用ガイド</h1>
+  <p>他のガントチャートからInazumaGanttへデータを移管するためのウィザードです。</p>
+  <hr />
+  <h2 id="こんなときに使います">こんなときに使います</h2>
+  <ul>
+    <li>Backlogやプロジェクト管理ツールからエクスポートしたガントデータがある</li>
+    <li>WBS番号（1.1.1など）で階層管理されているガントチャートがある</li>
+    <li>手動コピーが面倒で、一括で移管したい</li>
+  </ul>
+  <hr />
+  <h2 id="使い方3ステップ">使い方（3ステップ）</h2>
+  <h3 id="ステップ1-ウィザードを起動する">ステップ1:
+    ウィザードを起動する</h3>
+  <ol type="1">
+    <li>移管したいデータがあるExcelファイルを開く</li>
+    <li><strong>Alt + F8</strong> を押す</li>
+    <li>一覧から <strong>MigrateWithWizard</strong> を選んで「実行」</li>
+  </ol>
+  <p>![ウィザードが起動します]</p>
+  <hr />
+  <h3 id="ステップ2-移管元シートを選ぶ">ステップ2: 移管元シートを選ぶ</h3>
+  <ol type="1">
+    <li>「移管元シート」のドロップダウンから、データがあるシートを選択</li>
+    <li>「次へ」をクリック</li>
+  </ol>
+  <blockquote>
+    <p>💡
+      以前保存した設定がある場合は「保存済み設定を読み込み…」で呼び出せます</p>
+  </blockquote>
+  <hr />
+  <h3 id="ステップ3-列を合わせるマッピング">ステップ3:
+    列を合わせる（マッピング）</h3>
+  <p>移管元の列がどの項目に対応するかを選びます。</p>
+  <table>
+    <thead>
+      <tr>
+        <th style="text-align: left;">設定項目</th>
+        <th style="text-align: left;">説明</th>
+        <th style="text-align: center;">必須？</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="text-align: left;">WBS番号列</td>
+        <td style="text-align: left;">「1.1.1」などの番号がある列</td>
+        <td style="text-align: center;">✓</td>
+      </tr>
+      <tr>
+        <td style="text-align: left;">タスク名列</td>
+        <td style="text-align: left;">タスクの名前がある列</td>
+        <td style="text-align: center;">✓</td>
+      </tr>
+      <tr>
+        <td style="text-align: left;">担当者列</td>
+        <td style="text-align: left;">担当者名がある列</td>
+        <td style="text-align: center;">-</td>
+      </tr>
+      <tr>
+        <td style="text-align: left;">完了予定列</td>
+        <td style="text-align: left;">完了予定日がある列</td>
+        <td style="text-align: center;">-</td>
+      </tr>
+      <tr>
+        <td style="text-align: left;">進捗率列</td>
+        <td style="text-align: left;">進捗率（%）がある列</td>
+        <td style="text-align: center;">-</td>
+      </tr>
+      <tr>
+        <td style="text-align: left;">データ開始行</td>
+        <td style="text-align: left;">データが始まる行（通常2）</td>
+        <td style="text-align: center;">✓</td>
+      </tr>
+    </tbody>
+  </table>
+  <p>設定できたら「次へ」→ プレビュー確認 → 「実行」</p>
+  <blockquote>
+    <p>💡 「この設定を保存する」にチェックを入れると、次回使い回せます</p>
+  </blockquote>
+  <hr />
+  <h2 id="移管前後のイメージ">移管前後のイメージ</h2>
+  <h3 id="移管前他のガントチャート">移管前（他のガントチャート）</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>A (WBS)</th>
+        <th>B (タスク名)</th>
+        <th>C (担当)</th>
+        <th>D (完了予定)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>1</td>
+        <td>企画フェーズ</td>
+        <td></td>
+        <td></td>
+      </tr>
+      <tr>
+        <td>1.1</td>
+        <td>要件定義</td>
+        <td>田中</td>
+        <td>2026/1/20</td>
+      </tr>
+      <tr>
+        <td>1.1.1</td>
+        <td>ヒアリング</td>
+        <td>佐藤</td>
+        <td>2026/1/15</td>
+      </tr>
+    </tbody>
+  </table>
+  <h3 id="移管後inazumagantt">移管後（InazumaGantt）</h3>
+  <table>
+    <thead>
+      <tr>
+        <th style="text-align: center;">A (階層)</th>
+        <th>C</th>
+        <th>D</th>
+        <th>E</th>
+        <th>J (担当)</th>
+        <th>L (完了予定)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="text-align: center;">1</td>
+        <td>企画フェーズ</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+      <tr>
+        <td style="text-align: center;">2</td>
+        <td></td>
+        <td>要件定義</td>
+        <td></td>
+        <td>田中</td>
+        <td>2026/1/20</td>
+      </tr>
+      <tr>
+        <td style="text-align: center;">3</td>
+        <td></td>
+        <td></td>
+        <td>ヒアリング</td>
+        <td>佐藤</td>
+        <td>2026/1/15</td>
+      </tr>
+    </tbody>
+  </table>
+  <p>WBS番号から階層（1〜4）が自動判定されます！</p>
+  <hr />
+  <h2 id="よくある質問">よくある質問</h2>
+  <h3 id="q.-wbs番号がうまく読み取れない">Q.
+    WBS番号がうまく読み取れない</h3>
+  <p>A. WBS番号は <code>1</code>, <code>1.1</code>, <code>1.1.1</code>,
+    <code>1.1.1.1</code> の形式が必要です。<br />
+    5階層以上や <code>0.1</code> のような形式には対応していません。
+  </p>
+  <h3 id="q.-移管後にガントチャートが表示されない">Q.
+    移管後にガントチャートが表示されない</h3>
+  <p>A. 移管後は「ガント更新」ボタンをクリックしてください。</p>
+  <h3 id="q.-設定が次回に引き継がれない">Q.
+    設定が次回に引き継がれない</h3>
+  <p>A. 移管実行前に「この設定を保存する」にチェックを入れてください。</p>
+  <hr />
+  <p>以上でデータ移管は完了です。移管後は通常通りInazumaGanttとして利用できます。</p>
+</body>
+
+</html>

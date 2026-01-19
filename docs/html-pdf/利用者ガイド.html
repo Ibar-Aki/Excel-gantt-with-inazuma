@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>InazumaGantt 利用者ガイド</title>
+  <style>
+    /* Modern, readable styles for InazumaGantt documentation */
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap');
+
+    :root {
+      --primary-color: #2563eb;
+      --primary-dark: #1d4ed8;
+      --accent-color: #0891b2;
+      --success-color: #059669;
+      --warning-color: #d97706;
+      --text-color: #1f2937;
+      --text-light: #6b7280;
+      --bg-color: #ffffff;
+      --bg-subtle: #f8fafc;
+      --border-color: #e2e8f0;
+      --shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    html {
+      color: var(--text-color);
+      background-color: var(--bg-color);
+      font-size: 16px;
+    }
+
+    body {
+      font-family: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+      margin: 0 auto;
+      max-width: 48em;
+      padding: 3rem 2.5rem;
+      line-height: 1.8;
+      font-size: 1.1rem;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+
+    @media (max-width: 600px) {
+      body {
+        font-size: 1rem;
+        padding: 1.5rem 1rem;
+      }
+    }
+
+    @media print {
+      html {
+        background-color: white;
+      }
+
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 11pt;
+        max-width: 100%;
+        padding: 0;
+      }
+
+      p,
+      h2,
+      h3 {
+        orphans: 3;
+        widows: 3;
+      }
+
+      h2,
+      h3,
+      h4 {
+        page-break-after: avoid;
+      }
+
+      table {
+        page-break-inside: avoid;
+      }
+    }
+
+    /* Typography */
+    p {
+      margin: 1.2em 0;
+    }
+
+    a {
+      color: var(--primary-color);
+      text-decoration: none;
+      border-bottom: 1px solid transparent;
+      transition: border-color 0.2s;
+    }
+
+    a:hover {
+      border-bottom-color: var(--primary-color);
+    }
+
+    a:visited {
+      color: var(--primary-dark);
+    }
+
+    img,
+    svg {
+      max-width: 100%;
+      height: auto;
+    }
+
+    /* Headings */
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+      margin-top: 2em;
+      margin-bottom: 0.8em;
+      font-weight: 700;
+      line-height: 1.4;
+    }
+
+    h1 {
+      font-size: 2rem;
+      color: var(--primary-dark);
+      border-bottom: 3px solid var(--primary-color);
+      padding-bottom: 0.5rem;
+    }
+
+    h2 {
+      font-size: 1.5rem;
+      color: var(--text-color);
+      background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+      padding: 0.8rem 1.2rem;
+      border-left: 4px solid var(--primary-color);
+      border-radius: 0 8px 8px 0;
+      margin-left: -1.2rem;
+      margin-right: -1.2rem;
+    }
+
+    h3 {
+      font-size: 1.25rem;
+      color: var(--text-color);
+      border-bottom: 2px solid var(--border-color);
+      padding-bottom: 0.4rem;
+    }
+
+    h4,
+    h5,
+    h6 {
+      font-size: 1.1rem;
+      color: var(--text-light);
+    }
+
+    /* Lists */
+    ol,
+    ul {
+      padding-left: 1.8em;
+      margin: 1.2em 0;
+    }
+
+    li {
+      margin: 0.6em 0;
+    }
+
+    li>ol,
+    li>ul {
+      margin-top: 0.4em;
+      margin-bottom: 0.4em;
+    }
+
+    /* Blockquote - Tip/Note style */
+    blockquote {
+      margin: 1.5em 0;
+      padding: 1rem 1.2rem;
+      background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+      border-left: 4px solid var(--success-color);
+      border-radius: 0 8px 8px 0;
+      color: #166534;
+      font-size: 1rem;
+    }
+
+    blockquote p {
+      margin: 0.5em 0;
+    }
+
+    blockquote strong {
+      color: var(--success-color);
+    }
+
+    /* Code */
+    code {
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      font-size: 0.9em;
+      background-color: #f1f5f9;
+      padding: 0.2em 0.5em;
+      border-radius: 4px;
+      color: #0f172a;
+    }
+
+    pre {
+      margin: 1.5em 0;
+      padding: 1.2em;
+      background-color: #1e293b;
+      border-radius: 8px;
+      overflow-x: auto;
+    }
+
+    pre code {
+      background: none;
+      padding: 0;
+      color: #e2e8f0;
+    }
+
+    /* Horizontal Rule */
+    hr {
+      border: none;
+      height: 2px;
+      background: linear-gradient(90deg, var(--border-color) 0%, transparent 100%);
+      margin: 2.5em 0;
+    }
+
+    /* Tables - Modern, readable style */
+    table {
+      margin: 1.5em 0;
+      border-collapse: collapse;
+      width: 100%;
+      font-size: 1rem;
+      display: table;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+
+    thead {
+      background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+    }
+
+    th {
+      color: white;
+      font-weight: 600;
+      padding: 1em 1.2em;
+      text-align: left;
+      font-size: 0.95rem;
+      letter-spacing: 0.02em;
+    }
+
+    td {
+      padding: 0.9em 1.2em;
+      border-bottom: 1px solid var(--border-color);
+      vertical-align: top;
+    }
+
+    tbody tr {
+      background-color: var(--bg-color);
+      transition: background-color 0.2s;
+    }
+
+    tbody tr:nth-child(even) {
+      background-color: var(--bg-subtle);
+    }
+
+    tbody tr:hover {
+      background-color: #f0f9ff;
+    }
+
+    tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    /* Header */
+    header {
+      margin-bottom: 3rem;
+      text-align: center;
+      padding-bottom: 2rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    header h1.title {
+      font-size: 2.2rem;
+      color: var(--primary-dark);
+      margin-bottom: 0.5rem;
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    /* Table of Contents */
+    #TOC li {
+      list-style: none;
+    }
+
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+
+    #TOC>ul {
+      padding-left: 0;
+    }
+
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+
+    /* Utility classes */
+    code {
+      white-space: pre-wrap;
+    }
+
+    span.smallcaps {
+      font-variant: small-caps;
+    }
+
+    div.columns {
+      display: flex;
+      gap: min(4vw, 1.5em);
+    }
+
+    div.column {
+      flex: auto;
+      overflow-x: auto;
+    }
+
+    div.hanging-indent {
+      margin-left: 1.5em;
+      text-indent: -1.5em;
+    }
+
+    ul.task-list[class] {
+      list-style: none;
+    }
+
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+
+    .display.math {
+      display: block;
+      text-align: center;
+      margin: 0.5rem auto;
+    }
+  </style>
+</head>
+
+<body>
+  <header id="title-block-header">
+    <h1 class="title">InazumaGantt 利用者ガイド</h1>
+  </header>
+  <h1 id="進捗管理表-利用マニュアル-v3">進捗管理表 利用マニュアル
+    (v3)</h1>
+  <h2 id="表の構成">表の構成</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>列</th>
+        <th>項目名</th>
+        <th>入力内容</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>A</td>
+        <td>LV</td>
+        <td>自動入力（タスクの階層レベル）</td>
+      </tr>
+      <tr>
+        <td>B</td>
+        <td>No.</td>
+        <td>自動入力（連番）</td>
+      </tr>
+      <tr>
+        <td>C〜F</td>
+        <td>TASK</td>
+        <td>タスク名（階層に応じた列に入力）</td>
+      </tr>
+      <tr>
+        <td>G</td>
+        <td>タスク詳細</td>
+        <td>補足情報</td>
+      </tr>
+      <tr>
+        <td>H</td>
+        <td>状況</td>
+        <td>未着手 / 進行中 / 完了</td>
+      </tr>
+      <tr>
+        <td>I</td>
+        <td>進捗率</td>
+        <td>0%〜100%</td>
+      </tr>
+      <tr>
+        <td>J</td>
+        <td>担当</td>
+        <td>担当者名</td>
+      </tr>
+      <tr>
+        <td>K</td>
+        <td>開始予定</td>
+        <td>開始予定日</td>
+      </tr>
+      <tr>
+        <td>L</td>
+        <td>完了予定</td>
+        <td>完了予定日</td>
+      </tr>
+      <tr>
+        <td>M</td>
+        <td>開始実績</td>
+        <td>実際の開始日</td>
+      </tr>
+      <tr>
+        <td>N</td>
+        <td>完了実績</td>
+        <td>実際の完了日</td>
+      </tr>
+    </tbody>
+  </table>
+  <hr />
+  <h2 id="タスクの記入方法">タスクの記入方法</h2>
+  <h3 id="階層に応じてタスクを入力">階層に応じてタスクを入力</h3>
+  <p>タスクの階層（親→子）に応じて、入力する列を変えます。</p>
+  <table>
+    <thead>
+      <tr>
+        <th>階層</th>
+        <th>入力列</th>
+        <th>例</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>親タスク</td>
+        <td>C列</td>
+        <td>計画フェーズ</td>
+      </tr>
+      <tr>
+        <td>　子タスク</td>
+        <td>D列</td>
+        <td>　要件定義</td>
+      </tr>
+      <tr>
+        <td>　　孫タスク</td>
+        <td>E列</td>
+        <td>　　ヒアリング</td>
+      </tr>
+      <tr>
+        <td>　　　ひ孫</td>
+        <td>F列</td>
+        <td>　　　詳細確認</td>
+      </tr>
+    </tbody>
+  </table>
+  <blockquote>
+    <p><strong>ポイント</strong>:
+      入力した列に応じて、A列のLVが自動で設定されます。</p>
+  </blockquote>
+  <h3 id="日付と進捗の入力">日付と進捗の入力</h3>
+  <ol type="1">
+    <li><strong>開始予定・完了予定</strong> (K〜L列) を入力</li>
+    <li>作業開始時に <strong>開始実績</strong> (M列) を入力</li>
+    <li>作業中は <strong>進捗率</strong> (I列) を更新</li>
+    <li>完了時は進捗率を100%にするか、ダブルクリックで完了</li>
+  </ol>
+  <hr />
+  <h2 id="ボタン機能">ボタン機能</h2>
+  <p>シート上部に3つのボタンがあります。</p>
+  <table>
+    <colgroup>
+      <col style="width: 33%" />
+      <col style="width: 33%" />
+      <col style="width: 33%" />
+    </colgroup>
+    <thead>
+      <tr>
+        <th>ボタン</th>
+        <th>機能</th>
+        <th>使うタイミング</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>ガント更新</strong></td>
+        <td>ガントチャートを最新状態に再描画</td>
+        <td>日付・進捗を変更した後</td>
+      </tr>
+      <tr>
+        <td><strong>土日切替</strong></td>
+        <td>土日列の表示/非表示を切替</td>
+        <td>画面を広く使いたい時</td>
+      </tr>
+      <tr>
+        <td><strong>書式リセット</strong></td>
+        <td>崩れた罫線・書式を修復</td>
+        <td>表示がおかしくなった時</td>
+      </tr>
+    </tbody>
+  </table>
+  <h3 id="ガント更新">ガント更新</h3>
+  <p>進捗率や日付を変更しても、ガントチャートは自動更新されません。
+    変更後は必ず「<strong>ガント更新</strong>」ボタンをクリックしてください。</p>
+  <blockquote>
+    <p><strong>v3新機能</strong>:
+      開始日を変更した場合、日付ヘッダーも自動的に再生成されます。</p>
+  </blockquote>
+  <hr />
+  <h2 id="タスクを完了にする">タスクを完了にする</h2>
+  <h3 id="方法1-ダブルクリック推奨">方法1: ダブルクリック（推奨）</h3>
+  <p><strong>No.列 (B列)</strong>
+    をダブルクリックすると、そのタスクが完了になります。</p>
+  <ul>
+    <li>状況 → 「完了」</li>
+    <li>進捗率 → 100%</li>
+    <li>完了実績 → 今日の日付（設定による）</li>
+    <li>タスクに取り消し線（設定による）</li>
+    <li>タスクを灰色に変更（設定による）</li>
+  </ul>
+  <blockquote>
+    <p><strong>設定変更</strong>:
+      「設定マスタ」シートで上記動作をカスタマイズできます。</p>
+  </blockquote>
+  <h3 id="方法2-手入力">方法2: 手入力</h3>
+  <ul>
+    <li>進捗率 (I列) に「100%」を入力</li>
+    <li>状況が自動で「完了」に変わります</li>
+  </ul>
+  <hr />
+  <h2 id="タスクの折りたたみ機能v3新機能">タスクの折りたたみ機能（v3新機能）</h2>
+  <p>親タスク（LV1）配下の子タスクを非表示にできます。</p>
+  <h3 id="操作方法">操作方法</h3>
+  <p><strong>Shift + 右クリック</strong>（C〜F列、LV1行のみ有効）</p>
+  <table>
+    <thead>
+      <tr>
+        <th>操作</th>
+        <th>結果</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>LV1行でShift+右クリック</td>
+        <td>配下行を非表示</td>
+      </tr>
+      <tr>
+        <td>再度Shift+右クリック</td>
+        <td>配下行を表示</td>
+      </tr>
+      <tr>
+        <td>通常の右クリック</td>
+        <td>コンテキストメニュー表示</td>
+      </tr>
+    </tbody>
+  </table>
+  <hr />
+  <h2 id="便利な機能v3新機能">便利な機能（v3新機能）</h2>
+  <h3 id="no.自動採番">No.自動採番</h3>
+  <p>行を挿入・削除した後に「<code>RenumberRows</code>」マクロを実行すると、No.列が再採番されます。</p>
+  <h3 id="日付一括シフト">日付一括シフト</h3>
+  <ol type="1">
+    <li>シフトしたい日付セルを選択</li>
+    <li>「<code>ShiftDates</code>」マクロを実行</li>
+    <li>営業日数を入力（例: 5 または -3）</li>
+  </ol>
+  <blockquote>
+    <p>祝日マスタに登録された祝日も考慮されます。</p>
+  </blockquote>
+  <h3 id="pdf出力">PDF出力</h3>
+  <p>「<code>ExportToPDF</code>」マクロを実行すると、タスク情報と当月末までのガントチャートがPDF出力されます。</p>
+  <hr />
+  <h2 id="ガントチャートの見方">ガントチャートの見方</h2>
+  <h3 id="バーの意味">バーの意味</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>色</th>
+        <th>意味</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>薄い灰色</td>
+        <td>予定期間</td>
+      </tr>
+      <tr>
+        <td>紺色</td>
+        <td>進捗（予定に対する進み具合）</td>
+      </tr>
+      <tr>
+        <td>緑色</td>
+        <td>実績期間</td>
+      </tr>
+    </tbody>
+  </table>
+  <h3 id="線の意味">線の意味</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>線</th>
+        <th>意味</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>赤い縦線</td>
+        <td>今日</td>
+      </tr>
+      <tr>
+        <td>オレンジの折れ線</td>
+        <td>進捗の遅れ/進みを示す（イナズマ線）</td>
+      </tr>
+    </tbody>
+  </table>
+  <hr />
+  <h2 id="フィルター機能">フィルター機能</h2>
+  <p>8行目（ヘッダー行）にフィルターが設定されています。
+    特定の担当者や状況でタスクを絞り込むことができます。</p>
+  <hr />
+  <h2 id="困ったときは">困ったときは</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>症状</th>
+        <th>対処法</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>ガントが更新されない</td>
+        <td>「ガント更新」ボタンをクリック</td>
+      </tr>
+      <tr>
+        <td>罫線が崩れた</td>
+        <td>「書式リセット」ボタンをクリック</td>
+      </tr>
+      <tr>
+        <td>休日の色がおかしい</td>
+        <td>「書式リセット」ボタンをクリック</td>
+      </tr>
+      <tr>
+        <td>誤って完了にした</td>
+        <td>状況列を手動で「進行中」に戻す</td>
+      </tr>
+      <tr>
+        <td>取り消し線を消したい</td>
+        <td>対象セルを選択 → 書式設定 → 取り消し線OFF</td>
+      </tr>
+    </tbody>
+  </table>
+</body>
+
+</html>

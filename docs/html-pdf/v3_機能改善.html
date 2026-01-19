@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>InazumaGantt v3 機能改善</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">InazumaGantt v3 機能改善</h1>
+</header>
+<h1 id="inazumagantt-v3-機能改善ドキュメント">InazumaGantt v3
+機能改善ドキュメント</h1>
+<h2 id="実装機能一覧">実装機能一覧</h2>
+<table>
+<colgroup>
+<col style="width: 15%" />
+<col style="width: 18%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>No.</th>
+<th>機能</th>
+<th>機能の詳細</th>
+<th>関連マクロ</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>設定マスタ</td>
+<td>ダブルクリック完了の動作を制御するシート</td>
+<td><code>EnsureSettingsSheet</code>, <code>GetSettingValue</code></td>
+</tr>
+<tr>
+<td>2</td>
+<td>折りたたみ</td>
+<td>LV1タスク配下の行を表示/非表示切替</td>
+<td><code>ToggleTaskCollapse</code></td>
+</tr>
+<tr>
+<td>3</td>
+<td>No.自動採番</td>
+<td>行挿入後も連番を維持</td>
+<td><code>RenumberRows</code></td>
+</tr>
+<tr>
+<td>4</td>
+<td>日付シフト</td>
+<td>選択範囲の日付を営業日単位でシフト（祝日考慮）</td>
+<td><code>ShiftDates</code></td>
+</tr>
+<tr>
+<td>5</td>
+<td>PDF出力</td>
+<td>タスク情報と当月末までのガントをPDF出力</td>
+<td><code>ExportToPDF</code></td>
+</tr>
+<tr>
+<td>6</td>
+<td>日付バリデーション</td>
+<td>日付入力の形式チェックと開始日&gt;終了日警告</td>
+<td><code>ValidateDateInput</code></td>
+</tr>
+<tr>
+<td>7</td>
+<td>進捗率バリデーション</td>
+<td>進捗率の範囲チェック</td>
+<td><code>ValidateProgressInput</code></td>
+</tr>
+<tr>
+<td>8</td>
+<td>完了ダブルクリック</td>
+<td>B列ダブルクリックで完了処理（取り消し線・灰色対応）</td>
+<td>SheetModule</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="no.1-設定マスタ">No.1 設定マスタ</h2>
+<h3 id="概要">概要</h3>
+<p>ダブルクリック完了処理の動作を制御する設定シートを作成します。</p>
+<h3 id="使い方">使い方</h3>
+<p>マクロ <code>EnsureSettingsSheet</code>
+を実行すると「設定マスタ」シートが作成されます。</p>
+<h3 id="設定項目">設定項目</h3>
+<table>
+<thead>
+<tr>
+<th>行</th>
+<th>項目</th>
+<th>デフォルト</th>
+<th>効果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>B3</td>
+<td>機能有効</td>
+<td>TRUE</td>
+<td>ダブルクリック完了ON/OFF</td>
+</tr>
+<tr>
+<td>B4</td>
+<td>完了日自動入力</td>
+<td>TRUE</td>
+<td>完了実績日に今日を入力</td>
+</tr>
+<tr>
+<td>B5</td>
+<td>取り消し線</td>
+<td>TRUE</td>
+<td>タスクに取り消し線を適用</td>
+</tr>
+<tr>
+<td>B6</td>
+<td>灰色変更</td>
+<td>TRUE</td>
+<td>タスクを濃い灰色に変更</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="no.2-折りたたみ">No.2 折りたたみ</h2>
+<h3 id="概要-1">概要</h3>
+<p>LV1タスクの配下（LV2-4）を非表示/表示に切り替えます。</p>
+<h3 id="操作方法">操作方法</h3>
+<p><strong>Shift + 右クリック</strong>（C-F列、LV1行のみ有効）</p>
+<h3 id="動作">動作</h3>
+<ul>
+<li>LV1行でShift+右クリック → 配下行を非表示</li>
+<li>再度Shift+右クリック → 配下行を表示</li>
+<li>通常の右クリックはコンテキストメニュー表示（従来通り）</li>
+</ul>
+<hr />
+<h2 id="no.3-no.自動採番">No.3 No.自動採番</h2>
+<h3 id="概要-2">概要</h3>
+<p>タスクがある行に連番を自動付与します。行挿入後も再採番可能です。</p>
+<h3 id="使い方-1">使い方</h3>
+<p>マクロ <code>RenumberRows</code> を実行</p>
+<h3 id="動作-1">動作</h3>
+<ul>
+<li>C-F列にタスク名がある行のみ採番</li>
+<li>空行はスキップ</li>
+<li>配列処理で高速化済み</li>
+</ul>
+<hr />
+<h2 id="no.4-日付シフト">No.4 日付シフト</h2>
+<h3 id="概要-3">概要</h3>
+<p>選択した日付を営業日単位でシフトします。祝日マスタの祝日も考慮されます。</p>
+<h3 id="使い方-2">使い方</h3>
+<ol type="1">
+<li>シフトしたい日付セルを選択</li>
+<li>マクロ <code>ShiftDates</code> を実行</li>
+<li>営業日数を入力（例: 5 または -3）</li>
+</ol>
+<h3 id="祝日考慮">祝日考慮</h3>
+<p>「祝日マスタ」シートのA列に登録された日付が祝日として除外されます。</p>
+<hr />
+<h2 id="no.5-pdf出力">No.5 PDF出力</h2>
+<h3 id="概要-4">概要</h3>
+<p>タスク情報と当月末までのガントチャートをPDFに出力します。</p>
+<h3 id="使い方-3">使い方</h3>
+<p>マクロ <code>ExportToPDF</code> を実行</p>
+<h3 id="出力範囲">出力範囲</h3>
+<table>
+<thead>
+<tr>
+<th>列範囲</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A-N列</td>
+<td>タスク情報（LV、No.、タスク、詳細、状況、進捗、担当、日付）</td>
+</tr>
+<tr>
+<td>O列〜当月末</td>
+<td>ガントチャート</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="no.6-日付バリデーション">No.6 日付バリデーション</h2>
+<h3 id="概要-5">概要</h3>
+<p>K-N列（日付列）への入力時に形式チェックと論理チェックを行います。</p>
+<h3 id="チェック内容">チェック内容</h3>
+<ol type="1">
+<li>日付形式チェック（非日付の場合は警告してクリア）</li>
+<li>開始予定日 &gt; 完了予定日 の場合に警告</li>
+</ol>
+<hr />
+<h2 id="no.7-進捗率バリデーション">No.7 進捗率バリデーション</h2>
+<h3 id="概要-6">概要</h3>
+<p>I列（進捗率）への入力時に範囲チェックを行います。</p>
+<h3 id="チェック内容-1">チェック内容</h3>
+<ul>
+<li>数値以外の場合は警告してクリア</li>
+<li>0-100%（または 0-1）の範囲外の場合に警告</li>
+</ul>
+<hr />
+<h2 id="no.8-完了ダブルクリック">No.8 完了ダブルクリック</h2>
+<h3 id="概要-7">概要</h3>
+<p>B列をダブルクリックするとタスクを完了状態にします。</p>
+<h3 id="操作方法-1">操作方法</h3>
+<p>タスク行のB列（No.列）をダブルクリック</p>
+<h3
+id="処理内容設定マスタで制御可能">処理内容（設定マスタで制御可能）</h3>
+<ol type="1">
+<li>進捗率を100%に設定</li>
+<li>状況を「完了」に設定</li>
+<li>完了実績日に今日を入力（設定による）</li>
+<li>タスクに取り消し線（設定による）</li>
+<li>タスクを濃い灰色に変更（設定による）</li>
+</ol>
+<hr />
+<h2 id="操作早見表">操作早見表</h2>
+<table>
+<thead>
+<tr>
+<th>操作</th>
+<th>対象</th>
+<th>機能</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>B列ダブルクリック</td>
+<td>任意行</td>
+<td>完了処理</td>
+</tr>
+<tr>
+<td><strong>Shift + 右クリック</strong></td>
+<td>C-F列、LV1行</td>
+<td>折りたたみ/展開</td>
+</tr>
+<tr>
+<td>右クリック</td>
+<td>任意</td>
+<td>通常メニュー</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="変更ファイル">変更ファイル</h2>
+<table>
+<thead>
+<tr>
+<th>ファイル</th>
+<th>行数</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>vba/InazumaGantt_v3_UTF8.bas</td>
+<td>1596行</td>
+</tr>
+<tr>
+<td>vba/SheetModule_UTF8.bas</td>
+<td>271行</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>
