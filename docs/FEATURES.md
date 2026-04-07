@@ -1,6 +1,6 @@
 # 機能詳細
 
-InazumaGantt v2.2 の機能一覧と詳細説明です。
+InazumaGantt v3 の機能一覧と詳細説明です。
 
 ---
 
@@ -79,7 +79,6 @@ InazumaGantt v2.2 の機能一覧と詳細説明です。
 
 | マクロ名 | 機能 | 必要モジュール |
 |---------|------|---------------|
-| `MigrateToV2Format` | データ移管 | DataMigration_SJIS.bas |
 | `RunSetupWizard` | ウィザード起動 | SetupWizard_SJIS.bas |
 | `EnsureSettingsSheet` | 設定マスタシート作成 | ― |
 | `RenumberRows` | No.列の再採番 | ― |

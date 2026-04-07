@@ -1,6 +1,6 @@
-# 🏗️ InazumaGantt v2 システム構成図
+# 🏗️ InazumaGantt v3 システム構成図
 
-このドキュメントでは、InazumaGantt v2がどのように動いているかを、**IT知識が少ない方にもわかりやすく**説明します。
+このドキュメントでは、InazumaGantt v3がどのように動いているかを、**IT知識が少ない方にもわかりやすく**説明します。
 
 ---
 
@@ -16,7 +16,7 @@
 
 ## 全体の仕組み
 
-InazumaGantt v2は、**6つの部品（モジュール）**が協力して動いています。
+InazumaGantt v3は、**5つの部品（モジュール）**が協力して動いています。
 
 ### イメージ例
 
@@ -24,11 +24,9 @@ InazumaGantt v2は、**6つの部品（モジュール）**が協力して動い
 
 | モジュール | レストランの例 |
 |-----------|--------------|
-| **InazumaGantt_v2** | 料理長（全体を指揮） |
+| **InazumaGantt_v3** | 料理長（全体を指揮） |
 | **HierarchyColor** | デコレーション係（色付け） |
-| **DataMigration** | 引っ越し屋さん（データ移動） |
 | **ErrorHandler** | 衛生管理（エラー対策） |
-| **InazumaGanttTests** | 品質検査（テスト） |
 | **SetupWizard** | 案内係（セットアップ） |
 | **SheetModule** | ホールスタッフ（お客様対応） |
 
@@ -36,7 +34,7 @@ InazumaGantt v2は、**6つの部品（モジュール）**が協力して動い
 
 ## 各モジュールの役割
 
-### 1️⃣ InazumaGantt_v2（メイン機能）⭐ 一番重要
+### 1️⃣ InazumaGantt_v3（メイン機能）⭐ 一番重要
 
 **何をする？**
 - ガントチャートを描く
@@ -69,7 +67,7 @@ InazumaGantt v2は、**6つの部品（モジュール）**が協力して動い
 - 見やすくする
 
 **例え話**:
-**デコレーション係**です。料理長（InazumaGantt_v2）の指示で、料理を綺麗に彩ります。
+**デコレーション係**です。料理長（InazumaGantt_v3）の指示で、料理を綺麗に彩ります。
 
 **主な機能**:
 ```
@@ -85,26 +83,7 @@ InazumaGantt v2は、**6つの部品（モジュール）**が協力して動い
 
 ---
 
-### 3️⃣ DataMigration（データ移管）
-
-**何をする？**
-- 古い形式のガントチャートから、新しい形式（v2）にデータを移す
-
-**例え話**:
-**引っ越し屋さん**です。古い家（旧バージョン）から新しい家（v2）に荷物（データ）を運びます。
-
-**主な機能**:
-```
-✓ MigrateToV2Format → 引っ越しを実行
-```
-
-**いつ使う？**:
-- 既存のガントチャートがある場合のみ
-- 初めて使う人は不要
-
----
-
-### 4️⃣ ErrorHandler（エラー処理）
+### 3️⃣ ErrorHandler（エラー処理）
 
 **何をする？**
 - 問題が起きたときに記録する
@@ -126,7 +105,7 @@ InazumaGantt v2は、**6つの部品（モジュール）**が協力して動い
 
 ---
 
-### 5️⃣ InazumaGanttTests（テスト）
+### 4️⃣ InazumaGanttTests（テスト）
 
 **何をする？**
 - システムが正しく動くか確認する
@@ -146,7 +125,7 @@ InazumaGantt v2は、**6つの部品（モジュール）**が協力して動い
 
 ---
 
-### 6️⃣ SetupWizard（セットアップ）
+### 5️⃣ SetupWizard（セットアップ）
 
 **何をする？**
 - 初めて使う人を案内する
@@ -164,7 +143,7 @@ InazumaGantt v2は、**6つの部品（モジュール）**が協力して動い
 
 ---
 
-### 7️⃣ SheetModule（シートモジュール）
+### 6️⃣ SheetModule（シートモジュール）
 
 **何をする？**
 - ユーザーの操作を検知する
@@ -192,10 +171,10 @@ InazumaGantt v2は、**6つの部品（モジュール）**が協力して動い
 2. SheetModule が気づく
    「お客さんが何か入力したよ！」
    ↓
-3. InazumaGantt_v2 に連絡
+3. InazumaGantt_v3 に連絡
    「階層を判定して」
    ↓
-4. InazumaGantt_v2.AutoDetectTaskLevel が実行
+4. InazumaGantt_v3.AutoDetectTaskLevel が実行
    「これはLV1だ！」
    ↓
 5. A列に「1」が自動入力される
@@ -206,7 +185,7 @@ InazumaGantt v2は、**6つの部品（モジュール）**が協力して動い
 ```
 1. ユーザーが「RefreshInazumaGantt」を実行
    ↓
-2. InazumaGantt_v2 が動き出す
+2. InazumaGantt_v3 が動き出す
    「よし、ガントを描くぞ！」
    ↓
 3. データを読み込む
@@ -229,10 +208,10 @@ InazumaGantt v2は、**6つの部品（モジュール）**が協力して動い
 2. HierarchyColor が動き出す
    「色を塗るよ！」
    ↓
-3. InazumaGantt_v2 に質問
+3. InazumaGantt_v3 に質問
    「LV1のタスクはどの列？」
    ↓
-4. InazumaGantt_v2 が答える
+4. InazumaGantt_v3 が答える
    「C列だよ」
    ↓
 5. HierarchyColor が色塗り
@@ -251,14 +230,14 @@ InazumaGantt v2は、**6つの部品（モジュール）**が協力して動い
 ユーザー
   │
   ├→ SheetModule（シート操作を検知）
-  │    ├→ InazumaGantt_v2.AutoDetectTaskLevel（階層判定）
-  │    └→ InazumaGantt_v2.CompleteTaskByDoubleClick（完了処理）
+  │    ├→ InazumaGantt_v3.AutoDetectTaskLevel（階層判定）
+  │    └→ InazumaGantt_v3.CompleteTaskByDoubleClick（完了処理）
   │
   ├→ SetupWizard.RunSetupWizard（セットアップ）
-  │    ├→ InazumaGantt_v2.SetupInazumaGantt（シート作成）
+  │    ├→ InazumaGantt_v3.SetupInazumaGantt（シート作成）
   │    └→ HierarchyColor（色分け確認）
   │
-  └→ InazumaGantt_v2.RefreshInazumaGantt（ガント更新）
+  └→ InazumaGantt_v3.RefreshInazumaGantt（ガント更新）
        ├→ ErrorHandler.HandleError（エラー処理）
        └→ HierarchyColor.ApplyHierarchyColors（色塗り）
 ```
@@ -286,7 +265,7 @@ InazumaGantt v2は、**6つの部品（モジュール）**が協力して動い
 
 | 順位 | モジュール | 必須度 |
 |------|-----------|--------|
-| 1 | InazumaGantt_v2 | ⭐⭐⭐⭐⭐ 絶対必要 |
+| 1 | InazumaGantt_v3 | ⭐⭐⭐⭐⭐ 絶対必要 |
 | 2 | SheetModule | ⭐⭐⭐⭐ かなり重要 |
 | 3 | SetupWizard | ⭐⭐⭐⭐ 初心者には必須 |
 | 4 | HierarchyColor | ⭐⭐⭐ あると便利 |
@@ -300,10 +279,10 @@ InazumaGantt v2は、**6つの部品（モジュール）**が協力して動い
 
 ### Q1. どのモジュールから勉強すればいい？
 
-**A**: まず **InazumaGantt_v2** を理解してください。これが中心です。
+**A**: まず **InazumaGantt_v3** を理解してください。これが中心です。
 
 推奨順序:
-1. InazumaGantt_v2（メイン機能）
+1. InazumaGantt_v3（メイン機能）
 2. SheetModule（ユーザー操作）
 3. HierarchyColor（色分け）
 4. その他（必要に応じて）
@@ -311,7 +290,7 @@ InazumaGantt v2は、**6つの部品（モジュール）**が協力して動い
 ### Q2. モジュールは削除できる？
 
 **A**: 
-- ❌ **削除できない**: InazumaGantt_v2, SheetModule
+- ❌ **削除できない**: InazumaGantt_v3, SheetModule
 - ✅ **削除可能**: DataMigration, InazumaGanttTests
 - ⚠️ **推奨しない**: HierarchyColor, ErrorHandler, SetupWizard
 
@@ -341,11 +320,11 @@ InazumaGantt v2は、**6つの部品（モジュール）**が協力して動い
 
 ### 覚えておくべき3つのポイント
 
-1. **InazumaGantt_v2が中心**  
+1. **InazumaGantt_v3が中心**  
    すべてはここから始まります
 
 2. **SheetModuleがユーザーと橋渡し**  
-   あなたの操作を検知して、InazumaGantt_v2に伝えます
+   あなたの操作を検知して、InazumaGantt_v3に伝えます
 
 3. **HierarchyColorが装飾**  
    機能的には必須ではないが、見やすさのために重要

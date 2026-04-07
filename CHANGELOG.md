@@ -1,9 +1,26 @@
-﻿# Changelog
+# Changelog
 
-All notable changes to InazumaGantt v2 will be documented in this file.
+All notable changes to InazumaGantt will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [3.0.0] - 2026-04-07
+
+### Changed
+
+- モジュール名を `InazumaGantt_v3` に統一
+- 全ドキュメントのバージョン表記を v3 に統一
+- `FixEncoding.ps1` / `BuildInazumaGantt_UTF8.ps1` からDataMigration参照を削除
+
+### Removed
+
+- **データ移管ウィザード**: `addons/DataMigration/` 配下の全モジュール（DataMigration, WBSParser, DataMigrationWizard, MigrationFormBuilder）
+- **旧バージョンアーカイブ**: `dev/archive/` 配下の全ファイル
+- **旧dev/docs**: IMPROVEMENT_REPORT, LLM_BEST_PRACTICES, LLM_FIX_BRIEF, DEPENDENCIES, InazumaGantt_v2_SheetModule_README, ganttマクロ改善メモ
+- **outputディレクトリ**: 古いビルド成果物29ファイル
+- **BuildInazumaGantt.ps1** (SJIS版): UTF-8版に統一
+- **hex_dump.txt**: デバッグ残骸
 
 ## [2.2.0] - 2026-01-14
 

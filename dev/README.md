@@ -6,9 +6,8 @@
 
 ## フォルダ構成
 
-```
+```text
 dev/
-├── archive/          # 旧バージョンのファイル
 ├── extra_modules/    # 追加VBAモジュール
 └── docs/             # 技術ドキュメント
 ```
@@ -23,9 +22,6 @@ dev/
 |----------|------|
 | `ErrorHandler_SJIS.bas` | 統一エラーハンドリング・ログ機能 |
 | `InazumaGanttTests_SJIS.bas` | 単体テスト・統合テスト |
-| `SheetModule_Legacy_SJIS.bas` | 旧版シートモジュール（互換性用） |
-
-> **注意**: SetupWizardは `vba/` フォルダに移動しました（必須モジュール）。
 
 ---
 
@@ -35,16 +31,9 @@ dev/
 
 | ファイル | 内容 |
 |----------|------|
-| `SETUP.md` | セットアップ詳細手順（v2.2対応） |
+| `SETUP.md` | セットアップ詳細手順 |
 | `ARCHITECTURE.md` | システム構成・モジュール関係図 |
-| `DEPENDENCIES.md` | 依存関係・データフロー |
 | `CODE_QUALITY.md` | コーディング規約・ベストプラクティス |
-| `IMPROVEMENT_REPORT.md` | 改善プロジェクトの記録 |
 | `INSTALLATION.md` | 詳細インストール手順 |
 | `罫線サマリ_表.md` | 罫線設定の詳細仕様 |
-
----
-
-## archive/
-
-旧バージョンのバックアップです。通常は使用しません。
+| `罫線サマリ_見方.md` | 罫線サマリの読み方 |

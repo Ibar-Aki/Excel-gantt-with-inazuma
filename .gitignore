@@ -37,3 +37,6 @@ $RECYCLE.BIN/
 # その他
 .env
 .env.local
+
+# Trash（整理で移動した不要ファイル）
+Trash/

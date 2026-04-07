@@ -1,4 +1,4 @@
-﻿# 📊 InazumaGantt v3
+# 📊 InazumaGantt v3
 
 Excelベースのイナズマガントチャート管理ツール
 
@@ -22,7 +22,6 @@ Alt + F11 → ファイル → ファイルのインポート
 - `SheetModule_UTF8.bas` : シートイベント制御
 - `SetupWizard_UTF8.bas` : セットアップ機能
 - `HierarchyColor_UTF8.bas` : 階層色分け機能
-- `addons/` : 拡張機能（データ移管など）（任意：旧形式からの移行用）
 
 ### 2. シートモジュールを設定
 
@@ -68,7 +67,6 @@ Alt + F8 → RunSetupWizard → 実行
 📁 vba/               ← VBAモジュール（_SJIS.bas をインポート）
 📁 docs/              ← 利用者向けドキュメント
 📁 dev/               ← 開発者用ドキュメント・仕様
-📁 output/            ← ビルド済みExcelファイル
 ```
 
 ---

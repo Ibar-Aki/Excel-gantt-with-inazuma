@@ -1,5 +1,5 @@
 # BuildInazumaGantt.ps1
-# InazumaGantt v2 + データ移管ウィザード フルビルドスクリプト
+# InazumaGantt v3 ビルドスクリプト
 
 $errorActionPreference = "Stop"
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -38,27 +38,8 @@ try {
         "SetupWizard_UTF8.bas"
     )
 
-    # インポートするファイルリスト（データ移管アドオン）
-    $addonModules = @(
-        "addons\DataMigration\DataMigration_UTF8.bas",
-        "addons\DataMigration\WBSParser_UTF8.bas",
-        "addons\DataMigration\DataMigrationWizard_UTF8.bas",
-        "addons\DataMigration\MigrationFormBuilder_UTF8.bas"
-    )
-    
     # モジュールのインポート
     foreach ($file in $coreModules) {
-        $path = Join-Path $vbaDir $file
-        if (Test-Path $path) {
-            Write-Host "Importing $file..."
-            $wb.VBProject.VBComponents.Import($path)
-        }
-        else {
-            Write-Warning "File not found: $path"
-        }
-    }
-
-    foreach ($file in $addonModules) {
         $path = Join-Path $vbaDir $file
         if (Test-Path $path) {
             Write-Host "Importing $file..."
@@ -79,14 +60,6 @@ try {
         $mainSheetCode.AddFromString($code)
     }
     
-    # UserFormの生成 (MigrationFormBuilderを実行)
-    Write-Host "Generating UserForm..."
-    try {
-        $excel.Run("CreateMigrationWizardForm")
-    }
-    catch {
-        Write-Warning "Failed to run CreateMigrationWizardForm: $($_.Exception.Message)"
-    }
     
     # 自動セットアップテスト
     Write-Host "Running SilentSetup..."

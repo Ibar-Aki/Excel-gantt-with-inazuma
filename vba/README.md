@@ -1,6 +1,6 @@
 # VBAモジュール
 
-InazumaGantt v2.2 で使用するVBAモジュールです。
+InazumaGantt v3 で使用するVBAモジュールです。
 
 ## エンコーディングについて
 
@@ -20,64 +20,28 @@ InazumaGantt v2.2 で使用するVBAモジュールです。
 
 | ファイル | 用途 |
 |----------|------|
-| `InazumaGantt_v2_SJIS.bas` | メイン機能 |
+| `InazumaGantt_v3_SJIS.bas` | メイン機能 |
 | `HierarchyColor_SJIS.bas` | 階層色分け |
 | `SetupWizard_SJIS.bas` | セットアップウィザード |
 | `SheetModule_SJIS.bas` | シートイベント（※） |
 
-### データ移管モジュール（任意）
-
-格納場所: `vba/addons/DataMigration/`
-
-| ファイル | 用途 |
-|----------|------|
-| `DataMigration_SJIS.bas` | データ移管（旧形式） |
-| `WBSParser_SJIS.bas` | WBS番号解析エンジン（ウィザード用） |
-| `DataMigrationWizard_SJIS.bas` | 柔軟な移管ウィザード |
-| `MigrationFormBuilder_SJIS.bas` | UserForm動的生成（初回セットアップ用） |
-
 > **※ SheetModule について**  
 > このファイルは「標準モジュール」ではなく、シートモジュールに貼り付けます。
-
-## 統合版について
-
-`統合版/` フォルダには、全モジュールを1つに統合したバージョンがあります。
-
-| ファイル | 用途 |
-|----------|------|
-| `InazumaGantt_Integrated_SJIS.bas` | 統合版メインモジュール |
-| `SheetModule_Integrated_SJIS.bas` | 統合版用シートモジュール |
-
-> **注意**: 統合版を使用する場合は `SheetModule_Integrated_SJIS.bas` を使用してください。
 
 ## インポート手順
 
 1. Excelファイルを開く
 2. `Alt + F11` でVBAエディタを開く
 3. ファイル → ファイルのインポート
-4. `InazumaGantt_v2_SJIS.bas` を選択
+4. `InazumaGantt_v3_SJIS.bas` を選択
 5. `HierarchyColor_SJIS.bas` を選択
 6. `SetupWizard_SJIS.bas` を選択
-7. （任意）データ移管を使う場合:
-   - `DataMigration_SJIS.bas` を選択
-   - `WBSParser_SJIS.bas` を選択
-   - `DataMigrationWizard_SJIS.bas` を選択
-   - `MigrationFormBuilder_SJIS.bas` を選択
-
-## データ移管ウィザードの初期設定
-
-ウィザードを使う場合は、最初に一度だけ以下を実行してください：
-
-1. VBAエディタで `Alt + F8` を押す
-2. `CreateMigrationWizardForm` を選択して実行
-3. UserFormが自動生成されます
-4. 以降は `MigrateWithWizard` で移管ウィザードを起動できます
 
 ## シートモジュールの設定
 
 > **注意**: シートモジュールはセットアップウィザード実行後に設定してください。
 
-1. VBAエディタで「InazumaGantt_v2」シートをダブルクリック
+1. VBAエディタで「InazumaGantt_v3」シートをダブルクリック
 2. `SheetModule_SJIS.bas` の内容を全てコピー＆貼り付け
 3. 保存して閉じる
 
