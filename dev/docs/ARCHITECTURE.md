@@ -1,340 +1,89 @@
-# 🏗️ InazumaGantt v3 システム構成図
+# InazumaGantt v3 アーキテクチャ
 
-このドキュメントでは、InazumaGantt v3がどのように動いているかを、**IT知識が少ない方にもわかりやすく**説明します。
+更新日: 2026-04-07
 
----
+InazumaGantt v3 の実行構成と責務分担をまとめた開発者向けメモです。
 
-## 📚 目次
+## 構成要素
 
-1. [全体の仕組み](#全体の仕組み)
-2. [各モジュールの役割](#各モジュールの役割)
-3. [データの流れ](#データの流れ)
-4. [モジュール間の関係図](#モジュール間の関係図)
-5. [よくある質問](#よくある質問)
+現行の実行系は次の 4 要素です。
 
----
+| 要素 | 役割 |
+|------|------|
+| `InazumaGantt_v3` | シート初期化、ガント描画、設定参照、補助マクロ |
+| `SetupWizard` | 初回セットアップとサンプルデータ投入 |
+| `HierarchyColor` | 階層色分け用の条件付き書式設定 |
+| `SheetModule` | シートイベント処理 |
 
-## 全体の仕組み
+`設定マスタ` は独立モジュールではなく、`InazumaGantt_v3.EnsureSettingsSheet` が作成する補助シートです。祝日入力欄もこのシートに含まれます。
 
-InazumaGantt v3は、**5つの部品（モジュール）**が協力して動いています。
+## 主要シート
 
-### イメージ例
+| シート名 | 用途 |
+|----------|------|
+| `InazumaGantt_v3` | メイン入力・描画シート |
+| `設定マスタ` | ダブルクリック設定と祝日一覧 |
+| `InazumaGantt_説明` | 操作ガイド |
 
-レストランで例えるなら：
+## 依存関係
 
-| モジュール | レストランの例 |
-|-----------|--------------|
-| **InazumaGantt_v3** | 料理長（全体を指揮） |
-| **HierarchyColor** | デコレーション係（色付け） |
-| **ErrorHandler** | 衛生管理（エラー対策） |
-| **SetupWizard** | 案内係（セットアップ） |
-| **SheetModule** | ホールスタッフ（お客様対応） |
+```text
+ユーザー操作
+  -> SheetModule
+     -> InazumaGantt_v3.AutoDetectTaskLevel
+     -> InazumaGantt_v3.ValidateProgressInput
+     -> InazumaGantt_v3.ValidateDateInput
+     -> InazumaGantt_v3.ToggleTaskCollapse
 
----
+セットアップ
+  -> SetupWizard
+     -> InazumaGantt_v3.SetupInazumaGantt
+     -> InazumaGantt_v3.EnsureSettingsSheet
+     -> HierarchyColor.SetupHierarchyColors
+     -> InazumaGantt_v3.RefreshInazumaGantt
 
-## 各モジュールの役割
-
-### 1️⃣ InazumaGantt_v3（メイン機能）⭐ 一番重要
-
-**何をする？**
-- ガントチャートを描く
-- タスクの階層を判定する
-- 日付を計算する
-- データを整理する
-
-**例え話**:
-お店の**料理長**です。全体を見渡して、他のスタッフに指示を出します。
-
-**主な機能**:
-```
-✓ SetupInazumaGantt → お店の開店準備
-✓ RefreshInazumaGantt → 料理を作る
-✓ AutoDetectTaskLevel → 材料を分類する
-✓ DrawGanttBars → 盛り付け
+描画更新
+  -> InazumaGantt_v3.RefreshInazumaGantt
+     -> RegenerateDateHeaders
+     -> ApplyGanttBorders / ApplyWeekendColors / ApplyHolidayColors
+     -> DrawGanttBars
 ```
 
-**他のモジュールとの関係**:
-- HierarchyColorに「色を塗って」と依頼
-- ErrorHandlerに「エラーが出たら記録して」と依頼
-- SheetModuleから「お客さんが来たよ」と連絡を受ける
+## 実装上の前提
 
----
-
-### 2️⃣ HierarchyColor（階層色分け）
-
-**何をする？**
-- タスクのレベル（LV1, LV2...）に応じて色を塗る
-- 見やすくする
-
-**例え話**:
-**デコレーション係**です。料理長（InazumaGantt_v3）の指示で、料理を綺麗に彩ります。
-
-**主な機能**:
-```
-✓ ApplyHierarchyColors → 色を塗る
-✓ ClearHierarchyColors → 色を消す
-```
-
-**色の意味**:
-- LV1（大項目）→ サーモン色（🍣）
-- LV2（中項目）→ 青色（💧）
-- LV3（小項目）→ 緑色（🌿）
-- LV4（詳細）→ 黄色（⭐）
-
----
-
-### 3️⃣ ErrorHandler（エラー処理）
-
-**何をする？**
-- 問題が起きたときに記録する
-- ユーザーにわかりやすく伝える
-- ログファイルに保存する
-
-**例え話**:
-**衛生管理**です。問題が起きても慌てず、記録して原因を調べます。
-
-**主な機能**:
-```
-✓ HandleError → 問題を記録
-✓ WriteLog → 日報に書く
-✓ ValidateNumeric → 数字かチェック
-```
-
-**ログファイル**:
-`InazumaGantt_ErrorLog.txt`（Excelファイルと同じフォルダ）
-
----
-
-### 4️⃣ InazumaGanttTests（テスト）
-
-**何をする？**
-- システムが正しく動くか確認する
-
-**例え話**:
-**品質検査**です。料理が完成したら、味見をして品質を確認します。
-
-**主な機能**:
-```
-✓ RunAllTests → 全部テスト
-✓ IntegrationTest_FullWorkflow → 総合テスト
-```
-
-**いつ使う？**:
-- 開発者が使用
-- 一般ユーザーは不要
-
----
-
-### 5️⃣ SetupWizard（セットアップ）
-
-**何をする？**
-- 初めて使う人を案内する
-- サンプルデータを作る
-
-**例え話**:
-**案内係**です。初めてのお客さんを席に案内して、メニューを説明します。
-
-**主な機能**:
-```
-✓ RunSetupWizard → セットアップ案内
-✓ QuickStart → 常連さん用メニュー
-✓ AddSampleData → お試しセット
-```
-
----
-
-### 6️⃣ SheetModule（シートモジュール）
-
-**何をする？**
-- ユーザーの操作を検知する
-- ダブルクリック、入力などに反応
-
-**例え話**:
-**ホールスタッフ**です。お客さん（ユーザー）の要望を聞いて、料理長に伝えます。
-
-**主な機能**:
-```
-✓ Worksheet_BeforeDoubleClick → お客さんがダブルクリック
-✓ Worksheet_Change → お客さんが入力
-✓ UpdateStatusByProgress → メニュー内容を更新
-```
-
----
+- 公開マクロは原則として `InazumaGantt_v3` シートを対象に処理します。
+- `ShiftDates` は選択セルを使うため、`InazumaGantt_v3` シートを表示した状態で実行します。
+- 進捗率は `0.7` `70` `70%` を受け付け、内部的には 0〜1 に正規化します。
+- `RefreshInazumaGantt` はヘッダー再生成、休日色反映、ガント再描画をまとめて実行します。
 
 ## データの流れ
 
-### 🎬 シナリオ1: タスクを入力する
+### タスク入力
 
-```
-1. ユーザーがC列に「フェーズ1」と入力
-   ↓
-2. SheetModule が気づく
-   「お客さんが何か入力したよ！」
-   ↓
-3. InazumaGantt_v3 に連絡
-   「階層を判定して」
-   ↓
-4. InazumaGantt_v3.AutoDetectTaskLevel が実行
-   「これはLV1だ！」
-   ↓
-5. A列に「1」が自動入力される
-```
+1. `SheetModule.Worksheet_Change` が C-F 列の変更を検知
+2. `AutoDetectTaskLevel` が LV を再判定
+3. B列の No.、H列の状況、I列の進捗率初期値を補完
 
-### 🎬 シナリオ2: ガントチャートを更新する
+### 進捗率入力
 
-```
-1. ユーザーが「RefreshInazumaGantt」を実行
-   ↓
-2. InazumaGantt_v3 が動き出す
-   「よし、ガントを描くぞ！」
-   ↓
-3. データを読み込む
-   「タスク名、日付、進捗率...OK」
-   ↓
-4. ガントバーを描く
-   「予定バー（黄色）、実績バー（オレンジ）」
-   ↓
-5. イナズマ線を描く
-   「進捗の遅れを表示」
-   ↓
-6. 完了！
-```
+1. `Worksheet_Change` が I 列の変更を検知
+2. `ValidateProgressInput` が入力値を検証して 0〜1 に正規化
+3. `UpdateStatusByProgress` が状況列を更新
 
-### 🎬 シナリオ3: 色分けする
+### 日付入力
 
-```
-1. ユーザーが「ApplyHierarchyColors」を実行
-   ↓
-2. HierarchyColor が動き出す
-   「色を塗るよ！」
-   ↓
-3. InazumaGantt_v3 に質問
-   「LV1のタスクはどの列？」
-   ↓
-4. InazumaGantt_v3 が答える
-   「C列だよ」
-   ↓
-5. HierarchyColor が色塗り
-   「C～N列をサーモン色に」
-   ↓
-6. 完了！
-```
+1. `Worksheet_Change` が K-L 列の変更を検知
+2. `ValidateDateInput` が日付形式と開始終了の前後関係を確認
+3. 土日祝の場合のみ確認ダイアログを表示
 
----
+### ガント更新
 
-## モジュール間の関係図
+1. `RefreshInazumaGantt` が対象シートを解決
+2. 日付ヘッダー、罫線、土日祝色を再構築
+3. `DrawGanttBars` が予定バー、進捗バー、実績バー、今日線、イナズマ線を描画
 
-### 📊 依存関係（誰が誰を呼ぶか）
+## 保守メモ
 
-```
-ユーザー
-  │
-  ├→ SheetModule（シート操作を検知）
-  │    ├→ InazumaGantt_v3.AutoDetectTaskLevel（階層判定）
-  │    └→ InazumaGantt_v3.CompleteTaskByDoubleClick（完了処理）
-  │
-  ├→ SetupWizard.RunSetupWizard（セットアップ）
-  │    ├→ InazumaGantt_v3.SetupInazumaGantt（シート作成）
-  │    └→ HierarchyColor（色分け確認）
-  │
-  └→ InazumaGantt_v3.RefreshInazumaGantt（ガント更新）
-       ├→ ErrorHandler.HandleError（エラー処理）
-       └→ HierarchyColor.ApplyHierarchyColors（色塗り）
-```
-
-### 🔗 簡単な図
-
-```
-        ユーザー
-          ↓
-    ┌─────────────┐
-    │SheetModule  │ ←──── Excel操作を監視
-    └─────────────┘
-          ↓
-    ┌─────────────┐
-    │InazumaGantt │ ←──── メイン処理
-    │     v2      │
-    └─────────────┘
-       ↙    ↓    ↘
-  ┌────┐ ┌────┐ ┌────┐
-  │色分け│ │移管│ │エラー│
-  └────┘ └────┘ └────┘
-```
-
-### 🎯 重要度の順位
-
-| 順位 | モジュール | 必須度 |
-|------|-----------|--------|
-| 1 | InazumaGantt_v3 | ⭐⭐⭐⭐⭐ 絶対必要 |
-| 2 | SheetModule | ⭐⭐⭐⭐ かなり重要 |
-| 3 | SetupWizard | ⭐⭐⭐⭐ 初心者には必須 |
-| 4 | HierarchyColor | ⭐⭐⭐ あると便利 |
-| 5 | ErrorHandler | ⭐⭐⭐ あると安心 |
-| 6 | DataMigration | ⭐⭐ 移管時のみ |
-| 7 | InazumaGanttTests | ⭐ 開発者用 |
-
----
-
-## よくある質問
-
-### Q1. どのモジュールから勉強すればいい？
-
-**A**: まず **InazumaGantt_v3** を理解してください。これが中心です。
-
-推奨順序:
-1. InazumaGantt_v3（メイン機能）
-2. SheetModule（ユーザー操作）
-3. HierarchyColor（色分け）
-4. その他（必要に応じて）
-
-### Q2. モジュールは削除できる？
-
-**A**: 
-- ❌ **削除できない**: InazumaGantt_v3, SheetModule
-- ✅ **削除可能**: DataMigration, InazumaGanttTests
-- ⚠️ **推奨しない**: HierarchyColor, ErrorHandler, SetupWizard
-
-### Q3. カスタマイズしたい場合は？
-
-**A**: 
-1. まず全体の動きを理解する（このドキュメント）
-2. 変更したい機能を特定する
-3. 該当モジュールのコードを読む
-4. 小さな変更から始める
-5. テストする
-
-詳細は [CUSTOMIZE.md](CUSTOMIZE.md) を参照
-
-### Q4. エラーが出たらどうする？
-
-**A**:
-1. `InazumaGantt_ErrorLog.txt` を確認
-2. エラーメッセージをメモ
-3. [TROUBLESHOOTING.md](TROUBLESHOOTING.md) で検索
-4. それでもダメなら、テストを実行  
-   `Alt + F8 → RunAllTests`
-
----
-
-## 🎓 まとめ
-
-### 覚えておくべき3つのポイント
-
-1. **InazumaGantt_v3が中心**  
-   すべてはここから始まります
-
-2. **SheetModuleがユーザーと橋渡し**  
-   あなたの操作を検知して、InazumaGantt_v3に伝えます
-
-3. **HierarchyColorが装飾**  
-   機能的には必須ではないが、見やすさのために重要
-
-### 次のステップ
-
-- [CODE_QUALITY.md](CODE_QUALITY.md) - コード品質の詳細
-- [CUSTOMIZE.md](CUSTOMIZE.md) - カスタマイズ方法
-- [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - 問題解決
-
----
-
-**わかりやすかったでしょうか？ 📖**
+- 開発時は `_UTF8.bas` を編集し、Excel 取り込み用は `FixEncoding.ps1` で `_SJIS.bas` を再生成します。
+- `SheetModule_SJIS.bas` は標準モジュールへインポートせず、`InazumaGantt_v3` シートモジュールへ貼り付けます。
+- 廃止中の移管機能は現行アーキテクチャの対象外です。

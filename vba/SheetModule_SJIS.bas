@@ -26,26 +26,26 @@ Private Sub Worksheet_BeforeDoubleClick(ByVal Target As Range, Cancel As Boolean
     ' タスク行のダブルクリック処理
     ' B列: 完了処理
     On Error GoTo ErrorHandler
-    
+
     If Target.Row < InazumaGantt_v3.ROW_DATA_START Then Exit Sub
-    
+
     ' B列(2): 完了処理
     If Target.Column <> 2 Then Exit Sub
-    
+
     ' 設定マスタから機能有効を確認
     If Not InazumaGantt_v3.GetSettingValue(4) Then Exit Sub
-    
+
     ' 既に完了済みの場合は変更しない
     If Me.Cells(Target.Row, "H").Value = "完了" Then Exit Sub
-    
+
     Application.EnableEvents = False
-    
+
     ' 進捗率を100%に
     Me.Cells(Target.Row, "I").Value = 1
-    
+
     ' 状況を「完了」に
     Me.Cells(Target.Row, "H").Value = "完了"
-    
+
     ' 設定：完了日自動入力
     If InazumaGantt_v3.GetSettingValue(5) Then
         If IsDate(Me.Cells(Target.Row, "M").Value) Then
@@ -54,21 +54,21 @@ Private Sub Worksheet_BeforeDoubleClick(ByVal Target As Range, Cancel As Boolean
             End If
         End If
     End If
-    
+
     ' 設定：取り消し線
     If InazumaGantt_v3.GetSettingValue(6) Then
         Me.Range("C" & Target.Row & ":F" & Target.Row).Font.Strikethrough = True
     End If
-    
+
     ' 設定：濃い灰色に変更
     If InazumaGantt_v3.GetSettingValue(7) Then
         Me.Range("C" & Target.Row & ":F" & Target.Row).Font.Color = RGB(128, 128, 128)
     End If
-    
+
     Application.EnableEvents = True
     Cancel = True
     Exit Sub
-    
+
 ErrorHandler:
     Application.EnableEvents = True
 End Sub
@@ -76,19 +76,19 @@ End Sub
 Private Sub Worksheet_BeforeRightClick(ByVal Target As Range, Cancel As Boolean)
     ' Shift + 右クリック: 折りたたみ/展開
     On Error GoTo ErrorHandler
-    
+
     ' Shiftキーが押されていない場合は通常の右クリックメニュー
     If (GetKeyState(vbKeyShift) And &H8000) = 0 Then Exit Sub
-    
+
     If Target.Row < InazumaGantt_v3.ROW_DATA_START Then Exit Sub
-    
+
     ' C-F列(3-6)でのみ有効
     If Target.Column < 3 Or Target.Column > 6 Then Exit Sub
-    
+
     InazumaGantt_v3.ToggleTaskCollapse Target.Row
     Cancel = True
     Exit Sub
-    
+
 ErrorHandler:
     ' エラーは無視
 End Sub
@@ -96,9 +96,9 @@ End Sub
 Private Sub Worksheet_Change(ByVal Target As Range)
 
     On Error GoTo ErrorHandler
-    
+
     Application.EnableEvents = False
-    
+
     ' タスク入力列（C～F列）に変更があった場合
     If Not Intersect(Target, Me.Range("C:F")) Is Nothing Then
         Dim cell As Range
@@ -108,17 +108,17 @@ Private Sub Worksheet_Change(ByVal Target As Range)
                 If Trim$(CStr(cell.Value)) <> "" Then
                     ' 階層を自動判定
                     InazumaGantt_v3.AutoDetectTaskLevel cell.Row
-                    
+
                     ' No.が空なら自動入力
                     If Trim$(CStr(Me.Cells(cell.Row, "B").Value)) = "" Then
                         Me.Cells(cell.Row, "B").Value = GetNextNo()
                     End If
-                    
+
                     ' 進捗率が空なら0%を入力
                     If Trim$(CStr(Me.Cells(cell.Row, "I").Value)) = "" Then
                         Me.Cells(cell.Row, "I").Value = 0
                     End If
-                    
+
                     ' 状況が空なら「未着手」を入力
                     If Trim$(CStr(Me.Cells(cell.Row, "H").Value)) = "" Then
                         Me.Cells(cell.Row, "H").Value = "未着手"
@@ -130,17 +130,18 @@ Private Sub Worksheet_Change(ByVal Target As Range)
             End If
         Next cell
     End If
-    
+
     ' 進捗率列（I列）に変更があった場合、状況を自動更新
     If Not Intersect(Target, Me.Columns("I")) Is Nothing Then
         Dim progressCell As Range
         For Each progressCell In Intersect(Target, Me.Columns("I"))
             If progressCell.Row >= InazumaGantt_v3.ROW_DATA_START Then
+                InazumaGantt_v3.ValidateProgressInput Me, progressCell
                 UpdateStatusByProgress progressCell.Row
             End If
         Next progressCell
     End If
-    
+
     ' 予定日付列（K, L列）に土日祝日を入力した場合に確認メッセージ
     If Not Intersect(Target, Me.Range("K:L")) Is Nothing Then
         Dim dateCell As Range
@@ -148,14 +149,16 @@ Private Sub Worksheet_Change(ByVal Target As Range)
         Dim isWeekend As Boolean
         Dim isHoliday As Boolean
         Dim warningMsg As String
-        
+
         For Each dateCell In Intersect(Target, Me.Range("K:L"))
             If dateCell.Row >= InazumaGantt_v3.ROW_DATA_START Then
+                InazumaGantt_v3.ValidateDateInput Me, dateCell
+
                 If IsDate(dateCell.Value) Then
                     inputDate = CDate(dateCell.Value)
                     isWeekend = (Weekday(inputDate, vbMonday) >= 6)
                     isHoliday = CheckHoliday(inputDate)
-                    
+
                     If isWeekend Or isHoliday Then
                         If isHoliday Then
                             warningMsg = "祝日"
@@ -164,7 +167,7 @@ Private Sub Worksheet_Change(ByVal Target As Range)
                         Else
                             warningMsg = "日曜日"
                         End If
-                        
+
                         If MsgBox(Format(inputDate, "yy/mm/dd") & " は " & warningMsg & " です。" & vbCrLf & _
                                   "この日付を入力しますか？", vbYesNo + vbQuestion, "確認") = vbNo Then
                             Application.EnableEvents = False
@@ -176,10 +179,10 @@ Private Sub Worksheet_Change(ByVal Target As Range)
             End If
         Next dateCell
     End If
-    
+
     Application.EnableEvents = True
     Exit Sub
-    
+
 ErrorHandler:
     Application.EnableEvents = True
 End Sub
@@ -193,15 +196,15 @@ Private Function CheckHoliday(ByVal targetDate As Date) As Boolean
     ' InazumaGantt_v3の定数を使用
     Set wsSettings = ThisWorkbook.Worksheets(InazumaGantt_v3.SETTINGS_SHEET_NAME)
     On Error GoTo 0
-    
+
     CheckHoliday = False
     If wsSettings Is Nothing Then Exit Function
-    
+
     ' 祝日マスタハ設定マスタのA13から
     Dim lastRow As Long
     lastRow = wsSettings.Cells(wsSettings.Rows.Count, "A").End(xlUp).Row
     If lastRow < InazumaGantt_v3.HOLIDAY_DATA_START_ROW Then Exit Function
-    
+
     Dim r As Long
     For r = InazumaGantt_v3.HOLIDAY_DATA_START_ROW To lastRow
         If IsDate(wsSettings.Cells(r, "A").Value) Then
@@ -216,30 +219,17 @@ End Function
 Private Sub UpdateStatusByProgress(ByVal targetRow As Long)
     Dim progressValue As Variant
     Dim rate As Double
-    Dim textValue As String
-    
+
     progressValue = Me.Cells(targetRow, "I").Value
-    
+
     If Trim$(CStr(progressValue)) = "" Then
         Me.Cells(targetRow, "H").Value = "未着手"
         Exit Sub
     End If
-    
-    If IsNumeric(progressValue) Then
-        rate = CDbl(progressValue)
-    Else
-        textValue = Replace$(Trim$(CStr(progressValue)), "%", "")
-        If Not IsNumeric(textValue) Then
-            Exit Sub
-        End If
-        rate = CDbl(textValue)
-    End If
-    
-    ' 100超の値は割合として扱う
-    If rate > 1 Then rate = rate / 100
-    If rate < 0 Then rate = 0
-    If rate > 1 Then rate = 1
-    
+
+    rate = InazumaGantt_v3.NormalizeProgressValue(progressValue, -1)
+    If rate < 0 Then Exit Sub
+
     ' 状況を設定
     If rate >= 1 Then
         Me.Cells(targetRow, "H").Value = "完了"
@@ -257,9 +247,9 @@ Private Function GetNextNo() As Long
     Dim lastNo As Long
     Dim r As Long
     Dim cellValue As Variant
-    
+
     lastNo = 0
-    
+
     ' B列から最大のNo.を探す
     For r = InazumaGantt_v3.ROW_DATA_START To Me.Cells(Me.Rows.Count, "B").End(xlUp).Row
         cellValue = Me.Cells(r, "B").Value
@@ -269,6 +259,6 @@ Private Function GetNextNo() As Long
             End If
         End If
     Next r
-    
+
     GetNextNo = lastNo + 1
 End Function

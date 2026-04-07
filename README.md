@@ -1,75 +1,79 @@
-# 📊 InazumaGantt v3
+# InazumaGantt v3
 
-Excelベースのイナズマガントチャート管理ツール
+更新日: 2026-04-07
+
+Excel ベースのイナズマガントチャート管理ツールです。
 
 > [!NOTE]
-> **Excelファイル名は自由に変更可能です**  
-> シート名（`InazumaGantt_v3`、`祝日マスタ`、`設定マスタ`）は変更しないでください。
-
----
+> Excel ファイル名は自由に変更できます。
+> シート名 `InazumaGantt_v3` `設定マスタ` `InazumaGantt_説明` は変更しないでください。
 
 ## クイックスタート
 
-### 1. VBAモジュールをインポート
+### 1. VBA モジュールをインポート
 
+Excel に取り込むのは `vba/` 配下の `_SJIS.bas` です。
+
+```text
+Alt + F11 -> ファイル -> ファイルのインポート
 ```
-Alt + F11 → ファイル → ファイルのインポート
+
+- `InazumaGantt_v3_SJIS.bas` : メインロジック
+- `SetupWizard_SJIS.bas` : セットアップ機能
+- `HierarchyColor_SJIS.bas` : 階層色分け機能
+
+`_UTF8.bas` は編集・Git 管理用です。Excel にはインポートしません。
+
+### 2. セットアップウィザードを実行
+
+```text
+Alt + F8 -> RunSetupWizard -> 実行
 ```
 
-`- **vba/** : 最新のソースコード (UTF-8)
+ウィザードで以下をまとめて作成します。
 
-- `InazumaGantt_v3_UTF8.bas` : メインロジック
-- `SheetModule_UTF8.bas` : シートイベント制御
-- `SetupWizard_UTF8.bas` : セットアップ機能
-- `HierarchyColor_UTF8.bas` : 階層色分け機能
+- メインシート `InazumaGantt_v3`
+- 設定マスタシート `設定マスタ`（祝日入力欄を含む）
+- 階層色分け
+- ガントチャートの初期描画
 
-### 2. シートモジュールを設定
+### 3. シートモジュールを設定
 
-1. VBAエディタで「Sheet1」（または対象シート）をダブルクリック
-2. `vba/SheetModule_UTF8.bas` の内容を貼り付け
+セットアップ完了後に、`SheetModule_SJIS.bas` を `InazumaGantt_v3` シートモジュールへ貼り付けます。
+
+1. VBA エディタで `InazumaGantt_v3` シートをダブルクリック
+2. `vba/SheetModule_SJIS.bas` の内容を貼り付け
 3. 保存して閉じる
-
-### 3. セットアップウィザードを実行
-
-```
-Alt + F8 → RunSetupWizard → 実行
-```
-
-> **ウィザードが自動的に以下を設定します:**
->
-> - メインシート（InazumaGantt_v3）作成
-> - 設定マスタシート作成（祝日欄含む）
-> - 設定マスタシート作成
-> - 階層色分け（条件付き書式）
-> - ガントチャート描画
-
-👉 **詳細は [dev/docs/SETUP.md](dev/docs/SETUP.md) を参照**
-
----
 
 ## 主な機能
 
 | 機能 | 説明 |
 |------|------|
-| 📊 ガントチャート | 予定バー（薄灰+黒枠）、進捗バー（紺色）、実績バー（緑色） |
-| ⚡ イナズマ線 | 今日基準型で進捗の遅れを視覚化（オレンジ） |
-| 🎨 階層色分け | 条件付き書式でLVに応じた自動色分け |
-| 🖱️ ダブルクリック完了 | タスクを即座に完了（取り消し線・灰色対応） |
-| 📁 折りたたみ | Shift+右クリックでLV1配下を非表示 |
-| 📄 PDF出力 | 当月末までのガントを含むPDF出力 |
-| 🔄 自動機能 | No.・階層・状況・進捗率の自動設定 |
+| ガントチャート | 予定バー、進捗バー、実績バー、今日線を描画 |
+| イナズマ線 | 今日基準で進捗位置を折れ線表示 |
+| 階層色分け | LV1-LV4 を条件付き書式で色分け |
+| ダブルクリック完了 | B列ダブルクリックで進捗率 100% と完了状態を反映 |
+| 折りたたみ | Shift + 右クリックで LV1 配下を表示・非表示 |
+| 日付シフト | 選択した日付を営業日単位で一括シフト |
+| PDF 出力 | 当月末までのガントを PDF 化 |
 
----
+## よく使うマクロ
+
+| マクロ | 用途 |
+|--------|------|
+| `RunSetupWizard` | 初回セットアップ |
+| `RefreshInazumaGantt` | ガント再描画 |
+| `ResetFormatting` | ヘッダー、罫線、休日色の再構築 |
+| `ToggleWeekends` | 土日列の表示切り替え |
+| `ExportToPDF` | PDF 出力 |
 
 ## ファイル構成
 
 ```text
-📁 vba/               ← VBAモジュール（_SJIS.bas をインポート）
-📁 docs/              ← 利用者向けドキュメント
-📁 dev/               ← 開発者用ドキュメント・仕様
+vba/   VBA モジュール本体（Excel には _SJIS.bas をインポート）
+docs/  利用者向けドキュメント
+dev/   開発者向けドキュメント
 ```
-
----
 
 ## ドキュメント
 
@@ -77,7 +81,7 @@ Alt + F8 → RunSetupWizard → 実行
 
 | ファイル | 内容 |
 |----------|------|
-| [docs/利用者ガイド.md](docs/利用者ガイド.md) | **操作マニュアル** |
+| [docs/利用者ガイド.md](docs/利用者ガイド.md) | 操作マニュアル |
 | [docs/FEATURES.md](docs/FEATURES.md) | 機能詳細 |
 | [docs/CUSTOMIZE.md](docs/CUSTOMIZE.md) | カスタマイズ方法 |
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | 問題解決 |
@@ -87,31 +91,9 @@ Alt + F8 → RunSetupWizard → 実行
 
 | ファイル | 内容 |
 |----------|------|
-| [dev/docs/SETUP.md](dev/docs/SETUP.md) | セットアップ詳細手順 |
-| [dev/docs/ARCHITECTURE.md](dev/docs/ARCHITECTURE.md) | アーキテクチャ |
-| [vba/README.md](vba/README.md) | VBAモジュール説明 |
-
----
-
-## 使い方
-
-### 基本フロー
-
-1. **セットアップウィザード実行** → `RunSetupWizard`
-2. **タスクを入力**（C〜F列）→ No.・進捗率・状況が自動入力
-3. **日付を入力**（K〜N列）
-4. **ガント更新ボタン** または `RefreshInazumaGantt` でガント更新
-
-### よく使うマクロ
-
-| マクロ | 機能 |
-|--------|------|
-| `RunSetupWizard` | **初回セットアップ（推奨）** |
-| `RefreshInazumaGantt` | ガント更新（バー・イナズマ線描画） |
-| `ResetFormatting` | 書式リセット（罫線・色の修復） |
-| `ExportToPDF` | PDF出力 |
-
----
+| [dev/docs/SETUP.md](dev/docs/SETUP.md) | セットアップ詳細 |
+| [dev/docs/ARCHITECTURE.md](dev/docs/ARCHITECTURE.md) | 構成と責務分担 |
+| [vba/README.md](vba/README.md) | VBA モジュール説明 |
 
 ## ライセンス
 

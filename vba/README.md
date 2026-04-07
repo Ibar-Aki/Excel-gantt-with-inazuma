@@ -1,50 +1,38 @@
 # VBAモジュール
 
-InazumaGantt v3 で使用するVBAモジュールです。
+更新日: 2026-04-07
 
-## エンコーディングについて
+InazumaGantt v3 で使用する VBA モジュール一覧です。
 
-各ファイルは2つのバージョンがあります：
+## エンコーディング
 
 | サフィックス | エンコーディング | 用途 |
 |-------------|-----------------|------|
-| `_SJIS.bas` | Shift-JIS (CP932) | **Excelにインポート用** |
-| `_UTF8.bas` | UTF-8 (BOMなし) | 編集・Git管理用 |
+| `_SJIS.bas` | Shift-JIS (CP932) | Excel にインポート |
+| `_UTF8.bas` | UTF-8 (BOM なし) | 編集・Git 管理 |
 
-> **重要**: Excelにインポートする場合は必ず `_SJIS.bas` を使用してください。  
-> `_UTF8.bas` をインポートすると文字化けします。
+> Excel に取り込むときは必ず `_SJIS.bas` を使ってください。
+> `_UTF8.bas` を直接インポートすると文字化けします。
 
-## ファイル一覧
-
-### 必須モジュール
+## 必須モジュール
 
 | ファイル | 用途 |
 |----------|------|
 | `InazumaGantt_v3_SJIS.bas` | メイン機能 |
-| `HierarchyColor_SJIS.bas` | 階層色分け |
 | `SetupWizard_SJIS.bas` | セットアップウィザード |
-| `SheetModule_SJIS.bas` | シートイベント（※） |
-
-> **※ SheetModule について**  
-> このファイルは「標準モジュール」ではなく、シートモジュールに貼り付けます。
+| `HierarchyColor_SJIS.bas` | 階層色分け |
+| `SheetModule_SJIS.bas` | シートイベントコード |
 
 ## インポート手順
 
-1. Excelファイルを開く
-2. `Alt + F11` でVBAエディタを開く
-3. ファイル → ファイルのインポート
-4. `InazumaGantt_v3_SJIS.bas` を選択
-5. `HierarchyColor_SJIS.bas` を選択
-6. `SetupWizard_SJIS.bas` を選択
+1. Excel ファイルを開く
+2. `Alt + F11` で VBA エディタを開く
+3. `InazumaGantt_v3_SJIS.bas` `SetupWizard_SJIS.bas` `HierarchyColor_SJIS.bas` をインポート
+4. `Alt + F8 -> RunSetupWizard` を実行
+5. `InazumaGantt_v3` シートモジュールへ `SheetModule_SJIS.bas` の内容を貼り付ける
 
-## シートモジュールの設定
+## 運用ルール
 
-> **注意**: シートモジュールはセットアップウィザード実行後に設定してください。
-
-1. VBAエディタで「InazumaGantt_v3」シートをダブルクリック
-2. `SheetModule_SJIS.bas` の内容を全てコピー＆貼り付け
-3. 保存して閉じる
-
-## 追加モジュール
-
-開発者向けの追加モジュールは `dev/extra_modules/` にあります。
+- 日常編集は `_UTF8.bas` を更新します。
+- Excel 取り込み前に `FixEncoding.ps1` で `_SJIS.bas` を再生成します。
+- `SheetModule_SJIS.bas` は標準モジュールではなく、`InazumaGantt_v3` シートモジュールに貼り付けます。
