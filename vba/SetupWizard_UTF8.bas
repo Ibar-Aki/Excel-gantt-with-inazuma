@@ -64,6 +64,7 @@ Sub RunSetupWizard()
     On Error GoTo ErrorHandler
 
     Dim result As VbMsgBoxResult
+    Dim mainSheet As Worksheet
 
     ' ステップ1: 開始確認
     result = MsgBox("InazumaGantt セットアップウィザードへようこそ！" & vbCrLf & vbCrLf & _
@@ -86,6 +87,13 @@ Sub RunSetupWizard()
 
     If result = vbYes Then
         CreateMainSheet
+        Set mainSheet = GetMainSheet()
+    Else
+        Set mainSheet = GetMainSheet()
+        If mainSheet Is Nothing Then
+            MsgBox "メインシートを作成しない場合、セットアップは続行できません。", vbExclamation, "セットアップ"
+            Exit Sub
+        End If
     End If
 
     ' ステップ3: サンプルデータ
@@ -101,11 +109,16 @@ Sub RunSetupWizard()
 
     ' ステップ4: 階層色分けとガント描画を自動実行
     ' まずメインシートをアクティブにする
-    ThisWorkbook.Worksheets(InazumaGantt_v3.MAIN_SHEET_NAME).Activate
+    Set mainSheet = GetMainSheet()
+    If mainSheet Is Nothing Then
+        MsgBox "メインシートが見つからないため、セットアップを続行できません。", vbCritical, "セットアップ"
+        Exit Sub
+    End If
+    mainSheet.Activate
 
     Application.ScreenUpdating = False
 
-    ' v2.2: 設定マスタシートを作成
+' v3: 設定マスタシートを作成
     InazumaGantt_v3.EnsureSettingsSheet
 
     ' 階層色分けの条件付き書式を設定
@@ -132,6 +145,27 @@ ErrorHandler:
     MsgBox "セットアップ中にエラーが発生しました: " & Err.Description, vbCritical, "エラー"
 End Sub
 
+Private Function GetMainSheet() As Worksheet
+    On Error Resume Next
+    Set GetMainSheet = ThisWorkbook.Worksheets(InazumaGantt_v3.MAIN_SHEET_NAME)
+    On Error GoTo 0
+End Function
+
+Private Function MainSheetNeedsSetup(ByVal ws As Worksheet) As Boolean
+    MainSheetNeedsSetup = (Trim$(CStr(ws.Range("A" & InazumaGantt_v3.ROW_HEADER).Value)) <> "LV" Or _
+                           Trim$(CStr(ws.Range("B" & InazumaGantt_v3.ROW_HEADER).Value)) <> "No." Or _
+                           Trim$(CStr(ws.Range("K2").Value)) <> "開始日：")
+End Function
+
+Private Function MainSheetHasTaskData(ByVal ws As Worksheet) As Boolean
+    Dim lastRow As Long
+
+    lastRow = InazumaGantt_v3.GetLastDataRow(ws)
+    If lastRow < InazumaGantt_v3.ROW_DATA_START Then Exit Function
+
+    MainSheetHasTaskData = (Application.WorksheetFunction.CountA(ws.Range("C" & InazumaGantt_v3.ROW_DATA_START & ":F" & lastRow)) > 0)
+End Function
+
 
 ' ==========================================
 '  メインシートの作成
@@ -139,9 +173,7 @@ End Sub
 Private Sub CreateMainSheet()
     Dim ws As Worksheet
 
-    On Error Resume Next
-    Set ws = ThisWorkbook.Worksheets(InazumaGantt_v3.MAIN_SHEET_NAME)
-    On Error GoTo 0
+    Set ws = GetMainSheet()
 
     If ws Is Nothing Then
         Set ws = ThisWorkbook.Worksheets.Add
@@ -150,8 +182,12 @@ Private Sub CreateMainSheet()
         InazumaGantt_v3.SetupInazumaGantt False, Null
     Else
         ws.Activate
-        MsgBox "既存のメインシートを使用します。" & vbCrLf & _
-               "既存データは上書きせず、そのまま維持します。", vbInformation, "セットアップ"
+        If MainSheetNeedsSetup(ws) And Application.WorksheetFunction.CountA(ws.UsedRange) = 0 Then
+            InazumaGantt_v3.SetupInazumaGantt False, Null
+        Else
+            MsgBox "既存のメインシートを使用します。" & vbCrLf & _
+                   "既存データは上書きせず、そのまま維持します。", vbInformation, "セットアップ"
+        End If
     End If
 End Sub
 
@@ -161,9 +197,7 @@ End Sub
 Private Sub CreateMainSheetSilent(ByVal startDateStr As String)
     Dim ws As Worksheet
 
-    On Error Resume Next
-    Set ws = ThisWorkbook.Worksheets(InazumaGantt_v3.MAIN_SHEET_NAME)
-    On Error GoTo 0
+    Set ws = GetMainSheet()
 
     If ws Is Nothing Then
         Set ws = ThisWorkbook.Worksheets.Add
@@ -172,6 +206,9 @@ Private Sub CreateMainSheetSilent(ByVal startDateStr As String)
         InazumaGantt_v3.SetupInazumaGantt True, startDateStr
     Else
         ws.Activate
+        If MainSheetNeedsSetup(ws) And Application.WorksheetFunction.CountA(ws.UsedRange) = 0 Then
+            InazumaGantt_v3.SetupInazumaGantt True, startDateStr
+        End If
     End If
 End Sub
 
@@ -187,6 +224,13 @@ Private Sub AddSampleData(Optional ByVal baseDate As Date = 0)
     Dim ws As Worksheet
     Set ws = ThisWorkbook.Worksheets(InazumaGantt_v3.MAIN_SHEET_NAME)
 
+    If MainSheetHasTaskData(ws) Then
+        If Application.DisplayAlerts Then
+            MsgBox "既存タスクがあるため、サンプルデータの追加はスキップしました。", vbInformation, "サンプルデータ"
+        End If
+        Exit Sub
+    End If
+
     Dim startRow As Long
     startRow = InazumaGantt_v3.ROW_DATA_START
 
@@ -198,50 +242,55 @@ Private Sub AddSampleData(Optional ByVal baseDate As Date = 0)
     ws.Cells(startRow, "H").Value = "完了"
     ws.Cells(startRow, "I").Value = 1
     ws.Cells(startRow, "J").Value = "山田"
-    ws.Cells(startRow, "K").Value = GetWorkday(baseDate - 14)
-    ws.Cells(startRow, "L").Value = GetWorkday(baseDate - 7)
-    ws.Cells(startRow, "M").Value = GetWorkday(baseDate - 14)
-    ws.Cells(startRow, "N").Value = GetWorkday(baseDate - 8)
+    ws.Cells(startRow, InazumaGantt_v3.COL_START_PLAN).Value = GetWorkday(baseDate - 14)
+    ws.Cells(startRow, InazumaGantt_v3.COL_END_PLAN).Value = GetWorkday(baseDate - 7)
+    ws.Cells(startRow, InazumaGantt_v3.COL_START_ACTUAL).Value = GetWorkday(baseDate - 14)
+    ws.Cells(startRow, InazumaGantt_v3.COL_END_ACTUAL).Value = GetWorkday(baseDate - 8)
 
     ws.Cells(startRow + 1, "D").Value = "要件定義"
     ws.Cells(startRow + 1, "H").Value = "完了"
     ws.Cells(startRow + 1, "I").Value = 1
     ws.Cells(startRow + 1, "J").Value = "山田"
-    ws.Cells(startRow + 1, "K").Value = GetWorkday(baseDate - 14)
-    ws.Cells(startRow + 1, "L").Value = GetWorkday(baseDate - 10)
+    ws.Cells(startRow + 1, InazumaGantt_v3.COL_DEV_LT).Value = "12h"
+    ws.Cells(startRow + 1, InazumaGantt_v3.COL_START_PLAN).Value = GetWorkday(baseDate - 14)
+    ws.Cells(startRow + 1, InazumaGantt_v3.COL_END_PLAN).Value = GetWorkday(baseDate - 10)
 
     ws.Cells(startRow + 2, "D").Value = "設計書作成"
     ws.Cells(startRow + 2, "H").Value = "完了"
     ws.Cells(startRow + 2, "I").Value = 1
     ws.Cells(startRow + 2, "J").Value = "鈴木"
-    ws.Cells(startRow + 2, "K").Value = GetWorkday(baseDate - 10)
-    ws.Cells(startRow + 2, "L").Value = GetWorkday(baseDate - 7)
+    ws.Cells(startRow + 2, InazumaGantt_v3.COL_DEV_LT).Value = "8h"
+    ws.Cells(startRow + 2, InazumaGantt_v3.COL_START_PLAN).Value = GetWorkday(baseDate - 10)
+    ws.Cells(startRow + 2, InazumaGantt_v3.COL_END_PLAN).Value = GetWorkday(baseDate - 7)
 
     ' フェーズ2: 開発フェーズ（進行中）
     ws.Cells(startRow + 3, "C").Value = "開発フェーズ"
     ws.Cells(startRow + 3, "H").Value = "進行中"
     ws.Cells(startRow + 3, "I").Value = 0.6
     ws.Cells(startRow + 3, "J").Value = "田中"
-    ws.Cells(startRow + 3, "K").Value = GetWorkday(baseDate - 7)
-    ws.Cells(startRow + 3, "L").Value = GetWorkday(baseDate + 14)
+    ws.Cells(startRow + 3, InazumaGantt_v3.COL_START_PLAN).Value = GetWorkday(baseDate - 7)
+    ws.Cells(startRow + 3, InazumaGantt_v3.COL_END_PLAN).Value = GetWorkday(baseDate + 14)
 
     ws.Cells(startRow + 4, "D").Value = "機能開発"
     ws.Cells(startRow + 4, "H").Value = "進行中"
     ws.Cells(startRow + 4, "I").Value = 0.7
     ws.Cells(startRow + 4, "J").Value = "田中"
-    ws.Cells(startRow + 4, "K").Value = GetWorkday(baseDate - 7)
-    ws.Cells(startRow + 4, "L").Value = GetWorkday(baseDate + 7)
+    ws.Cells(startRow + 4, InazumaGantt_v3.COL_DEV_LT).Value = "40h"
+    ws.Cells(startRow + 4, InazumaGantt_v3.COL_START_PLAN).Value = GetWorkday(baseDate - 7)
+    ws.Cells(startRow + 4, InazumaGantt_v3.COL_END_PLAN).Value = GetWorkday(baseDate + 7)
 
     ' フェーズ3: リリースフェーズ（未着手）
     ws.Cells(startRow + 5, "C").Value = "リリースフェーズ"
     ws.Cells(startRow + 5, "H").Value = "未着手"
     ws.Cells(startRow + 5, "I").Value = 0
     ws.Cells(startRow + 5, "J").Value = "山田"
-    ws.Cells(startRow + 5, "K").Value = GetWorkday(baseDate + 14)
-    ws.Cells(startRow + 5, "L").Value = GetWorkday(baseDate + 21)
+    ws.Cells(startRow + 5, InazumaGantt_v3.COL_DEV_LT).Value = "16h"
+    ws.Cells(startRow + 5, InazumaGantt_v3.COL_START_PLAN).Value = GetWorkday(baseDate + 14)
+    ws.Cells(startRow + 5, InazumaGantt_v3.COL_END_PLAN).Value = GetWorkday(baseDate + 21)
 
     ' 階層自動判定
     InazumaGantt_v3.AutoDetectTaskLevel
+    InazumaGantt_v3.RenumberRows
     Exit Sub
 
 ErrorHandler:

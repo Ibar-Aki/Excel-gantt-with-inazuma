@@ -7,8 +7,8 @@ Option Explicit
 ' レイアウト:
 ' A: LV(階層) | B: No. | C: TASK | D-F: (タスク用スペース)
 ' G: タスクの詳細 | H: 状況 | I: 進捗率 | J: 担当
-' K: 開始予定 | L: 完了予定 | M: 開始実績 | N: 完了実績
-' O以降: ガントチャート領域 (日付)
+' K: 開発LT | L: 開始予定 | M: 完了予定 | N: 開始実績 | O: 完了実績
+' P以降: ガントチャート領域 (日付)
 
 Public Const COL_HIERARCHY As String = "A"   ' LV(階層)
 Public Const COL_NO As String = "B"          ' No.
@@ -18,16 +18,17 @@ Public Const COL_TASK_DETAIL As String = "G" ' タスクの詳細
 Public Const COL_STATUS As String = "H"      ' 状況
 Public Const COL_PROGRESS As String = "I"    ' 進捗率
 Public Const COL_ASSIGNEE As String = "J"    ' 担当
-Public Const COL_START_PLAN As String = "K"  ' 開始予定
-Public Const COL_END_PLAN As String = "L"    ' 完了予定
-Public Const COL_START_ACTUAL As String = "M" ' 開始実績
-Public Const COL_END_ACTUAL As String = "N"  ' 完了実績
+Public Const COL_DEV_LT As String = "K"      ' 開発LT
+Public Const COL_START_PLAN As String = "L"  ' 開始予定
+Public Const COL_END_PLAN As String = "M"    ' 完了予定
+Public Const COL_START_ACTUAL As String = "N" ' 開始実績
+Public Const COL_END_ACTUAL As String = "O"  ' 完了実績
 
-Public Const COL_GANTT_START As String = "O"  ' ガントチャートの開始列
+Public Const COL_GANTT_START As String = "P"  ' ガントチャートの開始列
 Public Const ROW_TITLE As Long = 1            ' タイトル行
 Public Const ROW_WEEK_HEADER As Long = 6      ' 週ヘッダー行
 Public Const ROW_DATE_HEADER As Long = 7      ' 日付行（ガント）
-Public Const ROW_HEADER As Long = 8           ' 曜日行（ガント）/ 項目ヘッダー行（A-N列）
+Public Const ROW_HEADER As Long = 8           ' 曜日行（ガント）/ 項目ヘッダー行（A-O列）
 Public Const ROW_DATA_START As Long = 9       ' データ開始行
 Public Const GANTT_DAYS As Long = 120         ' ガントチャートの日数
 Public Const DATA_ROWS_DEFAULT As Long = 200  ' 初期入力範囲の行数
@@ -113,6 +114,56 @@ Public Function NormalizeProgressValue(ByVal progressValue As Variant, Optional 
     End If
 End Function
 
+Private Function TryParseDevelopmentHours(ByVal hoursValue As Variant, ByRef normalizedHours As Double) As Boolean
+    Dim textValue As String
+
+    If IsEmpty(hoursValue) Then Exit Function
+
+    textValue = Trim$(CStr(hoursValue))
+    If textValue = "" Then Exit Function
+
+    textValue = Replace$(textValue, " ", "")
+    textValue = Replace$(textValue, "H", "")
+    textValue = Replace$(textValue, "h", "")
+    textValue = Replace$(textValue, "ｈ", "")
+
+    If Not IsNumeric(textValue) Then Exit Function
+
+    normalizedHours = CDbl(textValue)
+    If normalizedHours < 0 Then Exit Function
+
+    TryParseDevelopmentHours = True
+End Function
+
+Public Function FormatDevelopmentHours(ByVal normalizedHours As Double) As String
+    If Abs(normalizedHours - Round(normalizedHours, 0)) < 0.000001 Then
+        FormatDevelopmentHours = CStr(CLng(Round(normalizedHours, 0))) & "h"
+    Else
+        FormatDevelopmentHours = Format$(normalizedHours, "0.##") & "h"
+    End If
+End Function
+
+Public Sub ValidateDevelopmentHoursInput(ByVal ws As Worksheet, ByVal Target As Range)
+    On Error GoTo ErrorHandler
+
+    Dim normalizedHours As Double
+
+    If Target.Row < ROW_DATA_START Then Exit Sub
+    If Trim$(CStr(Target.Value)) = "" Then Exit Sub
+
+    If Not TryParseDevelopmentHours(Target.Value, normalizedHours) Then
+        MsgBox "開発LTは 3h / 3.5h / 3 の形式で入力してください。", vbExclamation, "入力エラー"
+        Target.ClearContents
+        Exit Sub
+    End If
+
+    Target.Value = FormatDevelopmentHours(normalizedHours)
+    Exit Sub
+
+ErrorHandler:
+    MsgBox "開発LTの検証中にエラーが発生しました: " & Err.Description, vbExclamation, "開発LTエラー"
+End Sub
+
 ' ==========================================
 '  初期セットアップ (ヘッダー作成＆書式設定)
 ' ==========================================
@@ -169,13 +220,14 @@ Sub SetupInazumaGantt(Optional ByVal silentMode As Boolean = False, Optional ByV
     ws.Range(COL_STATUS & ROW_HEADER).Value = "状況"
     ws.Range(COL_PROGRESS & ROW_HEADER).Value = "進捗率"
     ws.Range(COL_ASSIGNEE & ROW_HEADER).Value = "担当"
+    ws.Range(COL_DEV_LT & ROW_HEADER).Value = "開発LT"
     ws.Range(COL_START_PLAN & ROW_HEADER).Value = "開始予定"
     ws.Range(COL_END_PLAN & ROW_HEADER).Value = "完了予定"
     ws.Range(COL_START_ACTUAL & ROW_HEADER).Value = "開始実績"
     ws.Range(COL_END_ACTUAL & ROW_HEADER).Value = "完了実績"
 
-    ' ヘッダー行のスタイル（8行目、A～N列）
-    With ws.Range("A" & ROW_HEADER & ":N" & ROW_HEADER)
+    ' ヘッダー行のスタイル（8行目、A～O列）
+    With ws.Range("A" & ROW_HEADER & ":" & COL_END_ACTUAL & ROW_HEADER)
         .Font.Bold = True
         .Interior.Color = COLOR_HEADER_BG
         .Font.Color = RGB(255, 255, 255)
@@ -192,10 +244,11 @@ Sub SetupInazumaGantt(Optional ByVal silentMode As Boolean = False, Optional ByV
     ws.Columns("H").ColumnWidth = 7     ' 状況
     ws.Columns("I").ColumnWidth = 7     ' 進捗率
     ws.Columns("J").ColumnWidth = 7     ' 担当
-    ws.Columns("K").ColumnWidth = 8.7   ' 開始予定
-    ws.Columns("L").ColumnWidth = 8.7   ' 完了予定
-    ws.Columns("M").ColumnWidth = 8.7   ' 開始実績
-    ws.Columns("N").ColumnWidth = 8.7   ' 完了実績
+    ws.Columns("K").ColumnWidth = 8     ' 開発LT
+    ws.Columns("L").ColumnWidth = 8.7   ' 開始予定
+    ws.Columns("M").ColumnWidth = 8.7   ' 完了予定
+    ws.Columns("N").ColumnWidth = 8.7   ' 開始実績
+    ws.Columns("O").ColumnWidth = 8.7   ' 完了実績
 
     ' 行高さ統一（22）
     ws.Rows.RowHeight = 22
@@ -273,9 +326,9 @@ Sub SetupInazumaGantt(Optional ByVal silentMode As Boolean = False, Optional ByV
     ' 目盛線をオフ
     ActiveWindow.DisplayGridlines = False
 
-    ' フィルタ自動設定 (7行目（日付行）A-N列)
+    ' フィルタ自動設定 (7行目（日付行）A-O列)
     If Not ws.AutoFilterMode Then
-        ws.Range("A" & ROW_DATE_HEADER & ":N" & ROW_DATE_HEADER).AutoFilter
+        ws.Range("A" & ROW_DATE_HEADER & ":" & COL_END_ACTUAL & ROW_DATE_HEADER).AutoFilter
     End If
 
     ' No.1?400の初期採番
@@ -307,6 +360,12 @@ End Sub
 ' ==========================================
 Private Sub ApplyDataValidationAndFormats(ByVal ws As Worksheet, ByVal lastRow As Long)
     If lastRow < ROW_DATA_START Then lastRow = ROW_DATA_START
+
+    ' 開発LTは文字列で扱う
+    With ws.Range(COL_DEV_LT & ROW_DATA_START & ":" & COL_DEV_LT & lastRow)
+        .NumberFormat = "@"
+        .HorizontalAlignment = xlCenter
+    End With
 
     ' 進捗率のドロップダウン
     With ws.Range(COL_PROGRESS & ROW_DATA_START & ":" & COL_PROGRESS & lastRow)
@@ -341,6 +400,7 @@ Public Function GetLastDataRow(ByVal ws As Worksheet) As Long
     lastRow = MaxRow(lastRow, ws.Cells(ws.Rows.Count, "E").End(xlUp).Row) ' Lv3
     lastRow = MaxRow(lastRow, ws.Cells(ws.Rows.Count, "F").End(xlUp).Row) ' Lv4
     lastRow = MaxRow(lastRow, ws.Cells(ws.Rows.Count, COL_TASK_DETAIL).End(xlUp).Row)
+    lastRow = MaxRow(lastRow, ws.Cells(ws.Rows.Count, COL_DEV_LT).End(xlUp).Row)
     lastRow = MaxRow(lastRow, ws.Cells(ws.Rows.Count, COL_START_PLAN).End(xlUp).Row)
     lastRow = MaxRow(lastRow, ws.Cells(ws.Rows.Count, COL_END_PLAN).End(xlUp).Row)
     lastRow = MaxRow(lastRow, ws.Cells(ws.Rows.Count, COL_START_ACTUAL).End(xlUp).Row)
@@ -407,13 +467,14 @@ Private Sub EnsureGuideSheet()
     content(17, 1) = ""
     content(18, 1) = "※ すでに完了しているタスクは変更されません。"
 
-    ' SHIFT+右クリック折りたたみ
+    ' SHIFT+右クリック機能
     content(20, 1) = "■ SHIFT+右クリックで折りたたみ"
     content(21, 1) = "LV1タスク（C列）でSHIFT+右クリックすると、"
     content(22, 1) = "配下のLV2-4タスクを折りたたみ/展開します。"
     content(23, 1) = ""
     content(24, 1) = "  ・ 再度SHIFT+右クリックで展開"
     content(25, 1) = "  ・ LV1タスク（大項目）のみ対象です"
+    content(26, 1) = "  ・ 開発LT列(K列)では配下タスクの合計工数を集計"
 
     ' 一括書き込み
     On Error Resume Next
@@ -485,7 +546,7 @@ Private Sub ApplyGanttBorders(ByVal ws As Worksheet, ByVal lastRow As Long)
     For weekCol = ganttStartCol To ganttEndCol Step 7
         ApplyBorder ws.Cells(6, weekCol), xlEdgeBottom, xlContinuous, xlMedium, xlColorIndexAutomatic
     Next weekCol
-    ApplyBorder ws.Range("N6"), xlEdgeRight, xlContinuous, xlThin, xlColorIndexAutomatic
+    ApplyBorder ws.Range(COL_END_ACTUAL & "6"), xlEdgeRight, xlContinuous, xlThin, xlColorIndexAutomatic
 
     ' --- P5: 7行目 (日付行) ---
     ' 7行目の背景色をヘッダーと同じ色で塗りつぶし
@@ -495,11 +556,11 @@ Private Sub ApplyGanttBorders(ByVal ws As Worksheet, ByVal lastRow As Long)
     ApplyBorder ws.Range(ws.Cells(7, 1), ws.Cells(7, ganttEndCol)), xlEdgeTop, xlContinuous, xlMedium, xlColorIndexAutomatic
     ' 7行目下部に黒色の太線
     ApplyBorder ws.Range(ws.Cells(7, 1), ws.Cells(7, ganttEndCol)), xlEdgeBottom, xlContinuous, xlMedium, xlColorIndexAutomatic
-    ApplyBorder ws.Range(ws.Cells(7, 14), ws.Cells(7, ganttEndCol)), xlEdgeRight, xlContinuous, xlThin, xlColorIndexAutomatic
+    ApplyBorder ws.Range(ws.Cells(7, ws.Columns(COL_END_ACTUAL).Column), ws.Cells(7, ganttEndCol)), xlEdgeRight, xlContinuous, xlThin, xlColorIndexAutomatic
     ApplyBorder ws.Range("A7"), xlEdgeLeft, xlContinuous, xlMedium, xlColorIndexAutomatic
     ApplyBorder ws.Range(ws.Cells(7, ganttStartCol), ws.Cells(7, ganttEndCol)), xlEdgeLeft, xlContinuous, xlThin, xlColorIndexAutomatic
 
-    ' 7行目のO列より右のガントチャート部は太字
+    ' 7行目のP列以降のガントチャート部は太字
     ws.Range(ws.Cells(7, ganttStartCol), ws.Cells(7, ganttEndCol)).Font.Bold = True
 
     ' --- P6: 8行目 (ヘッダー行) ---
@@ -526,15 +587,15 @@ Private Sub ApplyGanttBorders(ByVal ws As Worksheet, ByVal lastRow As Long)
         ApplyBorderWithColorIndex ws.Range(ws.Cells(ROW_DATA_START, 4), ws.Cells(lastRow, 6)), xlEdgeLeft, xlContinuous, xlHairline, 15
         ApplyBorderWithColorIndex ws.Range(ws.Cells(ROW_DATA_START, 3), ws.Cells(lastRow, 5)), xlInsideVertical, xlContinuous, xlHairline, 15
 
-        ' ガントチャート部(O列以降)にもC-D間と同じ縦罫線
+        ' ガントチャート部(P列以降)にもC-D間と同じ縦罫線
         ApplyBorderWithColorIndex ws.Range(ws.Cells(ROW_DATE_HEADER, ganttStartCol), ws.Cells(lastRow, ganttEndCol)), xlInsideVertical, xlContinuous, xlHairline, 15
 
-        ' A-B, F-N列: 細線 自動
+        ' A-B, F-O列: 細線 自動
         ApplyBorder ws.Range(ws.Cells(ROW_DATA_START, 1), ws.Cells(lastRow, 2)), xlEdgeRight, xlContinuous, xlThin, xlColorIndexAutomatic
         ' A列B列間は黒細線
         ApplyBorder ws.Range(ws.Cells(ROW_DATA_START, 1), ws.Cells(lastRow, 1)), xlEdgeRight, xlContinuous, xlThin, xlColorIndexAutomatic
-        ApplyBorder ws.Range(ws.Cells(ROW_DATA_START, 6), ws.Cells(lastRow, 14)), xlEdgeRight, xlContinuous, xlThin, xlColorIndexAutomatic
-        ApplyBorder ws.Range(ws.Cells(ROW_DATA_START, 6), ws.Cells(lastRow, 14)), xlInsideVertical, xlContinuous, xlThin, xlColorIndexAutomatic
+        ApplyBorder ws.Range(ws.Cells(ROW_DATA_START, 6), ws.Cells(lastRow, ws.Columns(COL_END_ACTUAL).Column)), xlEdgeRight, xlContinuous, xlThin, xlColorIndexAutomatic
+        ApplyBorder ws.Range(ws.Cells(ROW_DATA_START, 6), ws.Cells(lastRow, ws.Columns(COL_END_ACTUAL).Column)), xlInsideVertical, xlContinuous, xlThin, xlColorIndexAutomatic
         ApplyBorder ws.Range(ws.Cells(ROW_DATA_START, 1), ws.Cells(lastRow, 3)), xlEdgeLeft, xlContinuous, xlThin, xlColorIndexAutomatic
         ApplyBorder ws.Range(ws.Cells(ROW_DATA_START, 7), ws.Cells(lastRow, ganttStartCol)), xlEdgeLeft, xlContinuous, xlThin, xlColorIndexAutomatic
     End If
@@ -1277,7 +1338,7 @@ End Sub
 
 
 ' ============================================================================
-' # 新機能 (v2.2)
+' # 新機能 (v3)
 ' ============================================================================
 
 ' ==========================================
@@ -1467,6 +1528,73 @@ Public Function GetSettingValue(ByVal settingRow As Long) As Boolean
 
     GetSettingValue = (wsSettings.Cells(settingRow, "B").Value = True)
 End Function
+
+Private Function HasChildTaskRows(ByVal ws As Worksheet, ByVal startRow As Long, ByVal endRow As Long, ByVal currentLevel As Long) As Boolean
+    Dim r As Long
+    Dim nextLevel As Variant
+
+    For r = startRow + 1 To endRow
+        nextLevel = ws.Cells(r, COL_HIERARCHY).Value
+        If IsNumeric(nextLevel) Then
+            If CLng(nextLevel) <= currentLevel Then Exit Function
+            HasChildTaskRows = True
+            Exit Function
+        End If
+    Next r
+End Function
+
+Public Sub RollupDevelopmentHours(ByVal targetRow As Long)
+    On Error GoTo ErrorHandler
+
+    Dim ws As Worksheet
+    Set ws = RequireMainWorksheet("開発LT集計")
+    If ws Is Nothing Then Exit Sub
+
+    If targetRow < ROW_DATA_START Then Exit Sub
+
+    Dim targetLevel As Variant
+    targetLevel = ws.Cells(targetRow, COL_HIERARCHY).Value
+    If Not IsNumeric(targetLevel) Then Exit Sub
+
+    Dim lastRow As Long
+    lastRow = GetLastDataRow(ws)
+    If lastRow <= targetRow Then Exit Sub
+
+    Dim totalHours As Double
+    Dim invalidCount As Long
+    Dim hasLeafTask As Boolean
+    Dim r As Long
+    Dim rowLevel As Variant
+    Dim hoursValue As Double
+
+    For r = targetRow + 1 To lastRow
+        rowLevel = ws.Cells(r, COL_HIERARCHY).Value
+        If IsNumeric(rowLevel) Then
+            If CLng(rowLevel) <= CLng(targetLevel) Then Exit For
+
+            If Not HasChildTaskRows(ws, r, lastRow, CLng(rowLevel)) Then
+                hasLeafTask = True
+                If TryParseDevelopmentHours(ws.Cells(r, COL_DEV_LT).Value, hoursValue) Then
+                    totalHours = totalHours + hoursValue
+                ElseIf Trim$(CStr(ws.Cells(r, COL_DEV_LT).Value)) <> "" Then
+                    invalidCount = invalidCount + 1
+                End If
+            End If
+        End If
+    Next r
+
+    If Not hasLeafTask Then Exit Sub
+
+    ws.Cells(targetRow, COL_DEV_LT).Value = FormatDevelopmentHours(totalHours)
+
+    If invalidCount > 0 Then
+        MsgBox "配下タスクに集計できない開発LTが " & invalidCount & " 件ありました。", vbExclamation, "開発LT集計"
+    End If
+    Exit Sub
+
+ErrorHandler:
+    MsgBox "開発LT集計エラー: " & Err.Description, vbCritical, "開発LT集計"
+End Sub
 
 ' ==========================================
 '  タスク行の折りたたみ/展開（右ダブルクリック用）
@@ -1710,7 +1838,7 @@ ErrorHandler:
 End Sub
 
 ' ==========================================
-'  日付バリデーション（K-N列）
+'  日付バリデーション（L-O列）
 ' ==========================================
 Public Sub ValidateDateInput(ByVal ws As Worksheet, ByVal Target As Range)
     On Error GoTo ErrorHandler
@@ -1727,12 +1855,21 @@ Public Sub ValidateDateInput(ByVal ws As Worksheet, ByVal Target As Range)
     End If
 
     Dim startPlan As Variant, endPlan As Variant
-    startPlan = ws.Cells(Target.Row, "K").Value
-    endPlan = ws.Cells(Target.Row, "L").Value
+    Dim startActual As Variant, endActual As Variant
+    startPlan = ws.Cells(Target.Row, COL_START_PLAN).Value
+    endPlan = ws.Cells(Target.Row, COL_END_PLAN).Value
+    startActual = ws.Cells(Target.Row, COL_START_ACTUAL).Value
+    endActual = ws.Cells(Target.Row, COL_END_ACTUAL).Value
 
     If IsDate(startPlan) And IsDate(endPlan) Then
         If CDate(startPlan) > CDate(endPlan) Then
             MsgBox "開始予定日が完了予定日より後になっています", vbExclamation, "日付エラー"
+        End If
+    End If
+
+    If IsDate(startActual) And IsDate(endActual) Then
+        If CDate(startActual) > CDate(endActual) Then
+            MsgBox "開始実績日が完了実績日より後になっています", vbExclamation, "日付エラー"
         End If
     End If
 

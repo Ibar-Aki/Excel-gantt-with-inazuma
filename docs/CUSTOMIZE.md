@@ -1,10 +1,12 @@
 ﻿# カスタマイズガイド
 
-InazumaGantt v2.2 の設定を変更する方法です。
+更新日: 2026-04-08
+
+InazumaGantt v3 の設定を変更する方法です。
 
 ---
 
-## 設定マスタシート（v2.2新機能）
+## 設定マスタシート
 
 「設定マスタ」シートでダブルクリック完了の動作をカスタマイズできます。
 
@@ -32,14 +34,14 @@ Public Const COLOR_LV1 As Long = RGB(255, 200, 100)
 
 | 定数 | デフォルト | 説明 |
 |------|-----------|------|
-| `COLOR_LV1` | サーモン | 大項目の色（C〜N列） |
-| `COLOR_LV2` | 薄い青 | 中項目の色（D〜N列） |
-| `COLOR_LV3` | 薄い緑 | 小項目の色（E〜N列） |
-| `COLOR_LV4` | 薄い黄色 | 詳細項目の色（F〜N列） |
+| `COLOR_LV1` | サーモン | 大項目の色（C〜O列） |
+| `COLOR_LV2` | 薄い青 | 中項目の色（D〜O列） |
+| `COLOR_LV3` | 薄い緑 | 小項目の色（E〜O列） |
+| `COLOR_LV4` | 薄い黄色 | 詳細項目の色（F〜O列） |
 
 ### ガントチャートの色
 
-`vba/InazumaGantt_v2_SJIS.bas` の定数を変更：
+`vba/InazumaGantt_v3_SJIS.bas` の定数を変更：
 
 | 定数 | デフォルト | 説明 |
 |------|-----------|------|
@@ -54,7 +56,7 @@ Public Const COLOR_LV1 As Long = RGB(255, 200, 100)
 
 ## 表示期間の変更
 
-`vba/InazumaGantt_v2_SJIS.bas` の定数を変更：
+`vba/InazumaGantt_v3_SJIS.bas` の定数を変更：
 
 ```vba
 ' ガントチャートの表示日数（デフォルト: 120日）
@@ -78,14 +80,15 @@ actualBarHeight = 6  ' 実績バーの高さ
 
 > ⚠️ **注意**: 列位置を変更する場合は、すべてのモジュールで整合性を取る必要があります。
 
-`vba/InazumaGantt_v2_SJIS.bas` の列定数：
+`vba/InazumaGantt_v3_SJIS.bas` の列定数：
 
 ```vba
 Public Const COL_HIERARCHY As String = "A"
 Public Const COL_NO As String = "B"
 Public Const COL_TASK As String = "C"
+Public Const COL_DEV_LT As String = "K"
 ' ... 略 ...
-Public Const COL_GANTT_START As String = "O"
+Public Const COL_GANTT_START As String = "P"
 ```
 
 ---
@@ -119,16 +122,16 @@ Public Const ROW_DATA_START As Long = 9
 
 | LV | 色分け範囲 |
 |----|-----------|
-| 1 | C〜N列 |
-| 2 | D〜N列 |
-| 3 | E〜N列 |
-| 4 | F〜N列 |
+| 1 | C〜O列 |
+| 2 | D〜O列 |
+| 3 | E〜O列 |
+| 4 | F〜O列 |
 
 ---
 
 ## 祝日マスタの設定
 
-「祝日マスタ」シートのA列に祝日を登録すると：
+「設定マスタ」シートのA13:A27に祝日を登録すると：
 
 - ガントチャート上で祝日列が濃い灰色で表示
 - 日付シフト機能（`ShiftDates`）で祝日が自動的にスキップされる
@@ -139,5 +142,5 @@ Public Const ROW_DATA_START As Long = 9
 
 `ExportToPDF` 関数を編集して出力範囲を変更できます：
 
-- 現在の設定: A列〜N列 + 当月末までのガント領域
+- 現在の設定: A列〜O列 + 当月末までのガント領域
 - ファイル名: `[シート名]_[YYYYMMDD].pdf`

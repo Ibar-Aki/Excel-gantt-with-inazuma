@@ -1,5 +1,7 @@
 # トラブルシューティング
 
+更新日: 2026-04-08
+
 InazumaGantt v3 でよくある問題と解決方法です。
 
 ---
@@ -48,7 +50,7 @@ VBAモジュールをインポートしたら日本語が文字化け
 ### 解決方法
 
 1. Alt + F11 でVBAエディタを開く
-2. 「InazumaGantt_v2」シートをダブルクリック
+2. 「InazumaGantt_v3」シートをダブルクリック
 3. `vba/SheetModule_SJIS.bas` の内容を貼り付け
 4. 保存して閉じる
 
@@ -209,7 +211,7 @@ Alt + F8 → ResetFormatting → 実行
 Alt + F8 → RefreshInazumaGantt → 実行
 ```
 
-v2.2では日付ヘッダーも自動的に再生成されます。
+v3 では日付ヘッダーも自動的に再生成されます。
 
 ---
 

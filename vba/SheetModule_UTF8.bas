@@ -48,9 +48,9 @@ Private Sub Worksheet_BeforeDoubleClick(ByVal Target As Range, Cancel As Boolean
 
     ' 設定：完了日自動入力
     If InazumaGantt_v3.GetSettingValue(5) Then
-        If IsDate(Me.Cells(Target.Row, "M").Value) Then
-            If Trim$(CStr(Me.Cells(Target.Row, "N").Value)) = "" Then
-                Me.Cells(Target.Row, "N").Value = Date
+        If IsDate(Me.Cells(Target.Row, InazumaGantt_v3.COL_START_ACTUAL).Value) Then
+            If Trim$(CStr(Me.Cells(Target.Row, InazumaGantt_v3.COL_END_ACTUAL).Value)) = "" Then
+                Me.Cells(Target.Row, InazumaGantt_v3.COL_END_ACTUAL).Value = Date
             End If
         End If
     End If
@@ -74,7 +74,7 @@ ErrorHandler:
 End Sub
 
 Private Sub Worksheet_BeforeRightClick(ByVal Target As Range, Cancel As Boolean)
-    ' Shift + 右クリック: 折りたたみ/展開
+    ' Shift + 右クリック: 開発LT集計または折りたたみ/展開
     On Error GoTo ErrorHandler
 
     ' Shiftキーが押されていない場合は通常の右クリックメニュー
@@ -82,11 +82,17 @@ Private Sub Worksheet_BeforeRightClick(ByVal Target As Range, Cancel As Boolean)
 
     If Target.Row < InazumaGantt_v3.ROW_DATA_START Then Exit Sub
 
-    ' C-F列(3-6)でのみ有効
-    If Target.Column < 3 Or Target.Column > 6 Then Exit Sub
+    If Target.Column = Me.Columns(InazumaGantt_v3.COL_DEV_LT).Column Then
+        InazumaGantt_v3.RollupDevelopmentHours Target.Row
+        Cancel = True
+        Exit Sub
+    End If
 
-    InazumaGantt_v3.ToggleTaskCollapse Target.Row
-    Cancel = True
+    ' C-F列(3-6)でのみ有効
+    If Target.Column >= 3 And Target.Column <= 6 Then
+        InazumaGantt_v3.ToggleTaskCollapse Target.Row
+        Cancel = True
+    End If
     Exit Sub
 
 ErrorHandler:
@@ -144,20 +150,38 @@ Private Sub Worksheet_Change(ByVal Target As Range)
         Next progressCell
     End If
 
-    ' 予定日付列（K, L列）に土日祝日を入力した場合に確認メッセージ
-    If Not Intersect(Target, Me.Range("K:L")) Is Nothing Then
-        Dim dateCell As Range
+    ' 開発LT列（K列）の入力を検証
+    If Not Intersect(Target, Me.Columns(InazumaGantt_v3.COL_DEV_LT)) Is Nothing Then
+        Dim ltCell As Range
+        For Each ltCell In Intersect(Target, Me.Columns(InazumaGantt_v3.COL_DEV_LT))
+            If ltCell.Row >= InazumaGantt_v3.ROW_DATA_START Then
+                InazumaGantt_v3.ValidateDevelopmentHoursInput Me, ltCell
+            End If
+        Next ltCell
+    End If
+
+    ' 日付列（L-O列）の入力を検証
+    If Not Intersect(Target, Me.Range(InazumaGantt_v3.COL_START_PLAN & ":" & InazumaGantt_v3.COL_END_ACTUAL)) Is Nothing Then
+        Dim validateCell As Range
+        For Each validateCell In Intersect(Target, Me.Range(InazumaGantt_v3.COL_START_PLAN & ":" & InazumaGantt_v3.COL_END_ACTUAL))
+            If validateCell.Row >= InazumaGantt_v3.ROW_DATA_START Then
+                InazumaGantt_v3.ValidateDateInput Me, validateCell
+            End If
+        Next validateCell
+    End If
+
+    ' 予定日付列（L, M列）に土日祝日を入力した場合に確認メッセージ
+    If Not Intersect(Target, Me.Range(InazumaGantt_v3.COL_START_PLAN & ":" & InazumaGantt_v3.COL_END_PLAN)) Is Nothing Then
+        Dim planDateCell As Range
         Dim inputDate As Date
         Dim isWeekend As Boolean
         Dim isHoliday As Boolean
         Dim warningMsg As String
 
-        For Each dateCell In Intersect(Target, Me.Range("K:L"))
-            If dateCell.Row >= InazumaGantt_v3.ROW_DATA_START Then
-                InazumaGantt_v3.ValidateDateInput Me, dateCell
-
-                If IsDate(dateCell.Value) Then
-                    inputDate = CDate(dateCell.Value)
+        For Each planDateCell In Intersect(Target, Me.Range(InazumaGantt_v3.COL_START_PLAN & ":" & InazumaGantt_v3.COL_END_PLAN))
+            If planDateCell.Row >= InazumaGantt_v3.ROW_DATA_START Then
+                If IsDate(planDateCell.Value) Then
+                    inputDate = CDate(planDateCell.Value)
                     isWeekend = (Weekday(inputDate, vbMonday) >= 6)
                     isHoliday = CheckHoliday(inputDate)
 
@@ -173,13 +197,13 @@ Private Sub Worksheet_Change(ByVal Target As Range)
                         If MsgBox(Format(inputDate, "yy/mm/dd") & " は " & warningMsg & " です。" & vbCrLf & _
                                   "この日付を入力しますか？", vbYesNo + vbQuestion, "確認") = vbNo Then
                             Application.EnableEvents = False
-                            dateCell.ClearContents
+                            planDateCell.ClearContents
                             Application.EnableEvents = True
                         End If
                     End If
                 End If
             End If
-        Next dateCell
+        Next planDateCell
     End If
 
     Application.EnableEvents = True
