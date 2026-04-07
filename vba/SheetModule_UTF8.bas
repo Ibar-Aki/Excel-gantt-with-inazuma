@@ -96,6 +96,7 @@ End Sub
 Private Sub Worksheet_Change(ByVal Target As Range)
 
     On Error GoTo ErrorHandler
+    Dim taskAreaChanged As Boolean
 
     Application.EnableEvents = False
 
@@ -108,11 +109,6 @@ Private Sub Worksheet_Change(ByVal Target As Range)
                 If Trim$(CStr(cell.Value)) <> "" Then
                     ' 階層を自動判定
                     InazumaGantt_v3.AutoDetectTaskLevel cell.Row
-
-                    ' No.が空なら自動入力
-                    If Trim$(CStr(Me.Cells(cell.Row, "B").Value)) = "" Then
-                        Me.Cells(cell.Row, "B").Value = GetNextNo()
-                    End If
 
                     ' 進捗率が空なら0%を入力
                     If Trim$(CStr(Me.Cells(cell.Row, "I").Value)) = "" Then
@@ -127,8 +123,14 @@ Private Sub Worksheet_Change(ByVal Target As Range)
                     ' タスクが削除された場合も階層を更新
                     InazumaGantt_v3.AutoDetectTaskLevel cell.Row
                 End If
+
+                taskAreaChanged = True
             End If
         Next cell
+
+        If taskAreaChanged Then
+            InazumaGantt_v3.RenumberRows
+        End If
     End If
 
     ' 進捗率列（I列）に変更があった場合、状況を自動更新
@@ -239,26 +241,3 @@ Private Sub UpdateStatusByProgress(ByVal targetRow As Long)
         Me.Cells(targetRow, "H").Value = "進行中"
     End If
 End Sub
-
-' ==========================================
-'  次のNo.を取得
-' ==========================================
-Private Function GetNextNo() As Long
-    Dim lastNo As Long
-    Dim r As Long
-    Dim cellValue As Variant
-
-    lastNo = 0
-
-    ' B列から最大のNo.を探す
-    For r = InazumaGantt_v3.ROW_DATA_START To Me.Cells(Me.Rows.Count, "B").End(xlUp).Row
-        cellValue = Me.Cells(r, "B").Value
-        If IsNumeric(cellValue) Then
-            If CLng(cellValue) > lastNo Then
-                lastNo = CLng(cellValue)
-            End If
-        End If
-    Next r
-
-    GetNextNo = lastNo + 1
-End Function
