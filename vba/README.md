@@ -1,6 +1,6 @@
 # VBAモジュール
 
-更新日: 2026-04-07
+更新日: 2026-04-10
 
 InazumaGantt v3 で使用する VBA モジュール一覧です。
 
@@ -19,6 +19,8 @@ InazumaGantt v3 で使用する VBA モジュール一覧です。
 | ファイル | 用途 |
 |----------|------|
 | `InazumaGantt_v3_SJIS.bas` | メイン機能 |
+| `WBSOverviewReports_SJIS.bas` | 全体サマリ、ロードマップ |
+| `WBSDashboardViews_SJIS.bas` | ダッシュボード、フィルタビュー |
 | `SetupWizard_SJIS.bas` | セットアップウィザード |
 | `HierarchyColor_SJIS.bas` | 階層色分け |
 | `SheetModule_SJIS.bas` | シートイベントコード |
@@ -27,7 +29,7 @@ InazumaGantt v3 で使用する VBA モジュール一覧です。
 
 1. Excel ファイルを開く
 2. `Alt + F11` で VBA エディタを開く
-3. `InazumaGantt_v3_SJIS.bas` `SetupWizard_SJIS.bas` `HierarchyColor_SJIS.bas` をインポート
+3. `InazumaGantt_v3_SJIS.bas` `WBSOverviewReports_SJIS.bas` `WBSDashboardViews_SJIS.bas` `SetupWizard_SJIS.bas` `HierarchyColor_SJIS.bas` をインポート
 4. `Alt + F8 -> RunSetupWizard` を実行
 5. `InazumaGantt_v3` シートモジュールへ `SheetModule_SJIS.bas` の内容を貼り付ける
 

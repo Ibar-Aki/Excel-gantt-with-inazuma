@@ -299,15 +299,21 @@ Public Sub CreateWBSDashboardSheet()
         delayDays = CalculateDelayDays(wsMain.Cells(r, InazumaGantt_v3.COL_END_PLAN).Value, progressValue, wsMain.Cells(r, InazumaGantt_v3.COL_END_ACTUAL).Value)
         categoryText = DetermineViewCategory(statusText, wsMain.Cells(r, InazumaGantt_v3.COL_END_PLAN).Value, progressValue, delayDays)
 
-        Select Case categoryText
+        Select Case statusText
             Case "完了"
                 completedTasks = completedTasks + 1
-            Case "進行中"
-                inProgressTasks = inProgressTasks + 1
             Case "保留"
                 holdTasks = holdTasks + 1
+            Case "進行中"
+                inProgressTasks = inProgressTasks + 1
             Case Else
-                notStartedTasks = notStartedTasks + 1
+                If progressValue >= 1 Then
+                    completedTasks = completedTasks + 1
+                ElseIf progressValue > 0 Then
+                    inProgressTasks = inProgressTasks + 1
+                Else
+                    notStartedTasks = notStartedTasks + 1
+                End If
         End Select
 
         If delayDays > 0 Then delayedTasks = delayedTasks + 1
@@ -333,7 +339,9 @@ Public Sub CreateWBSDashboardSheet()
         statValues = assigneeStats(ownerName)
         statValues(0) = CLng(statValues(0)) + 1
         If categoryText = "完了" Then statValues(1) = CLng(statValues(1)) + 1
-        If categoryText = "進行中" Or categoryText = "期限接近" Then statValues(2) = CLng(statValues(2)) + 1
+        If statusText = "進行中" Or (statusText = "" And progressValue > 0 And progressValue < 1) Then
+            statValues(2) = CLng(statValues(2)) + 1
+        End If
         If delayDays > 0 Then statValues(3) = CLng(statValues(3)) + 1
         statValues(4) = CDbl(statValues(4)) + hoursValue
         statValues(5) = CDbl(statValues(5)) + (hoursValue * (1 - progressValue))

@@ -93,6 +93,7 @@ dev/   開発者向けドキュメント
 |----------|------|
 | [docs/利用者ガイド.md](docs/利用者ガイド.md) | 操作マニュアル |
 | [docs/FEATURES.md](docs/FEATURES.md) | 機能詳細 |
+| [docs/新規機能一覧.md](docs/新規機能一覧.md) | 直近追加した機能の一覧 |
 | [docs/CUSTOMIZE.md](docs/CUSTOMIZE.md) | カスタマイズ方法 |
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | 問題解決 |
 | [CHANGELOG.md](CHANGELOG.md) | 更新履歴 |
