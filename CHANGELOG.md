@@ -7,6 +7,13 @@ All notable changes to InazumaGantt will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.1] - 2026-04-10
+
+### Added
+
+- **WBSダッシュボード**: 全体 KPI、担当負荷、要注意タスクを俯瞰する別シート生成マクロを追加
+- **WBSフィルタビュー**: 担当、状態、期限観点でフィルタしやすい一覧シート生成マクロを追加
+
 ## [3.1.0] - 2026-04-09
 
 ### Added

@@ -20,6 +20,7 @@ Alt + F11 -> ファイル -> ファイルのインポート
 
 - `InazumaGantt_v3_SJIS.bas` : メインロジック
 - `WBSOverviewReports_SJIS.bas` : 俯瞰レポート生成
+- `WBSDashboardViews_SJIS.bas` : ダッシュボード、フィルタビュー生成
 - `SetupWizard_SJIS.bas` : セットアップ機能
 - `HierarchyColor_SJIS.bas` : 階層色分け機能
 
@@ -59,6 +60,8 @@ Alt + F8 -> RunSetupWizard -> 実行
 | PDF 出力 | 当月末までのガントを PDF 化 |
 | 全体サマリ | LV1 フェーズ単位で進捗・工数・遅延を一覧化 |
 | ロードマップ | 月次に圧縮した全体計画シートを生成 |
+| ダッシュボード | 全体 KPI、担当負荷、要注意タスクを一覧化 |
+| フィルタビュー | 状態、担当、期限観点で絞り込みやすい一覧を生成 |
 
 ## よく使うマクロ
 
@@ -71,6 +74,8 @@ Alt + F8 -> RunSetupWizard -> 実行
 | `ExportToPDF` | PDF 出力 |
 | `CreatePhaseSummarySheet` | フェーズ単位の全体サマリを生成 |
 | `CreateRoadmapOverviewSheet` | 月次ロードマップを生成 |
+| `CreateWBSDashboardSheet` | ダッシュボードシートを生成 |
+| `CreateWBSFilterViewSheet` | フィルタビューシートを生成 |
 
 ## ファイル構成
 

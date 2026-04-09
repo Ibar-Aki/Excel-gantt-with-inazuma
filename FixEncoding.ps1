@@ -5,6 +5,7 @@ $vbaDir = Join-Path $PSScriptRoot "vba"
 $coreModules = @(
     "InazumaGantt_v3",
     "WBSOverviewReports",
+    "WBSDashboardViews",
     "HierarchyColor",
     "SetupWizard",
     "SheetModule"
