@@ -1,6 +1,6 @@
 # InazumaGantt v3
 
-更新日: 2026-04-07
+更新日: 2026-04-10
 
 Excel ベースのイナズマガントチャート管理ツールです。
 
@@ -19,6 +19,7 @@ Alt + F11 -> ファイル -> ファイルのインポート
 ```
 
 - `InazumaGantt_v3_SJIS.bas` : メインロジック
+- `WBSOverviewReports_SJIS.bas` : 俯瞰レポート生成
 - `SetupWizard_SJIS.bas` : セットアップ機能
 - `HierarchyColor_SJIS.bas` : 階層色分け機能
 
@@ -56,6 +57,8 @@ Alt + F8 -> RunSetupWizard -> 実行
 | 折りたたみ | Shift + 右クリックで LV1 配下を表示・非表示 |
 | 日付シフト | 選択した日付を営業日単位で一括シフト |
 | PDF 出力 | 当月末までのガントを PDF 化 |
+| 全体サマリ | LV1 フェーズ単位で進捗・工数・遅延を一覧化 |
+| ロードマップ | 月次に圧縮した全体計画シートを生成 |
 
 ## よく使うマクロ
 
@@ -66,6 +69,8 @@ Alt + F8 -> RunSetupWizard -> 実行
 | `ResetFormatting` | ヘッダー、罫線、休日色の再構築 |
 | `ToggleWeekends` | 土日列の表示切り替え |
 | `ExportToPDF` | PDF 出力 |
+| `CreatePhaseSummarySheet` | フェーズ単位の全体サマリを生成 |
+| `CreateRoadmapOverviewSheet` | 月次ロードマップを生成 |
 
 ## ファイル構成
 

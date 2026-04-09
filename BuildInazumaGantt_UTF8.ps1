@@ -26,6 +26,7 @@ try {
     # インポートするファイルリスト（必須モジュール）
     $coreModules = @(
         "InazumaGantt_v3_SJIS.bas",
+        "WBSOverviewReports_SJIS.bas",
         "HierarchyColor_SJIS.bas",
         "SetupWizard_SJIS.bas"
     )

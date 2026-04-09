@@ -31,7 +31,7 @@ Public Const ROW_DATE_HEADER As Long = 7      ' 日付行（ガント）
 Public Const ROW_HEADER As Long = 8           ' 曜日行（ガント）/ 項目ヘッダー行（A-O列）
 Public Const ROW_DATA_START As Long = 9       ' データ開始行
 Public Const GANTT_DAYS As Long = 120         ' ガントチャートの日数
-Public Const DATA_ROWS_DEFAULT As Long = 200  ' 初期入力範囲の行数
+Public Const DATA_ROWS_DEFAULT As Long = 1000  ' 初期入力範囲の行数
 
 Public Const GUIDE_SHEET_NAME As String = "InazumaGantt_説明"
 Public Const MAIN_SHEET_NAME As String = "InazumaGantt_v3"
@@ -331,9 +331,9 @@ Sub SetupInazumaGantt(Optional ByVal silentMode As Boolean = False, Optional ByV
         ws.Range("A" & ROW_DATE_HEADER & ":" & COL_END_ACTUAL & ROW_DATE_HEADER).AutoFilter
     End If
 
-    ' No.1?400の初期採番
+    ' Initial numbering for No.1 to No.1000
     Dim noRow As Long
-    For noRow = ROW_DATA_START To ROW_DATA_START + 399
+    For noRow = ROW_DATA_START To ROW_DATA_START + DATA_ROWS_DEFAULT - 1
         ws.Cells(noRow, COL_NO).Value = noRow - ROW_DATA_START + 1
     Next noRow
 
@@ -1829,7 +1829,7 @@ Sub ExportToPDF()
         Quality:=xlQualityStandard
 
     MsgBox "PDFを出力しました:" & vbCrLf & savePath & vbCrLf & vbCrLf & _
-           "出力範囲: A列?" & Format(monthEndDate, "m/d") & "まで", _
+           "出力範囲: A列から" & Format(monthEndDate, "m/d") & "まで", _
            vbInformation, "PDF出力完了"
     Exit Sub
 

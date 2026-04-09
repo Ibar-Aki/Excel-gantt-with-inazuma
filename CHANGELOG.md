@@ -1,11 +1,23 @@
 # Changelog
 
-更新日: 2026-04-08
+更新日: 2026-04-10
 
 All notable changes to InazumaGantt will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [3.1.0] - 2026-04-09
+
+### Added
+
+- **WBS全体サマリ**: LV1 フェーズ単位で進捗率、工数、遅延を集約する別シート生成マクロを追加
+- **WBSロードマップ**: 月次に圧縮した全体計画・進捗を可視化する別シート生成マクロを追加
+
+### Changed
+
+- **初期入力範囲**: 書式、採番、条件付き書式の既定範囲を No.1000 まで拡張
+- **モジュール分離**: 俯瞰シート生成マクロを `WBSOverviewReports` 専用モジュールへ分離
 
 ## [3.0.1] - 2026-04-08
 
