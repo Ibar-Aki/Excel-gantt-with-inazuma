@@ -99,8 +99,9 @@ Sub RunSetupWizard()
     ' ステップ3: サンプルデータ
     result = MsgBox("サンプルデータを追加しますか？" & vbCrLf & vbCrLf & _
                    "サンプルデータには以下が含まれます:" & vbCrLf & _
-                   "- 3つのフェーズ（LV1）" & vbCrLf & _
-                   "- 各フェーズに2-3個のタスク（LV2-LV3）", _
+                   "- 12個のフェーズ（LV1）" & vbCrLf & _
+                   "- 約150行の構造化WBS" & vbCrLf & _
+                   "- 進行中、遅延、保留、期限接近の混在データ", _
                    vbQuestion + vbYesNo, "ステップ 2/3: サンプルデータ")
 
     If result = vbYes Then
@@ -219,82 +220,7 @@ End Sub
 '  サンプルデータの追加（統合版）
 ' ==========================================
 Private Sub AddSampleData(Optional ByVal baseDate As Date = 0)
-    On Error GoTo ErrorHandler
-
-    Dim ws As Worksheet
-    Set ws = ThisWorkbook.Worksheets(InazumaGantt_v3.MAIN_SHEET_NAME)
-
-    If MainSheetHasTaskData(ws) Then
-        If Application.DisplayAlerts Then
-            MsgBox "既存タスクがあるため、サンプルデータの追加はスキップしました。", vbInformation, "サンプルデータ"
-        End If
-        Exit Sub
-    End If
-
-    Dim startRow As Long
-    startRow = InazumaGantt_v3.ROW_DATA_START
-
-    ' 日付指定がない場合は今日を基準
-    If baseDate = 0 Then baseDate = Date
-
-    ' フェーズ1: 計画フェーズ（完了フェーズ）
-    ws.Cells(startRow, "C").Value = "計画フェーズ"
-    ws.Cells(startRow, "H").Value = "完了"
-    ws.Cells(startRow, "I").Value = 1
-    ws.Cells(startRow, "J").Value = "山田"
-    ws.Cells(startRow, InazumaGantt_v3.COL_START_PLAN).Value = GetWorkday(baseDate - 14)
-    ws.Cells(startRow, InazumaGantt_v3.COL_END_PLAN).Value = GetWorkday(baseDate - 7)
-    ws.Cells(startRow, InazumaGantt_v3.COL_START_ACTUAL).Value = GetWorkday(baseDate - 14)
-    ws.Cells(startRow, InazumaGantt_v3.COL_END_ACTUAL).Value = GetWorkday(baseDate - 8)
-
-    ws.Cells(startRow + 1, "D").Value = "要件定義"
-    ws.Cells(startRow + 1, "H").Value = "完了"
-    ws.Cells(startRow + 1, "I").Value = 1
-    ws.Cells(startRow + 1, "J").Value = "山田"
-    ws.Cells(startRow + 1, InazumaGantt_v3.COL_DEV_LT).Value = "12h"
-    ws.Cells(startRow + 1, InazumaGantt_v3.COL_START_PLAN).Value = GetWorkday(baseDate - 14)
-    ws.Cells(startRow + 1, InazumaGantt_v3.COL_END_PLAN).Value = GetWorkday(baseDate - 10)
-
-    ws.Cells(startRow + 2, "D").Value = "設計書作成"
-    ws.Cells(startRow + 2, "H").Value = "完了"
-    ws.Cells(startRow + 2, "I").Value = 1
-    ws.Cells(startRow + 2, "J").Value = "鈴木"
-    ws.Cells(startRow + 2, InazumaGantt_v3.COL_DEV_LT).Value = "8h"
-    ws.Cells(startRow + 2, InazumaGantt_v3.COL_START_PLAN).Value = GetWorkday(baseDate - 10)
-    ws.Cells(startRow + 2, InazumaGantt_v3.COL_END_PLAN).Value = GetWorkday(baseDate - 7)
-
-    ' フェーズ2: 開発フェーズ（進行中）
-    ws.Cells(startRow + 3, "C").Value = "開発フェーズ"
-    ws.Cells(startRow + 3, "H").Value = "進行中"
-    ws.Cells(startRow + 3, "I").Value = 0.6
-    ws.Cells(startRow + 3, "J").Value = "田中"
-    ws.Cells(startRow + 3, InazumaGantt_v3.COL_START_PLAN).Value = GetWorkday(baseDate - 7)
-    ws.Cells(startRow + 3, InazumaGantt_v3.COL_END_PLAN).Value = GetWorkday(baseDate + 14)
-
-    ws.Cells(startRow + 4, "D").Value = "機能開発"
-    ws.Cells(startRow + 4, "H").Value = "進行中"
-    ws.Cells(startRow + 4, "I").Value = 0.7
-    ws.Cells(startRow + 4, "J").Value = "田中"
-    ws.Cells(startRow + 4, InazumaGantt_v3.COL_DEV_LT).Value = "40h"
-    ws.Cells(startRow + 4, InazumaGantt_v3.COL_START_PLAN).Value = GetWorkday(baseDate - 7)
-    ws.Cells(startRow + 4, InazumaGantt_v3.COL_END_PLAN).Value = GetWorkday(baseDate + 7)
-
-    ' フェーズ3: リリースフェーズ（未着手）
-    ws.Cells(startRow + 5, "C").Value = "リリースフェーズ"
-    ws.Cells(startRow + 5, "H").Value = "未着手"
-    ws.Cells(startRow + 5, "I").Value = 0
-    ws.Cells(startRow + 5, "J").Value = "山田"
-    ws.Cells(startRow + 5, InazumaGantt_v3.COL_DEV_LT).Value = "16h"
-    ws.Cells(startRow + 5, InazumaGantt_v3.COL_START_PLAN).Value = GetWorkday(baseDate + 14)
-    ws.Cells(startRow + 5, InazumaGantt_v3.COL_END_PLAN).Value = GetWorkday(baseDate + 21)
-
-    ' 階層自動判定
-    InazumaGantt_v3.AutoDetectTaskLevel
-    InazumaGantt_v3.RenumberRows
-    Exit Sub
-
-ErrorHandler:
-    MsgBox "サンプルデータ追加エラー: " & Err.Description, vbCritical, "エラー"
+    WBSSampleShowcase.CreateShowcaseSampleWBS baseDate, False, False
 End Sub
 
 ' ==========================================
@@ -364,6 +290,9 @@ Sub CheckInstallation()
     ' 必須モジュール
     status = status & "必須モジュール:" & vbCrLf
     status = status & "  InazumaGantt_v3: " & IIf(IsModuleInstalled("InazumaGantt_v3"), "OK", "未インストール") & vbCrLf
+    status = status & "  WBSOverviewReports: " & IIf(IsModuleInstalled("WBSOverviewReports"), "OK", "未インストール") & vbCrLf
+    status = status & "  WBSDashboardViews: " & IIf(IsModuleInstalled("WBSDashboardViews"), "OK", "未インストール") & vbCrLf
+    status = status & "  WBSSampleShowcase: " & IIf(IsModuleInstalled("WBSSampleShowcase"), "OK", "未インストール") & vbCrLf
     status = status & "  HierarchyColor: " & IIf(IsModuleInstalled("HierarchyColor"), "OK", "未インストール") & vbCrLf
     status = status & "  SetupWizard: " & IIf(IsModuleInstalled("SetupWizard"), "OK", "未インストール") & vbCrLf
 

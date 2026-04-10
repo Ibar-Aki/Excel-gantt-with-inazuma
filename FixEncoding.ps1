@@ -6,6 +6,7 @@ $coreModules = @(
     "InazumaGantt_v3",
     "WBSOverviewReports",
     "WBSDashboardViews",
+    "WBSSampleShowcase",
     "HierarchyColor",
     "SetupWizard",
     "SheetModule"

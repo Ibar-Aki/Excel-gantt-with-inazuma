@@ -1,6 +1,6 @@
 # InazumaGantt v3
 
-更新日: 2026-04-10
+更新日: 2026-04-11
 
 Excel ベースのイナズマガントチャート管理ツールです。
 
@@ -21,6 +21,7 @@ Alt + F11 -> ファイル -> ファイルのインポート
 - `InazumaGantt_v3_SJIS.bas` : メインロジック
 - `WBSOverviewReports_SJIS.bas` : 俯瞰レポート生成
 - `WBSDashboardViews_SJIS.bas` : ダッシュボード、フィルタビュー生成
+- `WBSSampleShowcase_SJIS.bas` : 大規模サンプルWBS生成
 - `SetupWizard_SJIS.bas` : セットアップ機能
 - `HierarchyColor_SJIS.bas` : 階層色分け機能
 
@@ -62,6 +63,7 @@ Alt + F8 -> RunSetupWizard -> 実行
 | ロードマップ | 月次に圧縮した全体計画シートを生成 |
 | ダッシュボード | 全体 KPI、担当負荷、要注意タスクを一覧化 |
 | フィルタビュー | 状態、担当、期限観点で絞り込みやすい一覧を生成 |
+| Showcase Sample | 約150行の見栄え重視サンプルWBSを生成 |
 
 ## よく使うマクロ
 
@@ -76,6 +78,7 @@ Alt + F8 -> RunSetupWizard -> 実行
 | `CreateRoadmapOverviewSheet` | 月次ロードマップを生成 |
 | `CreateWBSDashboardSheet` | ダッシュボードシートを生成 |
 | `CreateWBSFilterViewSheet` | フィルタビューシートを生成 |
+| `CreateShowcaseSampleWBS` | 約150行のサンプルWBSを生成 |
 
 ## ファイル構成
 

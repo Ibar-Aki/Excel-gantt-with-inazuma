@@ -1,6 +1,6 @@
 # 機能詳細
 
-更新日: 2026-04-10
+更新日: 2026-04-11
 
 InazumaGantt v3 の現行仕様と主要マクロの一覧です。
 
@@ -73,6 +73,7 @@ InazumaGantt v3 の現行仕様と主要マクロの一覧です。
 | WBSロードマップ | `CreateRoadmapOverviewSheet` | 月次に圧縮した全体計画と進捗を表示 |
 | WBSダッシュボード | `CreateWBSDashboardSheet` | KPI、担当負荷、要注意タスクを一覧化 |
 | WBSフィルタビュー | `CreateWBSFilterViewSheet` | 担当、状態、期限観点で絞り込みやすい一覧を生成 |
+| Showcase Sample | `CreateShowcaseSampleWBS` | 約150行の構造化サンプルWBSを生成 |
 
 ## 主要マクロ一覧
 
@@ -90,3 +91,4 @@ InazumaGantt v3 の現行仕様と主要マクロの一覧です。
 | 俯瞰 | `CreateRoadmapOverviewSheet` | ロードマップ作成 |
 | 俯瞰 | `CreateWBSDashboardSheet` | ダッシュボード作成 |
 | 俯瞰 | `CreateWBSFilterViewSheet` | フィルタビュー作成 |
+| サンプル | `CreateShowcaseSampleWBS` | 大規模サンプルWBS作成 |
