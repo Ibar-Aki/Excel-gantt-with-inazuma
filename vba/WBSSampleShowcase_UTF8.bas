@@ -2,14 +2,18 @@ Attribute VB_Name = "WBSSampleShowcase"
 Option Explicit
 
 Private Const SHOWCASE_ROW_COUNT As Long = 156
+Private Const SHOWCASE_APP_NAME As String = "会話力向上アプリ「ハナセル」"
+Private Const SHOWCASE_REFERENCE_DATE_OFFSET As Long = 19
 
 Public Sub CreateShowcaseSampleWBS(Optional ByVal baseDate As Date = 0, _
                                    Optional ByVal skipExistingCheck As Boolean = False, _
-                                   Optional ByVal refreshAfterCreate As Boolean = True)
+                                   Optional ByVal refreshAfterCreate As Boolean = True, _
+                                   Optional ByVal generateRoadmapView As Boolean = True)
     On Error GoTo ErrorHandler
 
     Dim ws As Worksheet
-    Set ws = RequireMainWorksheet("Showcase Sample WBS")
+    Dim previousEnableEvents As Boolean
+    Set ws = RequireMainWorksheet("サンプルWBS作成")
     If ws Is Nothing Then Exit Sub
 
     If baseDate = 0 Then
@@ -21,16 +25,18 @@ Public Sub CreateShowcaseSampleWBS(Optional ByVal baseDate As Date = 0, _
     End If
 
     If Not skipExistingCheck And MainSheetHasTaskData(ws) Then
-        MsgBox "Existing tasks were found. Showcase sample creation was skipped.", vbInformation, "Showcase Sample"
+        MsgBox "既存タスクがあるため、サンプルWBSの生成をスキップしました。", vbInformation, "サンプルWBS"
         Exit Sub
     End If
 
+    previousEnableEvents = Application.EnableEvents
     Application.ScreenUpdating = False
+    Application.EnableEvents = False
 
     ClearTaskArea ws
     BuildShowcaseData ws, baseDate
 
-    ws.Range("A4").Value = "Memo: Aether Pulse showcase sample (" & CStr(SHOWCASE_ROW_COUNT) & " rows)"
+    ws.Range("A4").Value = "メモ：" & SHOWCASE_APP_NAME & " 開発のデモWBS（" & CStr(SHOWCASE_ROW_COUNT) & "行、ロードマップ付き）"
 
     InazumaGantt_v3.AutoDetectTaskLevel
     InazumaGantt_v3.RenumberRows
@@ -40,18 +46,53 @@ Public Sub CreateShowcaseSampleWBS(Optional ByVal baseDate As Date = 0, _
         InazumaGantt_v3.RefreshInazumaGantt
     End If
 
+    If generateRoadmapView Then
+        FinalizeShowcasePresentation True, GetShowcaseReferenceDate(baseDate)
+    End If
+
+    Application.EnableEvents = previousEnableEvents
     Application.ScreenUpdating = True
 
     If Application.DisplayAlerts Then
-        MsgBox "Showcase sample WBS was created." & vbCrLf & _
-               "Rows: " & CStr(SHOWCASE_ROW_COUNT), vbInformation, "Showcase Sample"
+        MsgBox "サンプルWBSを生成しました。" & vbCrLf & _
+               "行数: " & CStr(SHOWCASE_ROW_COUNT), vbInformation, "サンプルWBS"
     End If
     Exit Sub
 
 ErrorHandler:
+    Application.EnableEvents = previousEnableEvents
     Application.ScreenUpdating = True
-    MsgBox "Showcase sample creation failed: " & Err.Description, vbCritical, "Showcase Sample"
+    If Application.DisplayAlerts Then
+        MsgBox "サンプルWBSの生成に失敗しました: " & Err.Description, vbCritical, "サンプルWBS"
+    Else
+        Err.Raise Err.Number, "CreateShowcaseSampleWBS", Err.Description
+    End If
 End Sub
+
+Public Sub FinalizeShowcasePresentation(Optional ByVal generateRoadmapView As Boolean = True, _
+                                        Optional ByVal roadmapReferenceDate As Variant)
+    On Error GoTo ErrorHandler
+
+    Dim ws As Worksheet
+    Set ws = RequireMainWorksheet("サンプルWBS仕上げ")
+    If ws Is Nothing Then Exit Sub
+
+    If generateRoadmapView Then
+        WBSRoadmapReport.CreateRoadmapOverviewSheet roadmapReferenceDate
+    End If
+    Exit Sub
+
+ErrorHandler:
+    If Application.DisplayAlerts Then
+        MsgBox "サンプルWBSの仕上げに失敗しました: " & Err.Description, vbCritical, "サンプルWBS"
+    Else
+        Err.Raise Err.Number, "FinalizeShowcasePresentation", Err.Description
+    End If
+End Sub
+
+Public Function GetShowcaseReferenceDate(ByVal baseDate As Date) As Date
+    GetShowcaseReferenceDate = DateAdd("d", SHOWCASE_REFERENCE_DATE_OFFSET, baseDate)
+End Function
 
 Private Function RequireMainWorksheet(ByVal operationName As String) As Worksheet
     On Error Resume Next
@@ -59,7 +100,7 @@ Private Function RequireMainWorksheet(ByVal operationName As String) As Workshee
     On Error GoTo 0
 
     If RequireMainWorksheet Is Nothing Then
-        MsgBox "Main sheet '" & InazumaGantt_v3.MAIN_SHEET_NAME & "' was not found.", vbExclamation, operationName
+        MsgBox "メインシート '" & InazumaGantt_v3.MAIN_SHEET_NAME & "' が見つかりません。", vbExclamation, operationName
     End If
 End Function
 
@@ -86,20 +127,20 @@ Private Sub BuildShowcaseData(ByVal ws As Worksheet, ByVal baseDate As Date)
     Dim phaseIndex As Long
 
     phaseNames = Array( _
-        "North Star Strategy", _
-        "Brand Storyworld", _
-        "Experience Blueprint", _
-        "Platform Foundation", _
-        "Commerce Engine", _
-        "Data Intelligence", _
-        "Creator Studio", _
-        "Launch Command", _
-        "Partner Orbit", _
-        "Trust and Security", _
-        "Scale Automation", _
-        "Growth Catalyst")
+        "事業構想と市場分析", _
+        "学習体験コンセプト設計", _
+        "会話診断ロジック設計", _
+        "レッスンコンテンツ制作", _
+        "UX/UIデザイン", _
+        "AI会話エンジン開発", _
+        "音声認識・発話評価", _
+        "モバイルアプリ実装", _
+        "バックエンド・分析基盤", _
+        "ベータ運用と改善", _
+        "セキュリティ・法務対応", _
+        "正式リリースとグロース")
 
-    owners = Array("Aki", "Mika", "Ren", "Sora", "Kai", "Yui", "Jin", "Riku")
+    owners = Array("秋山", "美咲", "蓮", "蒼", "海斗", "結衣", "仁", "陸")
 
     rowIndex = InazumaGantt_v3.ROW_DATA_START
 
@@ -130,7 +171,7 @@ Private Sub AddShowcasePhase(ByVal ws As Worksheet, ByRef rowIndex As Long, ByVa
     If phaseProgress > 0 Then phaseActualStart = phaseStart
     If phaseStatus = "完了" Then phaseActualEnd = AddBusinessDays(phaseEnd, IIf(phaseIndex Mod 2 = 0, -1, 0))
 
-    SetTaskRow ws, rowIndex, "C", phaseName, "Signature phase for the Aether Pulse showcase program.", _
+    SetTaskRow ws, rowIndex, "C", phaseName, SHOWCASE_APP_NAME & " の中核フェーズ。", _
                phaseStatus, phaseProgress, phaseOwner, "", phaseStart, phaseEnd, phaseActualStart, phaseActualEnd
     rowIndex = rowIndex + 1
 
@@ -175,7 +216,7 @@ Private Sub AddShowcaseStream(ByVal ws As Worksheet, ByRef rowIndex As Long, ByV
     rowIndex = rowIndex + 1
 
     lv3ParentName = GetTaskName(streamIndex, 1, phaseName)
-    SetTaskRow ws, rowIndex, "E", lv3ParentName, "Parent cluster that groups the hero deliverables.", _
+    SetTaskRow ws, rowIndex, "E", lv3ParentName, "主要成果物を束ねる親タスク。", _
                streamStatus, streamProgress, streamOwner, "", _
                AddBusinessDays(streamStart, 0), AddBusinessDays(streamStart, 3), streamActualStart, Empty
     rowIndex = rowIndex + 1
@@ -286,17 +327,17 @@ End Function
 
 Private Function GetStreamName(ByVal streamIndex As Long, ByVal phaseName As String) As String
     Select Case streamIndex
-        Case 1: GetStreamName = phaseName & " Signal Track"
-        Case 2: GetStreamName = phaseName & " Build Track"
-        Case Else: GetStreamName = phaseName & " Launch Track"
+        Case 1: GetStreamName = phaseName & " 構想トラック"
+        Case 2: GetStreamName = phaseName & " 実装トラック"
+        Case Else: GetStreamName = phaseName & " 展開トラック"
     End Select
 End Function
 
 Private Function GetStreamDetail(ByVal streamIndex As Long, ByVal phaseName As String) As String
     Select Case streamIndex
-        Case 1: GetStreamDetail = "Shapes the intent and success frame for " & phaseName & "."
-        Case 2: GetStreamDetail = "Turns the concept into a visible and measurable experience."
-        Case Else: GetStreamDetail = "Prepares enablement, operations, and launch confidence."
+        Case 1: GetStreamDetail = SHOWCASE_APP_NAME & " の " & phaseName & " に必要な要件と成功条件を定義する。"
+        Case 2: GetStreamDetail = phaseName & " を実装と体験品質へ落とし込む。"
+        Case Else: GetStreamDetail = phaseName & " を安定運用と展開へつなげる。"
     End Select
 End Function
 
@@ -304,21 +345,21 @@ Private Function GetTaskName(ByVal streamIndex As Long, ByVal slotIndex As Long,
     Select Case streamIndex
         Case 1
             Select Case slotIndex
-                Case 1: GetTaskName = phaseName & " Signal Brief"
-                Case 2: GetTaskName = phaseName & " Executive Cut"
-                Case Else: GetTaskName = phaseName & " Success Scoreboard"
+                Case 1: GetTaskName = phaseName & " 戦略整理"
+                Case 2: GetTaskName = phaseName & " 経営レビュー"
+                Case Else: GetTaskName = phaseName & " 成果指標設計"
             End Select
         Case 2
             Select Case slotIndex
-                Case 1: GetTaskName = phaseName & " Hero Flow"
-                Case 2: GetTaskName = phaseName & " Prototype Sprint"
-                Case Else: GetTaskName = phaseName & " Integration Map"
+                Case 1: GetTaskName = phaseName & " 体験導線設計"
+                Case 2: GetTaskName = phaseName & " プロトタイプ反復"
+                Case Else: GetTaskName = phaseName & " 連携設計"
             End Select
         Case Else
             Select Case slotIndex
-                Case 1: GetTaskName = phaseName & " Launch Rehearsal"
-                Case 2: GetTaskName = phaseName & " War Room Drill"
-                Case Else: GetTaskName = phaseName & " Enablement Pack"
+                Case 1: GetTaskName = phaseName & " 展開リハーサル"
+                Case 2: GetTaskName = phaseName & " 当日運営訓練"
+                Case Else: GetTaskName = phaseName & " 利用定着パック"
             End Select
     End Select
 End Function
@@ -327,21 +368,21 @@ Private Function GetLeafDetail(ByVal streamIndex As Long, ByVal leafSlot As Long
     Select Case streamIndex
         Case 1
             If leafSlot = 1 Then
-                GetLeafDetail = "Tight edit for the story spine of " & phaseName & "."
+                GetLeafDetail = SHOWCASE_APP_NAME & " の " & phaseName & " で核になる仮説や設計を磨き込む。"
             Else
-                GetLeafDetail = "Measures focus, outcomes, and stakeholder confidence."
+                GetLeafDetail = "会話力向上の成果指標、期待値、判断基準を揃える。"
             End If
         Case 2
             If leafSlot = 1 Then
-                GetLeafDetail = "Fast prototype cycle to make the hero experience tangible."
+                GetLeafDetail = "主要な学習体験を素早く試作し、魅力と違和感を見える化する。"
             Else
-                GetLeafDetail = "System and channel handshake design for launch quality."
+                GetLeafDetail = "アプリ、API、分析基盤の接続品質を設計する。"
             End If
         Case Else
             If leafSlot = 1 Then
-                GetLeafDetail = "Operational drill that stress-tests the go-live moment."
+                GetLeafDetail = "本番やベータに向けて運営訓練を行い、立ち上がりを安定させる。"
             Else
-                GetLeafDetail = "Field-ready assets that make the launch feel polished."
+                GetLeafDetail = "CS、マーケ、運営が迷わない展開資料と支援物を整える。"
             End If
     End Select
 End Function

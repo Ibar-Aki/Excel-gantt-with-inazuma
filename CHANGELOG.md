@@ -7,6 +7,18 @@ All notable changes to InazumaGantt will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.4] - 2026-04-11
+
+### Changed
+
+- **完了行表示**: 完了時は LV と同じ塗り範囲を薄い灰色で上書きする方式へ統一
+- **ロードマップ専用化**: `WBSRoadmapReport` を追加し、参照サンプルに合わせた `WBSロードマップ` 自動生成へ整理
+- **サンプル出力**: Showcase サンプルはロードマップのみを同時生成する構成へ変更
+
+### Removed
+
+- **旧俯瞰シート群**: `WBS全体サマリ` `WBSダッシュボード` `WBSフィルタビュー` `完了表現ガイド` を現行機能から外し、`vba/archive/過去の検討機能/` へアーカイブ
+
 ## [3.1.2] - 2026-04-11
 
 ### Added

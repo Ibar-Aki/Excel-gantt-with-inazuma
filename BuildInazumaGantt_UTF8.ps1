@@ -5,9 +5,15 @@ $outputDir = Join-Path $scriptDir "output"
 $timestamp = Get-Date -Format "yyyyMMdd_HHmm"
 $outputFile = Join-Path $outputDir "InazumaGantt_v3_$timestamp.xlsm"
 
-# エンコーディング修正スクリプトの実行（スキップ）
-# $fixEncodingScript = Join-Path $scriptDir "FixEncoding.ps1"
-# if (Test-Path $fixEncodingScript) { ... }
+# UTF8編集内容をSJIS import対象へ同期
+$fixEncodingScript = Join-Path $scriptDir "FixEncoding.ps1"
+if (Test-Path $fixEncodingScript) {
+    Write-Host "Synchronizing SJIS modules..."
+    & $fixEncodingScript
+}
+else {
+    throw "FixEncoding.ps1 not found: $fixEncodingScript"
+}
 
 # 出力ディレクトリ作成
 if (!(Test-Path $outputDir)) { New-Item -ItemType Directory -Path $outputDir | Out-Null }
@@ -26,8 +32,7 @@ try {
     # インポートするファイルリスト（必須モジュール）
     $coreModules = @(
         "InazumaGantt_v3_SJIS.bas",
-        "WBSOverviewReports_SJIS.bas",
-        "WBSDashboardViews_SJIS.bas",
+        "WBSRoadmapReport_SJIS.bas",
         "WBSSampleShowcase_SJIS.bas",
         "HierarchyColor_SJIS.bas",
         "SetupWizard_SJIS.bas"
@@ -67,17 +72,36 @@ try {
         $mainSheetCode.AddFromString($code)
     }
 
-    $defaultSheet = $wb.Worksheets.Item(1)
-    if ($defaultSheet.Name -ne "InazumaGantt_v3" -and $wb.Worksheets.Count -gt 1) {
-        if ($excel.WorksheetFunction.CountA($defaultSheet.UsedRange) -eq 0) {
-            $defaultSheet.Delete()
+    Write-Host "Saving to $outputFile..."
+    $wb.SaveAs($outputFile, 52) # 52 = xlOpenXMLWorkbookMacroEnabled (.xlsm)
+    $wb.Close($false)
+    $wb = $null
+    $excel.Quit()
+    [System.Runtime.Interopservices.Marshal]::ReleaseComObject($excel) | Out-Null
+    Remove-Variable excel -ErrorAction SilentlyContinue
+
+    $excel = New-Object -ComObject Excel.Application
+    $excel.Visible = $false
+    $excel.DisplayAlerts = $false
+    $wb = $excel.Workbooks.Open($outputFile)
+
+    $keepSheets = @("InazumaGantt_v3", "InazumaGantt_説明", "設定マスタ", "WBSロードマップ")
+    $deleteSheets = @()
+    for ($i = $wb.Worksheets.Count; $i -ge 1; $i--) {
+        $candidate = $wb.Worksheets.Item($i)
+        if ($keepSheets -notcontains $candidate.Name) {
+            $deleteSheets += $candidate.Name
         }
     }
 
-    # 保存
-    Write-Host "Saving to $outputFile..."
-    $wb.SaveAs($outputFile, 52) # 52 = xlOpenXMLWorkbookMacroEnabled (.xlsm)
-    
+    if ($deleteSheets.Count -gt 0) {
+        $wb.Worksheets.Item("InazumaGantt_v3").Activate() | Out-Null
+        foreach ($sheetName in $deleteSheets) {
+            $wb.Worksheets.Item($sheetName).Delete()
+        }
+        $wb.Save()
+    }
+
     Write-Host "Build Complete!"
 }
 catch {

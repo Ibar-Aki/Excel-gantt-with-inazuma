@@ -41,6 +41,7 @@ InazumaGantt v3 の現行仕様と主要マクロの一覧です。
 | 今日線 | 当日列に赤線を表示 |
 | イナズマ線 | 各タスクの進捗位置をオレンジ線で接続 |
 | 土日祝色分け | 土日と設定マスタの祝日を塗り分け |
+| 完了行塗り分け | 完了時は LV と同じ範囲を薄い灰色で上書き表示 |
 
 ## 自動入力と検証
 
@@ -69,11 +70,8 @@ InazumaGantt v3 の現行仕様と主要マクロの一覧です。
 
 | シート | マクロ | 内容 |
 |--------|--------|------|
-| WBS全体サマリ | `CreatePhaseSummarySheet` | LV1 フェーズ単位の進捗、工数、遅延を集約 |
 | WBSロードマップ | `CreateRoadmapOverviewSheet` | 月次に圧縮した全体計画と進捗を表示 |
-| WBSダッシュボード | `CreateWBSDashboardSheet` | KPI、担当負荷、要注意タスクを一覧化 |
-| WBSフィルタビュー | `CreateWBSFilterViewSheet` | 担当、状態、期限観点で絞り込みやすい一覧を生成 |
-| Showcase Sample | `CreateShowcaseSampleWBS` | 約150行の構造化サンプルWBSを生成 |
+| Showcase Sample | `CreateShowcaseSampleWBS` | 約150行の構造化サンプルWBSとロードマップを生成 |
 
 ## 主要マクロ一覧
 
@@ -87,8 +85,5 @@ InazumaGantt v3 の現行仕様と主要マクロの一覧です。
 | 補助 | `RenumberRows` | No. を再採番 |
 | 補助 | `ShiftDates` | 日付一括シフト |
 | 出力 | `ExportToPDF` | PDF出力 |
-| 俯瞰 | `CreatePhaseSummarySheet` | 全体サマリ作成 |
 | 俯瞰 | `CreateRoadmapOverviewSheet` | ロードマップ作成 |
-| 俯瞰 | `CreateWBSDashboardSheet` | ダッシュボード作成 |
-| 俯瞰 | `CreateWBSFilterViewSheet` | フィルタビュー作成 |
 | サンプル | `CreateShowcaseSampleWBS` | 大規模サンプルWBS作成 |

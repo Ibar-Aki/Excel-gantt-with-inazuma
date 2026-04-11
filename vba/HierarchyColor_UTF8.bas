@@ -12,12 +12,16 @@ Option Explicit
 '   LV2 (A列=2): D～O列を塗る
 '   LV3 (A列=3): E～O列を塗る
 '   LV4 (A列=4): F～O列を塗る
+' 完了時:
+'   LVごとの塗り範囲を維持したまま、薄い灰色の完了色を優先適用
 
 ' 階層別の色定義
 Public Const COLOR_LV1 As Long = 14083324  ' RGB(252,228,214) サーモン
 Public Const COLOR_LV2 As Long = 15983322  ' RGB(218,227,243) 薄い青
 Public Const COLOR_LV3 As Long = 14348514  ' RGB(226,239,218) 薄い緑
 Public Const COLOR_LV4 As Long = 13434879  ' RGB(255,242,204) 薄い黄色
+
+Private Const COMPLETED_TINT As Double = -0.299996948242188
 
 ' 色塗り終了列（ガント開始列の手前）
 Public Const COL_COLOR_END As String = "O"
@@ -92,6 +96,15 @@ Sub SetupHierarchyColors()
         Formula1:="=$A" & InazumaGantt_v3.ROW_DATA_START & "=4")
     cf4.Interior.Color = COLOR_LV4
     cf4.StopIfTrue = True
+
+    ApplyCompletedTaskCondition ws.Range("C" & InazumaGantt_v3.ROW_DATA_START & ":" & COL_COLOR_END & lastRow), _
+        "AND($A" & InazumaGantt_v3.ROW_DATA_START & "=1,$H" & InazumaGantt_v3.ROW_DATA_START & "=""完了"")"
+    ApplyCompletedTaskCondition ws.Range("D" & InazumaGantt_v3.ROW_DATA_START & ":" & COL_COLOR_END & lastRow), _
+        "AND($A" & InazumaGantt_v3.ROW_DATA_START & "=2,$H" & InazumaGantt_v3.ROW_DATA_START & "=""完了"")"
+    ApplyCompletedTaskCondition ws.Range("E" & InazumaGantt_v3.ROW_DATA_START & ":" & COL_COLOR_END & lastRow), _
+        "AND($A" & InazumaGantt_v3.ROW_DATA_START & "=3,$H" & InazumaGantt_v3.ROW_DATA_START & "=""完了"")"
+    ApplyCompletedTaskCondition ws.Range("F" & InazumaGantt_v3.ROW_DATA_START & ":" & COL_COLOR_END & lastRow), _
+        "AND($A" & InazumaGantt_v3.ROW_DATA_START & "=4,$H" & InazumaGantt_v3.ROW_DATA_START & "=""完了"")"
     
     Application.Calculation = prevCalc
     Application.ScreenUpdating = True
@@ -110,6 +123,17 @@ ErrorHandler:
     Application.Calculation = prevCalc
     Application.ScreenUpdating = True
     MsgBox "条件付き書式設定エラー: " & Err.Description, vbCritical, "エラー"
+End Sub
+
+Private Sub ApplyCompletedTaskCondition(ByVal targetRange As Range, ByVal formulaBody As String)
+    Dim fc As FormatCondition
+
+    Set fc = targetRange.FormatConditions.Add(Type:=xlExpression, Formula1:="=" & formulaBody)
+    fc.SetFirstPriority
+    fc.StopIfTrue = True
+    fc.Interior.Pattern = xlSolid
+    fc.Interior.ThemeColor = xlThemeColorLight2
+    fc.Interior.TintAndShade = COMPLETED_TINT
 End Sub
 
 ' ==========================================

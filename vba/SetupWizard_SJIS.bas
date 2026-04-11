@@ -17,6 +17,7 @@ Public Sub SilentSetup(Optional ByVal isAddSampleData As Boolean = True)
 
     Application.ScreenUpdating = False
     Application.DisplayAlerts = False
+    Dim hasShowcaseSample As Boolean
 
     ' 開始日を計算（14日前の範囲内で最も近い月曜日）
     Dim startDate As Date
@@ -33,6 +34,7 @@ Public Sub SilentSetup(Optional ByVal isAddSampleData As Boolean = True)
     If isAddSampleData Then
         ' startDateを基準にサンプルデータを追加
         AddSampleData startDate
+        hasShowcaseSample = True
     End If
 
     ' 設定マスタシート作成
@@ -46,6 +48,10 @@ Public Sub SilentSetup(Optional ByVal isAddSampleData As Boolean = True)
 
     ' ガントチャート描画
     InazumaGantt_v3.RefreshInazumaGantt
+
+    If hasShowcaseSample Then
+        WBSSampleShowcase.FinalizeShowcasePresentation True, WBSSampleShowcase.GetShowcaseReferenceDate(startDate)
+    End If
 
     Application.ScreenUpdating = True
     Application.DisplayAlerts = True
@@ -65,6 +71,7 @@ Sub RunSetupWizard()
 
     Dim result As VbMsgBoxResult
     Dim mainSheet As Worksheet
+    Dim hasShowcaseSample As Boolean
 
     ' ステップ1: 開始確認
     result = MsgBox("InazumaGantt セットアップウィザードへようこそ！" & vbCrLf & vbCrLf & _
@@ -99,13 +106,14 @@ Sub RunSetupWizard()
     ' ステップ3: サンプルデータ
     result = MsgBox("サンプルデータを追加しますか？" & vbCrLf & vbCrLf & _
                    "サンプルデータには以下が含まれます:" & vbCrLf & _
-                   "- 12個のフェーズ（LV1）" & vbCrLf & _
+                   "- 会話力向上アプリ開発をテーマにした12個のフェーズ" & vbCrLf & _
                    "- 約150行の構造化WBS" & vbCrLf & _
-                   "- 進行中、遅延、保留、期限接近の混在データ", _
+                   "- WBSロードマップも同時生成", _
                    vbQuestion + vbYesNo, "ステップ 2/3: サンプルデータ")
 
     If result = vbYes Then
         AddSampleData
+        hasShowcaseSample = True
     End If
 
     ' ステップ4: 階層色分けとガント描画を自動実行
@@ -127,6 +135,16 @@ Sub RunSetupWizard()
 
     ' ガントチャートを描画
     InazumaGantt_v3.RefreshInazumaGantt
+
+    If hasShowcaseSample Then
+        Dim roadmapReferenceDate As Date
+        If IsDate(mainSheet.Range(InazumaGantt_v3.CELL_PROJECT_START).Value) Then
+            roadmapReferenceDate = WBSSampleShowcase.GetShowcaseReferenceDate(CDate(mainSheet.Range(InazumaGantt_v3.CELL_PROJECT_START).Value))
+        Else
+            roadmapReferenceDate = Date
+        End If
+        WBSSampleShowcase.FinalizeShowcasePresentation True, roadmapReferenceDate
+    End If
 
     Application.ScreenUpdating = True
 
@@ -220,7 +238,7 @@ End Sub
 '  サンプルデータの追加（統合版）
 ' ==========================================
 Private Sub AddSampleData(Optional ByVal baseDate As Date = 0)
-    WBSSampleShowcase.CreateShowcaseSampleWBS baseDate, False, False
+    WBSSampleShowcase.CreateShowcaseSampleWBS baseDate, False, False, False
 End Sub
 
 ' ==========================================
@@ -290,8 +308,7 @@ Sub CheckInstallation()
     ' 必須モジュール
     status = status & "必須モジュール:" & vbCrLf
     status = status & "  InazumaGantt_v3: " & IIf(IsModuleInstalled("InazumaGantt_v3"), "OK", "未インストール") & vbCrLf
-    status = status & "  WBSOverviewReports: " & IIf(IsModuleInstalled("WBSOverviewReports"), "OK", "未インストール") & vbCrLf
-    status = status & "  WBSDashboardViews: " & IIf(IsModuleInstalled("WBSDashboardViews"), "OK", "未インストール") & vbCrLf
+    status = status & "  WBSRoadmapReport: " & IIf(IsModuleInstalled("WBSRoadmapReport"), "OK", "未インストール") & vbCrLf
     status = status & "  WBSSampleShowcase: " & IIf(IsModuleInstalled("WBSSampleShowcase"), "OK", "未インストール") & vbCrLf
     status = status & "  HierarchyColor: " & IIf(IsModuleInstalled("HierarchyColor"), "OK", "未インストール") & vbCrLf
     status = status & "  SetupWizard: " & IIf(IsModuleInstalled("SetupWizard"), "OK", "未インストール") & vbCrLf

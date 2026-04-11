@@ -19,8 +19,7 @@ Alt + F11 -> ファイル -> ファイルのインポート
 ```
 
 - `InazumaGantt_v3_SJIS.bas` : メインロジック
-- `WBSOverviewReports_SJIS.bas` : 俯瞰レポート生成
-- `WBSDashboardViews_SJIS.bas` : ダッシュボード、フィルタビュー生成
+- `WBSRoadmapReport_SJIS.bas` : WBSロードマップ生成
 - `WBSSampleShowcase_SJIS.bas` : 大規模サンプルWBS生成
 - `SetupWizard_SJIS.bas` : セットアップ機能
 - `HierarchyColor_SJIS.bas` : 階層色分け機能
@@ -59,10 +58,7 @@ Alt + F8 -> RunSetupWizard -> 実行
 | 折りたたみ | Shift + 右クリックで LV1 配下を表示・非表示 |
 | 日付シフト | 選択した日付を営業日単位で一括シフト |
 | PDF 出力 | 当月末までのガントを PDF 化 |
-| 全体サマリ | LV1 フェーズ単位で進捗・工数・遅延を一覧化 |
 | ロードマップ | 月次に圧縮した全体計画シートを生成 |
-| ダッシュボード | 全体 KPI、担当負荷、要注意タスクを一覧化 |
-| フィルタビュー | 状態、担当、期限観点で絞り込みやすい一覧を生成 |
 | Showcase Sample | 約150行の見栄え重視サンプルWBSを生成 |
 
 ## よく使うマクロ
@@ -74,10 +70,7 @@ Alt + F8 -> RunSetupWizard -> 実行
 | `ResetFormatting` | ヘッダー、罫線、休日色の再構築 |
 | `ToggleWeekends` | 土日列の表示切り替え |
 | `ExportToPDF` | PDF 出力 |
-| `CreatePhaseSummarySheet` | フェーズ単位の全体サマリを生成 |
 | `CreateRoadmapOverviewSheet` | 月次ロードマップを生成 |
-| `CreateWBSDashboardSheet` | ダッシュボードシートを生成 |
-| `CreateWBSFilterViewSheet` | フィルタビューシートを生成 |
 | `CreateShowcaseSampleWBS` | 約150行のサンプルWBSを生成 |
 
 ## ファイル構成
