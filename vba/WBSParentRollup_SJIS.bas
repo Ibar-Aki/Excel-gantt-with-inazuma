@@ -4,7 +4,6 @@ Option Explicit
 Public Const ALERT_MARK_TODAY As String = "!"
 Public Const ALERT_MARK_DELAY As String = "!!"
 Public Const ALERT_COLOR_RED As Long = 255
-Public Const ALERT_FILL_THIS_WEEK As Long = 13431551
 
 Private Function GetRollupWorksheet(ByVal ws As Worksheet, ByVal operationName As String) As Worksheet
     If Not ws Is Nothing Then
@@ -369,9 +368,6 @@ Public Sub RefreshTaskAlertMarkers(ByVal ws As Worksheet)
     Dim r As Long
     Dim rowLevel As Long
     Dim markerText As String
-    Dim startPlan As Variant
-    Dim statusText As String
-    Dim progressValue As Double
 
     Set workingWs = GetRollupWorksheet(ws, "タスク強調表示")
     If workingWs Is Nothing Then Exit Sub
@@ -391,21 +387,7 @@ Public Sub RefreshTaskAlertMarkers(ByVal ws As Worksheet)
             workingWs.Cells(r, "C").Font.Color = IIf(markerText <> "", ALERT_COLOR_RED, RGB(0, 0, 0))
             workingWs.Cells(r, "C").Font.Bold = (markerText <> "")
             workingWs.Cells(r, "C").HorizontalAlignment = xlCenter
-
             workingWs.Cells(r, "C").Interior.Pattern = xlNone
-
-            statusText = Trim$(CStr(workingWs.Cells(r, InazumaGantt_v3.COL_STATUS).Value))
-            progressValue = InazumaGantt_v3.NormalizeProgressValue(workingWs.Cells(r, InazumaGantt_v3.COL_PROGRESS).Value, 0)
-            startPlan = workingWs.Cells(r, InazumaGantt_v3.COL_START_PLAN).Value
-
-            If markerText = "" And statusText <> "完了" And progressValue < 1 Then
-                If IsDate(startPlan) Then
-                    If IsThisWeek(CDate(startPlan), Date) Then
-                        workingWs.Cells(r, "C").Interior.Pattern = xlSolid
-                        workingWs.Cells(r, "C").Interior.Color = ALERT_FILL_THIS_WEEK
-                    End If
-                End If
-            End If
         End If
     Next r
 End Sub
