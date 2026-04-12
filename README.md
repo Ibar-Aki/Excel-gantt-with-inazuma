@@ -19,7 +19,7 @@ Alt + F11 -> ファイル -> ファイルのインポート
 ```
 
 - `InazumaGantt_v3_SJIS.bas` : メインロジック
-- `WBSRoadmapReport_SJIS.bas` : WBSロードマップ生成
+- `WBSRoadmapReport_SJIS.bas` : WBSサマリ生成
 - `WBSSampleShowcase_SJIS.bas` : 大規模サンプルWBS生成
 - `SetupWizard_SJIS.bas` : セットアップ機能
 - `HierarchyColor_SJIS.bas` : 階層色分け機能

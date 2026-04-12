@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **完了行表示**: 完了時は LV と同じ塗り範囲を薄い灰色で上書きする方式へ統一
-- **ロードマップ専用化**: `WBSRoadmapReport` を追加し、参照サンプルに合わせた `WBSロードマップ` 自動生成へ整理
+- **サマリ専用化**: `WBSRoadmapReport` を追加し、参照サンプルに合わせた `WBSサマリ` 自動生成へ整理
 - **サンプル出力**: Showcase サンプルはロードマップのみを同時生成する構成へ変更
 
 ### Removed
@@ -37,7 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **WBS全体サマリ**: LV1 フェーズ単位で進捗率、工数、遅延を集約する別シート生成マクロを追加
-- **WBSロードマップ**: 月次に圧縮した全体計画・進捗を可視化する別シート生成マクロを追加
+- **WBSサマリ**: 月次に圧縮した全体計画・進捗を可視化する別シート生成マクロを追加
 
 ### Changed
 

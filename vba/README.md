@@ -19,7 +19,7 @@ InazumaGantt v3 で使用する VBA モジュール一覧です。
 | ファイル | 用途 |
 |----------|------|
 | `InazumaGantt_v3_SJIS.bas` | メイン機能 |
-| `WBSRoadmapReport_SJIS.bas` | WBSロードマップ |
+| `WBSRoadmapReport_SJIS.bas` | WBSサマリ |
 | `WBSSampleShowcase_SJIS.bas` | ShowcaseサンプルWBS生成 |
 | `SetupWizard_SJIS.bas` | セットアップウィザード |
 | `HierarchyColor_SJIS.bas` | 階層色分け |

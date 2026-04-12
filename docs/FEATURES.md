@@ -1,6 +1,6 @@
 # 機能詳細
 
-更新日: 2026-04-11
+更新日: 2026-04-12
 
 InazumaGantt v3 の現行仕様と主要マクロの一覧です。
 
@@ -42,6 +42,7 @@ InazumaGantt v3 の現行仕様と主要マクロの一覧です。
 | イナズマ線 | 各タスクの進捗位置をオレンジ線で接続 |
 | 土日祝色分け | 土日と設定マスタの祝日を塗り分け |
 | 完了行塗り分け | 完了時は LV と同じ範囲を薄い灰色で上書き表示 |
+| C列アラート | LV2-LV4 に `!!` `!` と今週着手の注意表示を出す |
 
 ## 自動入力と検証
 
@@ -54,6 +55,7 @@ InazumaGantt v3 の現行仕様と主要マクロの一覧です。
 | 開発LT正規化 | `3` `3h` `3.5h` を `xh` 形式にそろえる |
 | 日付検証 | 不正日付や前後逆転を警告 |
 | 休日警告 | 予定日の土日祝入力時に確認メッセージを表示 |
+| 親タスク自動再計算 | 変更行から祖先チェーンをたどって親タスクの状態、進捗率、LT、日付を更新 |
 
 ## 操作支援
 
@@ -70,7 +72,7 @@ InazumaGantt v3 の現行仕様と主要マクロの一覧です。
 
 | シート | マクロ | 内容 |
 |--------|--------|------|
-| WBSロードマップ | `CreateRoadmapOverviewSheet` | 月次に圧縮した全体計画と進捗を表示 |
+| WBSサマリ | `CreateRoadmapOverviewSheet` | 月次に圧縮した全体計画と進捗を表示 |
 | Showcase Sample | `CreateShowcaseSampleWBS` | 約150行の構造化サンプルWBSとロードマップを生成 |
 
 ## 主要マクロ一覧
@@ -85,5 +87,5 @@ InazumaGantt v3 の現行仕様と主要マクロの一覧です。
 | 補助 | `RenumberRows` | No. を再採番 |
 | 補助 | `ShiftDates` | 日付一括シフト |
 | 出力 | `ExportToPDF` | PDF出力 |
-| 俯瞰 | `CreateRoadmapOverviewSheet` | ロードマップ作成 |
+| 俯瞰 | `CreateRoadmapOverviewSheet` | WBSサマリ作成 |
 | サンプル | `CreateShowcaseSampleWBS` | 大規模サンプルWBS作成 |
