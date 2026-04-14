@@ -1,4 +1,38 @@
+param(
+    [string]$ConverterRoot
+)
+
 $ErrorActionPreference = "Stop"
+
+function Resolve-ConverterRoot {
+    param(
+        [string]$PreferredRoot,
+        [string]$BaseDir
+    )
+
+    $candidates = @()
+
+    if (-not [string]::IsNullOrWhiteSpace($PreferredRoot)) {
+        $candidates += $PreferredRoot
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($env:INAZUMA_BUNDLE_CONVERTER_ROOT)) {
+        $candidates += $env:INAZUMA_BUNDLE_CONVERTER_ROOT
+    }
+
+    $candidates += (Join-Path $BaseDir "ps1,batの変換器")
+    $candidates += (Join-Path (Split-Path -Parent $BaseDir) "ps1,batの変換器")
+
+    foreach ($candidate in ($candidates | Select-Object -Unique)) {
+        if (-not [string]::IsNullOrWhiteSpace($candidate)) {
+            if (Test-Path -LiteralPath $candidate) {
+                return $candidate
+            }
+        }
+    }
+
+    throw "Converter root not found. Specify -ConverterRoot or set INAZUMA_BUNDLE_CONVERTER_ROOT."
+}
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $outputDir = Join-Path $scriptDir "output"
@@ -8,7 +42,7 @@ $excelDir = Join-Path $distributionDir "excel"
 $vbaDir = Join-Path $distributionDir "vba"
 $docsDir = Join-Path $distributionDir "docs"
 $bundleTextPath = Join-Path $distributionDir "配布内容.md"
-$converterRoot = "C:\Work_Codex\ps1,batの変換器"
+$converterRoot = Resolve-ConverterRoot -PreferredRoot $ConverterRoot -BaseDir $scriptDir
 $converterInputDir = Join-Path $converterRoot "input_files"
 $converterOutputDir = Join-Path $converterRoot "output_bundle"
 $bundleFolderName = "InazumaGantt_v3_Distribution"
@@ -72,7 +106,7 @@ Copy-Item -LiteralPath $latestFile.FullName -Destination (Join-Path $excelDir $l
 
 $workbookPayload = [ordered]@{
     fileName = $latestFile.Name
-    sourcePath = $latestFile.FullName
+    sourcePath = (".\excel\" + $latestFile.Name)
     byteLength = $latestFile.Length
     sha256 = (Get-FileHash -LiteralPath $latestFile.FullName -Algorithm SHA256).Hash
     generatedAt = (Get-Date -Format "yyyy-MM-dd HH:mm:ss K")
@@ -97,7 +131,8 @@ $bundleLines = @(
     "InazumaGantt v3 distribution package",
     "",
     ("Generated at: " + (Get-Date -Format "yyyy-MM-dd HH:mm:ss K")),
-    ("Source repo: " + $scriptDir),
+    ("Package root: ."),
+    ("Converter root: set at runtime"),
     "",
     "[Workbook]",
     ("excel\" + $latestFile.Name),

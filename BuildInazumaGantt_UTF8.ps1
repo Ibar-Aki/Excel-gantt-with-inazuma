@@ -13,7 +13,7 @@ $outputDir = Join-Path $projectDir "output"
 $timestamp = Get-Date -Format "yyyyMMdd_HHmm"
 $outputFile = Join-Path $outputDir "InazumaGantt_v3_$timestamp.xlsm"
 
-# UTF8編集内容をSJIS import対象へ同期
+# Sync UTF-8 source modules to SJIS import targets
 $fixEncodingScript = Join-Path $scriptDir "FixEncoding.ps1"
 if (-not (Test-Path $fixEncodingScript)) {
     $fixEncodingScript = Join-Path $projectDir "FixEncoding.ps1"
@@ -26,21 +26,27 @@ else {
     throw "FixEncoding.ps1 not found: $fixEncodingScript"
 }
 
-# 出力ディレクトリ作成
+# Ensure output directory exists
 if (!(Test-Path $outputDir)) { New-Item -ItemType Directory -Path $outputDir | Out-Null }
 
-# 既存ファイル削除
+# Remove target file if it already exists
 if (Test-Path $outputFile) { Remove-Item $outputFile -Force }
 
-# Excel起動
+# Start Excel
 $excel = New-Object -ComObject Excel.Application
 $excel.Visible = $false
 $excel.DisplayAlerts = $false
 
+function Throw-VbaAccessGuidance([string]$detail) {
+    throw ("Excel workbook generation failed during VBA import/injection. " +
+           "On another PC, enable 'Trust access to the VBA project object model' in Excel: " +
+           "File > Options > Trust Center > Trust Center Settings > Macro Settings. Detail: " + $detail)
+}
+
 try {
     Write-Host "Creating new workbook..."
     $wb = $excel.Workbooks.Add()
-    # インポートするファイルリスト（必須モジュール）
+    # Required standard modules to import
     $coreModules = @(
         "InazumaGantt_v3_SJIS.bas",
         "WBSParentRollup_SJIS.bas",
@@ -50,19 +56,24 @@ try {
         "SetupWizard_SJIS.bas"
     )
 
-    # モジュールのインポート
+    # Import standard modules
     foreach ($file in $coreModules) {
         $path = Join-Path $vbaDir $file
         if (Test-Path $path) {
             Write-Host "Importing $file..."
-            $wb.VBProject.VBComponents.Import($path)
+            try {
+                $wb.VBProject.VBComponents.Import($path)
+            }
+            catch {
+                Throw-VbaAccessGuidance($_.Exception.Message)
+            }
         }
         else {
             Write-Warning "File not found: $path"
         }
     }
     
-    # 自動セットアップテスト
+    # Run setup after module import
     Write-Host "Running SilentSetup..."
     try {
         $excel.Run("SilentSetup", $true)
@@ -74,18 +85,23 @@ try {
 
     $mainSheet = $wb.Worksheets.Item("InazumaGantt_v3")
 
-    # シートモジュールのコード注入
+    # Inject sheet module code into the main worksheet
     $sheetModPath = Join-Path $vbaDir "SheetModule_SJIS.bas"
     if (Test-Path $sheetModPath) {
         Write-Host "Injecting SheetModule code..."
         $code = Get-Content $sheetModPath -Encoding Default -Raw
         $code = $code -replace "Attribute VB_Name = .*`r?`n", ""
-        $mainSheetCode = $wb.VBProject.VBComponents.Item($mainSheet.CodeName).CodeModule
-        $mainSheetCode.AddFromString($code)
+        try {
+            $mainSheetCode = $wb.VBProject.VBComponents.Item($mainSheet.CodeName).CodeModule
+            $mainSheetCode.AddFromString($code)
+        }
+        catch {
+            Throw-VbaAccessGuidance($_.Exception.Message)
+        }
     }
 
     Write-Host "Saving to $outputFile..."
-    $wb.SaveAs($outputFile, 52) # 52 = xlOpenXMLWorkbookMacroEnabled (.xlsm)
+    $wb.SaveAs($outputFile, 52) # xlOpenXMLWorkbookMacroEnabled
     $wb.Close($false)
     $wb = $null
     $excel.Quit()
@@ -97,11 +113,18 @@ try {
     $excel.DisplayAlerts = $false
     $wb = $excel.Workbooks.Open($outputFile)
 
-    $keepSheets = @("InazumaGantt_v3", "InazumaGantt_説明", "設定マスタ", "WBSサマリ")
     $deleteSheets = @()
     for ($i = $wb.Worksheets.Count; $i -ge 1; $i--) {
         $candidate = $wb.Worksheets.Item($i)
-        if ($keepSheets -notcontains $candidate.Name) {
+        $usedRange = $candidate.UsedRange
+        $isSingleCell = ($usedRange.Rows.Count -eq 1 -and $usedRange.Columns.Count -eq 1)
+        $cellValue = ""
+        if ($isSingleCell -and $null -ne $usedRange.Value2) {
+            $cellValue = [string]$usedRange.Value2
+        }
+        $hasShapes = ($candidate.Shapes.Count -gt 0)
+
+        if ($candidate.Name -ne "InazumaGantt_v3" -and $isSingleCell -and $cellValue -eq "" -and -not $hasShapes) {
             $deleteSheets += $candidate.Name
         }
     }

@@ -1,5 +1,25 @@
 $ErrorActionPreference = "Stop"
 
+function Get-AvailablePowerShellPath {
+    try {
+        $currentProcess = Get-Process -Id $PID -ErrorAction Stop
+        if (-not [string]::IsNullOrWhiteSpace($currentProcess.Path)) {
+            return $currentProcess.Path
+        }
+    }
+    catch {
+    }
+
+    foreach ($candidate in @("powershell.exe", "pwsh.exe")) {
+        $command = Get-Command $candidate -ErrorAction SilentlyContinue
+        if ($null -ne $command) {
+            return $command.Source
+        }
+    }
+
+    throw "PowerShell executable not found."
+}
+
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $projectDir = $scriptDir
 if (-not (Test-Path (Join-Path $projectDir "vba"))) {
@@ -13,6 +33,7 @@ $buildScript = Join-Path $scriptDir "BuildInazumaGantt_UTF8.ps1"
 $buildWorkingDir = $projectDir
 $watchdogScript = Join-Path $env:USERPROFILE ".codex\tools\invoke_with_desktop_watchdog.ps1"
 $outputDir = Join-Path $projectDir "output"
+$powerShellPath = Get-AvailablePowerShellPath
 
 if (-not (Test-Path $buildScript)) {
     throw "Build script not found: $buildScript"
@@ -21,7 +42,7 @@ if (-not (Test-Path $buildScript)) {
 if (Test-Path $watchdogScript) {
     & $watchdogScript `
         -ActionName "One-click Inazuma build" `
-        -FilePath (Get-Command pwsh).Source `
+        -FilePath $powerShellPath `
         -ArgumentList @("-File", $buildScript) `
         -WorkingDirectory $buildWorkingDir `
         -TimeoutSeconds 60 `
@@ -29,7 +50,7 @@ if (Test-Path $watchdogScript) {
         -MaxCaptures 4
 }
 else {
-    & (Get-Command pwsh).Source -File $buildScript
+    & $powerShellPath -File $buildScript
 }
 
 $latestFile = Get-ChildItem -Path $outputDir -Filter "InazumaGantt_v3_*.xlsm" |
