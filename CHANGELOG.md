@@ -1,11 +1,24 @@
 # Changelog
 
-更新日: 2026-04-11
+更新日: 2026-04-15
 
 All notable changes to InazumaGantt will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [3.1.4] - 2026-04-11
+
+## [3.2.0] - 2026-04-15
+
+### Added
+
+- **Lite版**: 実績列なし / 単線ガントの `InazumaGantt_Lite` を追加
+- **Lite版配布**: `CreateDistributionPackage_Lite.ps1` と Lite 用 bundle / restore 手順書を追加
+
+### Changed
+
+- **配布手順書**: 配布物に同梱する restore 手順書を ASCII 名 `RestoreGuide*.md` でも提供
 
 ## [3.1.4] - 2026-04-11
 

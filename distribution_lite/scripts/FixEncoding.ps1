@@ -12,12 +12,19 @@ if (-not (Test-Path (Join-Path $projectDir "vba"))) {
 $vbaDir = Join-Path $projectDir "vba"
 $coreModules = @(
     "InazumaGantt_v3",
+    "InazumaGantt_Lite",
     "WBSParentRollup",
+    "WBSParentRollup_Lite",
     "WBSRoadmapReport",
+    "WBSRoadmapReport_Lite",
     "WBSSampleShowcase",
+    "WBSSampleShowcase_Lite",
     "HierarchyColor",
+    "HierarchyColor_Lite",
     "SetupWizard",
-    "SheetModule"
+    "SetupWizard_Lite",
+    "SheetModule",
+    "SheetModule_Lite"
 )
 
 # エンコーディング定義
@@ -56,8 +63,6 @@ foreach ($mod in $coreModules) {
 
     if (Test-Path $utf8Path) {
         Convert-ToSjis -SourcePath $utf8Path -DestPath $sjisPath
-    } else {
-        Write-Warning "Source file not found: $utf8Path"
     }
 }
 

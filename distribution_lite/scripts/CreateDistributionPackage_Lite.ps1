@@ -36,7 +36,7 @@ function Resolve-ConverterRoot {
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $outputDir = Join-Path $scriptDir "output"
-$distributionDir = Join-Path $scriptDir "distribution_v3"
+$distributionDir = Join-Path $scriptDir "distribution_lite"
 $scriptsDir = Join-Path $distributionDir "scripts"
 $excelDir = Join-Path $distributionDir "excel"
 $vbaDir = Join-Path $distributionDir "vba"
@@ -45,44 +45,44 @@ $bundleTextPath = Join-Path $distributionDir "PackageContents.md"
 $converterRoot = Resolve-ConverterRoot -PreferredRoot $ConverterRoot -BaseDir $scriptDir
 $converterInputDir = Join-Path $converterRoot "input_files"
 $converterOutputDir = Join-Path $converterRoot "output_bundle"
-$bundleFolderName = "InazumaGantt_v3_Distribution"
+$bundleFolderName = "InazumaGantt_Lite_Distribution"
 $workbookPayloadPath = Join-Path $excelDir "WorkbookPayload.json"
 
 $activeVbaFiles = @(
-    "InazumaGantt_v3_UTF8.bas",
-    "InazumaGantt_v3_SJIS.bas",
-    "WBSParentRollup_UTF8.bas",
-    "WBSParentRollup_SJIS.bas",
-    "WBSRoadmapReport_UTF8.bas",
-    "WBSRoadmapReport_SJIS.bas",
-    "WBSSampleShowcase_UTF8.bas",
-    "WBSSampleShowcase_SJIS.bas",
-    "HierarchyColor_UTF8.bas",
-    "HierarchyColor_SJIS.bas",
-    "SetupWizard_UTF8.bas",
-    "SetupWizard_SJIS.bas",
-    "SheetModule_UTF8.bas",
-    "SheetModule_SJIS.bas"
+    "InazumaGantt_Lite_UTF8.bas",
+    "InazumaGantt_Lite_SJIS.bas",
+    "WBSParentRollup_Lite_UTF8.bas",
+    "WBSParentRollup_Lite_SJIS.bas",
+    "WBSRoadmapReport_Lite_UTF8.bas",
+    "WBSRoadmapReport_Lite_SJIS.bas",
+    "WBSSampleShowcase_Lite_UTF8.bas",
+    "WBSSampleShowcase_Lite_SJIS.bas",
+    "HierarchyColor_Lite_UTF8.bas",
+    "HierarchyColor_Lite_SJIS.bas",
+    "SetupWizard_Lite_UTF8.bas",
+    "SetupWizard_Lite_SJIS.bas",
+    "SheetModule_Lite_UTF8.bas",
+    "SheetModule_Lite_SJIS.bas"
 )
 
 $scriptFiles = @(
-    "BuildInazumaGantt_UTF8.ps1",
+    "BuildInazumaGantt_Lite_UTF8.ps1",
     "FixEncoding.ps1",
-    "OneClick_CreateLatestWorkbook.ps1",
+    "OneClick_CreateLiteWorkbook.ps1",
     "RestoreWorkbookFromPayload.ps1",
-    "Run_OneClick_CreateLatestWorkbook.bat",
+    "Run_OneClick_CreateLiteWorkbook.bat",
     "Run_RestoreWorkbookFromPayload.bat",
-    "CreateDistributionPackage.ps1",
-    "Run_CreateDistributionPackage.bat"
+    "CreateDistributionPackage_Lite.ps1",
+    "Run_CreateDistributionPackage_Lite.bat"
 )
 
 $docFiles = @(
-    "RestoreGuide.md"
+    "RestoreGuide_Lite.md"
 )
 
-& (Join-Path $scriptDir "BuildInazumaGantt_UTF8.ps1")
+& (Join-Path $scriptDir "BuildInazumaGantt_Lite_UTF8.ps1")
 
-$latestFile = Get-ChildItem -Path $outputDir -Filter "InazumaGantt_v3_*.xlsm" |
+$latestFile = Get-ChildItem -Path $outputDir -Filter "InazumaGantt_Lite_*.xlsm" |
     Sort-Object LastWriteTime -Descending |
     Select-Object -First 1
 
@@ -128,7 +128,7 @@ foreach ($fileName in $docFiles) {
 }
 
 $bundleLines = @(
-    "InazumaGantt v3 distribution package",
+    "InazumaGantt Lite distribution package",
     "",
     ("Generated at: " + (Get-Date -Format "yyyy-MM-dd HH:mm:ss K")),
     ("Package root: ."),
@@ -138,15 +138,15 @@ $bundleLines = @(
     ("excel\" + $latestFile.Name),
     "",
     "[One-click launchers]",
-    "scripts\Run_OneClick_CreateLatestWorkbook.bat",
-    "scripts\OneClick_CreateLatestWorkbook.ps1",
+    "scripts\Run_OneClick_CreateLiteWorkbook.bat",
+    "scripts\OneClick_CreateLiteWorkbook.ps1",
     "scripts\Run_RestoreWorkbookFromPayload.bat",
     "scripts\RestoreWorkbookFromPayload.ps1",
-    "scripts\Run_CreateDistributionPackage.bat",
-    "scripts\CreateDistributionPackage.ps1",
+    "scripts\Run_CreateDistributionPackage_Lite.bat",
+    "scripts\CreateDistributionPackage_Lite.ps1",
     "",
     "[Build helpers]",
-    "scripts\BuildInazumaGantt_UTF8.ps1",
+    "scripts\BuildInazumaGantt_Lite_UTF8.ps1",
     "scripts\FixEncoding.ps1",
     "",
     "[VBA modules]",
@@ -156,13 +156,13 @@ $bundleLines = @(
     "excel\WorkbookPayload.json",
     "",
     "[Documents]",
-    "docs\RestoreGuide.md",
+    "docs\RestoreGuide_Lite.md",
     "",
     "[Usage]",
-    "1. Double-click scripts\Run_OneClick_CreateLatestWorkbook.bat to generate the latest workbook.",
+    "1. Double-click scripts\Run_OneClick_CreateLiteWorkbook.bat to generate the latest workbook.",
     ("2. Open excel\" + $latestFile.Name + " to review the generated sample workbook."),
     "3. If you restore from the converter bundle, run scripts\Run_RestoreWorkbookFromPayload.bat to recreate the xlsm from WorkbookPayload.json.",
-    "4. Use scripts\Run_CreateDistributionPackage.bat to rebuild this distribution folder."
+    "4. Use scripts\Run_CreateDistributionPackage_Lite.bat to rebuild this distribution folder."
 )
 
 Set-Content -LiteralPath $bundleTextPath -Value $bundleLines -Encoding UTF8

@@ -1,12 +1,19 @@
 # InazumaGantt v3
 
-更新日: 2026-04-11
+更新日: 2026-04-15
 
-Excel ベースのイナズマガントチャート管理ツールです。
+Excel ベースのイナズマガントチャート管理ツールです。現在は標準版 `v3` と簡易版 `Lite` を用意しています。
 
 > [!NOTE]
 > Excel ファイル名は自由に変更できます。
-> シート名 `InazumaGantt_v3` `設定マスタ` `InazumaGantt_説明` は変更しないでください。
+> シート名 `InazumaGantt_v3` / `InazumaGantt_Lite` `設定マスタ` `InazumaGantt_説明` は変更しないでください。
+
+## バージョン構成
+
+| 版 | 用途 |
+|----|------|
+| `v3` | 開始実績 / 完了実績を持つ標準版 |
+| `Lite` | 実績列を持たない簡易版。ガントは中央 1 本のみ |
 
 ## クイックスタート
 
@@ -19,10 +26,15 @@ Alt + F11 -> ファイル -> ファイルのインポート
 ```
 
 - `InazumaGantt_v3_SJIS.bas` : メインロジック
+- `InazumaGantt_Lite_SJIS.bas` : Lite 版メインロジック
 - `WBSRoadmapReport_SJIS.bas` : WBSサマリ生成
+- `WBSRoadmapReport_Lite_SJIS.bas` : Lite 版 WBSサマリ生成
 - `WBSSampleShowcase_SJIS.bas` : 大規模サンプルWBS生成
+- `WBSSampleShowcase_Lite_SJIS.bas` : Lite 版サンプルWBS生成
 - `SetupWizard_SJIS.bas` : セットアップ機能
+- `SetupWizard_Lite_SJIS.bas` : Lite 版セットアップ機能
 - `HierarchyColor_SJIS.bas` : 階層色分け機能
+- `HierarchyColor_Lite_SJIS.bas` : Lite 版階層色分け機能
 
 `_UTF8.bas` は編集・Git 管理用です。Excel にはインポートしません。
 
@@ -41,7 +53,7 @@ Alt + F8 -> RunSetupWizard -> 実行
 
 ### 3. シートモジュールを設定
 
-セットアップ完了後に、`SheetModule_SJIS.bas` を `InazumaGantt_v3` シートモジュールへ貼り付けます。
+セットアップ完了後に、標準版は `SheetModule_SJIS.bas` を `InazumaGantt_v3` シートモジュールへ、Lite 版は `SheetModule_Lite_SJIS.bas` を `InazumaGantt_Lite` シートモジュールへ貼り付けます。
 
 1. VBA エディタで `InazumaGantt_v3` シートをダブルクリック
 2. `vba/SheetModule_SJIS.bas` の内容を貼り付け
@@ -60,6 +72,7 @@ Alt + F8 -> RunSetupWizard -> 実行
 | PDF 出力 | 当月末までのガントを PDF 化 |
 | ロードマップ | 月次に圧縮した全体計画シートを生成 |
 | Showcase Sample | 約150行の見栄え重視サンプルWBSを生成 |
+| Lite版 | 実績列なし / 単線ガントの簡易運用版 |
 
 ## よく使うマクロ
 

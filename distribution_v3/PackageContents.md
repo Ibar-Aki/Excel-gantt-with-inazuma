@@ -1,11 +1,11 @@
 InazumaGantt v3 distribution package
 
-Generated at: 2026-04-15 00:02:12 +09:00
+Generated at: 2026-04-15 01:13:27 +09:00
 Package root: .
 Converter root: set at runtime
 
 [Workbook]
-excel\InazumaGantt_v3_20260415_0002.xlsm
+excel\InazumaGantt_v3_20260415_0113.xlsm
 
 [One-click launchers]
 scripts\Run_OneClick_CreateLatestWorkbook.bat
@@ -39,10 +39,10 @@ vba\SheetModule_SJIS.bas
 excel\WorkbookPayload.json
 
 [Documents]
-docs\Restoreからの作業手順書.md
+docs\RestoreGuide.md
 
 [Usage]
 1. Double-click scripts\Run_OneClick_CreateLatestWorkbook.bat to generate the latest workbook.
-2. Open excel\InazumaGantt_v3_20260415_0002.xlsm to review the generated sample workbook.
+2. Open excel\InazumaGantt_v3_20260415_0113.xlsm to review the generated sample workbook.
 3. If you restore from the converter bundle, run scripts\Run_RestoreWorkbookFromPayload.bat to recreate the xlsm from WorkbookPayload.json.
 4. Use scripts\Run_CreateDistributionPackage.bat to rebuild this distribution folder.

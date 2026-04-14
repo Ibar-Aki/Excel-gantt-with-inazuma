@@ -1,0 +1,172 @@
+Attribute VB_Name = "HierarchyColor"
+Option Explicit
+
+' ==========================================
+'  階層色分けモジュール（条件付き書式版）
+' ==========================================
+' このモジュールは条件付き書式を設定します。
+' 一度実行すれば、以降は自動的に色分けが適用されます。
+' 
+' 塗り範囲ルール:
+'   LV1 (A列=1): C～M列を塗る
+'   LV2 (A列=2): D～M列を塗る
+'   LV3 (A列=3): E～M列を塗る
+'   LV4 (A列=4): F～M列を塗る
+' 完了時:
+'   LVごとの塗り範囲を維持したまま、薄い灰色の完了色を優先適用
+
+' 階層別の色定義
+Public Const COLOR_LV1 As Long = 14083324  ' RGB(252,228,214) サーモン
+Public Const COLOR_LV2 As Long = 15983322  ' RGB(218,227,243) 薄い青
+Public Const COLOR_LV3 As Long = 14348514  ' RGB(226,239,218) 薄い緑
+Public Const COLOR_LV4 As Long = 13434879  ' RGB(255,242,204) 薄い黄色
+
+Private Const COLOR_COMPLETED As Long = 9539985   ' RGB(145,145,145) = #919191
+
+' 色塗り終了列（ガント開始列の手前）
+Public Const COL_COLOR_END As String = "M"
+
+Private Function RequireHierarchyWorksheet(ByVal operationName As String) As Worksheet
+    On Error Resume Next
+    Set RequireHierarchyWorksheet = ThisWorkbook.Worksheets(InazumaGantt_v3.MAIN_SHEET_NAME)
+    On Error GoTo 0
+
+    If RequireHierarchyWorksheet Is Nothing Then
+        MsgBox "メインシート '" & InazumaGantt_v3.MAIN_SHEET_NAME & "' が見つかりません。", vbExclamation, operationName
+    End If
+End Function
+
+' ==========================================
+'  階層色分けの条件付き書式を設定
+' ==========================================
+Sub SetupHierarchyColors()
+    On Error GoTo ErrorHandler
+    
+    Dim ws As Worksheet
+    Set ws = RequireHierarchyWorksheet("階層色分け")
+    If ws Is Nothing Then Exit Sub
+    
+    Dim prevCalc As XlCalculation
+    prevCalc = Application.Calculation
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
+    
+    Dim lastRow As Long
+    ' 最終行を動的に取得 (最低でも DATA_ROWS_DEFAULT 分は確保)
+    lastRow = InazumaGantt_v3.GetLastDataRow(ws)
+    If lastRow < InazumaGantt_v3.ROW_DATA_START + InazumaGantt_v3.DATA_ROWS_DEFAULT - 1 Then
+        lastRow = InazumaGantt_v3.ROW_DATA_START + InazumaGantt_v3.DATA_ROWS_DEFAULT - 1
+    End If
+    
+    ' 既存の条件付き書式をクリア（B～M列）
+    ws.Range("B" & InazumaGantt_v3.ROW_DATA_START & ":" & COL_COLOR_END & lastRow).FormatConditions.Delete
+    
+    ' LV1: A列が1のとき、C～M列をサーモン色に
+    Dim rangeLV1 As Range
+    Set rangeLV1 = ws.Range("C" & InazumaGantt_v3.ROW_DATA_START & ":" & COL_COLOR_END & lastRow)
+    Dim cf1 As FormatCondition
+    Set cf1 = rangeLV1.FormatConditions.Add(Type:=xlExpression, _
+        Formula1:="=$A" & InazumaGantt_v3.ROW_DATA_START & "=1")
+    cf1.Interior.Color = COLOR_LV1
+    cf1.StopIfTrue = True
+    
+    ' LV2: A列が2のとき、D～M列を薄い青に
+    Dim rangeLV2 As Range
+    Set rangeLV2 = ws.Range("D" & InazumaGantt_v3.ROW_DATA_START & ":" & COL_COLOR_END & lastRow)
+    Dim cf2 As FormatCondition
+    Set cf2 = rangeLV2.FormatConditions.Add(Type:=xlExpression, _
+        Formula1:="=$A" & InazumaGantt_v3.ROW_DATA_START & "=2")
+    cf2.Interior.Color = COLOR_LV2
+    cf2.StopIfTrue = True
+    
+    ' LV3: A列が3のとき、E～M列を薄い緑に
+    Dim rangeLV3 As Range
+    Set rangeLV3 = ws.Range("E" & InazumaGantt_v3.ROW_DATA_START & ":" & COL_COLOR_END & lastRow)
+    Dim cf3 As FormatCondition
+    Set cf3 = rangeLV3.FormatConditions.Add(Type:=xlExpression, _
+        Formula1:="=$A" & InazumaGantt_v3.ROW_DATA_START & "=3")
+    cf3.Interior.Color = COLOR_LV3
+    cf3.StopIfTrue = True
+    
+    ' LV4: A列が4のとき、F～M列を薄い黄色に
+    Dim rangeLV4 As Range
+    Set rangeLV4 = ws.Range("F" & InazumaGantt_v3.ROW_DATA_START & ":" & COL_COLOR_END & lastRow)
+    Dim cf4 As FormatCondition
+    Set cf4 = rangeLV4.FormatConditions.Add(Type:=xlExpression, _
+        Formula1:="=$A" & InazumaGantt_v3.ROW_DATA_START & "=4")
+    cf4.Interior.Color = COLOR_LV4
+    cf4.StopIfTrue = True
+
+    ApplyCompletedTaskCondition ws.Range("C" & InazumaGantt_v3.ROW_DATA_START & ":" & COL_COLOR_END & lastRow), _
+        "AND($A" & InazumaGantt_v3.ROW_DATA_START & "=1,$H" & InazumaGantt_v3.ROW_DATA_START & "=""完了"")"
+    ApplyCompletedTaskCondition ws.Range("D" & InazumaGantt_v3.ROW_DATA_START & ":" & COL_COLOR_END & lastRow), _
+        "AND($A" & InazumaGantt_v3.ROW_DATA_START & "=2,$H" & InazumaGantt_v3.ROW_DATA_START & "=""完了"")"
+    ApplyCompletedTaskCondition ws.Range("E" & InazumaGantt_v3.ROW_DATA_START & ":" & COL_COLOR_END & lastRow), _
+        "AND($A" & InazumaGantt_v3.ROW_DATA_START & "=3,$H" & InazumaGantt_v3.ROW_DATA_START & "=""完了"")"
+    ApplyCompletedTaskCondition ws.Range("F" & InazumaGantt_v3.ROW_DATA_START & ":" & COL_COLOR_END & lastRow), _
+        "AND($A" & InazumaGantt_v3.ROW_DATA_START & "=4,$H" & InazumaGantt_v3.ROW_DATA_START & "=""完了"")"
+    
+    Application.Calculation = prevCalc
+    Application.ScreenUpdating = True
+    
+    If Application.DisplayAlerts Then
+        MsgBox "階層色分けの条件付き書式を設定しました！" & vbCrLf & vbCrLf & _
+               "塗り範囲ルール:" & vbCrLf & _
+               "  LV1: C～M列" & vbCrLf & _
+               "  LV2: D～M列" & vbCrLf & _
+               "  LV3: E～M列" & vbCrLf & _
+               "  LV4: F～M列", vbInformation, "階層色分け"
+    End If
+    Exit Sub
+    
+ErrorHandler:
+    Application.Calculation = prevCalc
+    Application.ScreenUpdating = True
+    MsgBox "条件付き書式設定エラー: " & Err.Description, vbCritical, "エラー"
+End Sub
+
+Private Sub ApplyCompletedTaskCondition(ByVal targetRange As Range, ByVal formulaBody As String)
+    Dim fc As FormatCondition
+
+    Set fc = targetRange.FormatConditions.Add(Type:=xlExpression, Formula1:="=" & formulaBody)
+    fc.SetFirstPriority
+    fc.StopIfTrue = True
+    fc.Interior.Pattern = xlSolid
+    fc.Interior.Color = COLOR_COMPLETED
+End Sub
+
+' ==========================================
+'  階層色分けの条件付き書式をクリア
+' ==========================================
+Sub ClearHierarchyColors()
+    On Error GoTo ErrorHandler
+    
+    Dim ws As Worksheet
+    Set ws = RequireHierarchyWorksheet("階層色分けクリア")
+    If ws Is Nothing Then Exit Sub
+    
+    Dim lastRow As Long
+
+    ' 最終行を動的に取得 (最低でも DATA_ROWS_DEFAULT 分は確保)
+    lastRow = InazumaGantt_v3.GetLastDataRow(ws)
+    If lastRow < InazumaGantt_v3.ROW_DATA_START + InazumaGantt_v3.DATA_ROWS_DEFAULT - 1 Then
+        lastRow = InazumaGantt_v3.ROW_DATA_START + InazumaGantt_v3.DATA_ROWS_DEFAULT - 1
+    End If
+    
+    ' 対象範囲の条件付き書式をクリア（B～M列）
+    ws.Range("B" & InazumaGantt_v3.ROW_DATA_START & ":" & COL_COLOR_END & lastRow).FormatConditions.Delete
+    
+    MsgBox "階層色分けの条件付き書式をクリアしました！", vbInformation, "階層色分け"
+    Exit Sub
+    
+ErrorHandler:
+    MsgBox "クリアエラー: " & Err.Description, vbCritical, "エラー"
+End Sub
+
+' ==========================================
+'  旧互換: ApplyHierarchyColors
+' ==========================================
+' 旧バージョンとの互換性のため、SetupHierarchyColorsを呼び出す
+Sub ApplyHierarchyColors()
+    Call SetupHierarchyColors
+End Sub

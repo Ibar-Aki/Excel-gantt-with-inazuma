@@ -36,12 +36,12 @@ function Resolve-ConverterRoot {
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $outputDir = Join-Path $scriptDir "output"
-$distributionDir = Join-Path $scriptDir "配布用"
+$distributionDir = Join-Path $scriptDir "distribution_v3"
 $scriptsDir = Join-Path $distributionDir "scripts"
 $excelDir = Join-Path $distributionDir "excel"
 $vbaDir = Join-Path $distributionDir "vba"
 $docsDir = Join-Path $distributionDir "docs"
-$bundleTextPath = Join-Path $distributionDir "配布内容.md"
+$bundleTextPath = Join-Path $distributionDir "PackageContents.md"
 $converterRoot = Resolve-ConverterRoot -PreferredRoot $ConverterRoot -BaseDir $scriptDir
 $converterInputDir = Join-Path $converterRoot "input_files"
 $converterOutputDir = Join-Path $converterRoot "output_bundle"
@@ -77,7 +77,7 @@ $scriptFiles = @(
 )
 
 $docFiles = @(
-    "Restoreからの作業手順書.md"
+    "RestoreGuide.md"
 )
 
 & (Join-Path $scriptDir "BuildInazumaGantt_UTF8.ps1")
@@ -156,7 +156,7 @@ $bundleLines = @(
     "excel\WorkbookPayload.json",
     "",
     "[Documents]",
-    "docs\Restoreからの作業手順書.md",
+    "docs\RestoreGuide.md",
     "",
     "[Usage]",
     "1. Double-click scripts\Run_OneClick_CreateLatestWorkbook.bat to generate the latest workbook.",

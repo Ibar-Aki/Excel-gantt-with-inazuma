@@ -1,0 +1,285 @@
+' ==========================================
+'  InazumaGantt_v3 シートモジュール用コード
+' ==========================================
+Option Explicit
+' このコードは「InazumaGantt_v3」シートのシートモジュールに貼り付けてください
+'
+' 【設定方法】
+' 1. Excelで Alt+F11 を押してVBAエディタを開く
+' 2. プロジェクトエクスプローラーで「InazumaGantt_v3」シートをダブルクリック
+' 3. 開いたコードウィンドウに以下のコードを貼り付ける
+' 4. VBAエディタを閉じる
+'
+' ==========================================
+
+' API宣言（Shiftキー検知用）
+#If VBA7 Then
+    Private Declare PtrSafe Function GetKeyState Lib "user32" (ByVal nVirtKey As Long) As Integer
+#Else
+    Private Declare Function GetKeyState Lib "user32" (ByVal nVirtKey As Long) As Integer
+#End If
+
+' データ開始行（InazumaGantt_v3モジュールと同期）
+' Private Const ROW_DATA_START As Long = 9
+
+Private Sub Worksheet_BeforeDoubleClick(ByVal Target As Range, Cancel As Boolean)
+    ' タスク行のダブルクリック処理
+    ' B列: 完了処理
+    On Error GoTo ErrorHandler
+
+    If Target.Row < InazumaGantt_v3.ROW_DATA_START Then Exit Sub
+
+    ' B列(2): 完了処理
+    If Target.Column <> 2 Then Exit Sub
+
+    ' 設定マスタから機能有効を確認
+    If Not InazumaGantt_v3.GetSettingValue(4) Then Exit Sub
+
+    ' 既に完了済みの場合は変更しない
+    If Me.Cells(Target.Row, "H").Value = "完了" Then Exit Sub
+
+    Application.EnableEvents = False
+
+    ' 進捗率を100%に
+    Me.Cells(Target.Row, "I").Value = 1
+
+    ' 状況を「完了」に
+    Me.Cells(Target.Row, "H").Value = "完了"
+
+    ' 設定：取り消し線
+    If InazumaGantt_v3.GetSettingValue(6) Then
+        Me.Range("C" & Target.Row & ":F" & Target.Row).Font.Strikethrough = True
+    End If
+
+    ' 設定：濃い灰色に変更
+    If InazumaGantt_v3.GetSettingValue(7) Then
+        Me.Range("C" & Target.Row & ":F" & Target.Row).Font.Color = RGB(128, 128, 128)
+    End If
+
+    Application.EnableEvents = True
+    Cancel = True
+    Exit Sub
+
+ErrorHandler:
+    Application.EnableEvents = True
+End Sub
+
+Private Sub Worksheet_BeforeRightClick(ByVal Target As Range, Cancel As Boolean)
+    ' Shift + 右クリック: 開発LT集計または折りたたみ/展開
+    On Error GoTo ErrorHandler
+
+    ' Shiftキーが押されていない場合は通常の右クリックメニュー
+    If (GetKeyState(vbKeyShift) And &H8000) = 0 Then Exit Sub
+
+    If Target.Row < InazumaGantt_v3.ROW_DATA_START Then Exit Sub
+
+    If Target.Column = Me.Columns(InazumaGantt_v3.COL_DEV_LT).Column Then
+        Application.EnableEvents = False
+        WBSParentRollup.RecalculateTaskRowAndAncestors Me, Target.Row
+        WBSParentRollup.RefreshTaskAlertMarkers Me
+        Application.EnableEvents = True
+        Cancel = True
+        Exit Sub
+    End If
+
+    ' C-F列(3-6)でのみ有効
+    If Target.Column >= 3 And Target.Column <= 6 Then
+        InazumaGantt_v3.ToggleTaskCollapse Target.Row
+        Cancel = True
+    End If
+    Exit Sub
+
+ErrorHandler:
+    ' エラーは無視
+End Sub
+
+Private Sub Worksheet_Change(ByVal Target As Range)
+
+    On Error GoTo ErrorHandler
+    Dim taskAreaChanged As Boolean
+    Dim affectedRows As Object
+    Set affectedRows = CreateObject("Scripting.Dictionary")
+
+    Application.EnableEvents = False
+
+    ' タスク入力列（C～F列）に変更があった場合
+    If Not Intersect(Target, Me.Range("C:F")) Is Nothing Then
+        Dim cell As Range
+        For Each cell In Intersect(Target, Me.Range("C:F"))
+            If cell.Row >= InazumaGantt_v3.ROW_DATA_START Then
+                ' タスクが入力された場合
+                If Trim$(CStr(cell.Value)) <> "" Then
+                    ' 階層を自動判定
+                    InazumaGantt_v3.AutoDetectTaskLevel cell.Row
+
+                    ' 進捗率が空なら0%を入力
+                    If Trim$(CStr(Me.Cells(cell.Row, "I").Value)) = "" Then
+                        Me.Cells(cell.Row, "I").Value = 0
+                    End If
+
+                    ' 状況が空なら「未着手」を入力
+                    If Trim$(CStr(Me.Cells(cell.Row, "H").Value)) = "" Then
+                        Me.Cells(cell.Row, "H").Value = "未着手"
+                    End If
+                Else
+                    ' タスクが削除された場合も階層を更新
+                    InazumaGantt_v3.AutoDetectTaskLevel cell.Row
+                End If
+
+                taskAreaChanged = True
+                CollectAffectedRow affectedRows, cell.Row
+            End If
+        Next cell
+
+        If taskAreaChanged Then
+            InazumaGantt_v3.RenumberRows
+        End If
+    End If
+
+    ' 進捗率列（I列）に変更があった場合、状況を自動更新
+    If Not Intersect(Target, Me.Columns("I")) Is Nothing Then
+        Dim progressCell As Range
+        For Each progressCell In Intersect(Target, Me.Columns("I"))
+            If progressCell.Row >= InazumaGantt_v3.ROW_DATA_START Then
+                InazumaGantt_v3.ValidateProgressInput Me, progressCell
+                UpdateStatusByProgress progressCell.Row
+                CollectAffectedRow affectedRows, progressCell.Row
+            End If
+        Next progressCell
+    End If
+
+    ' 開発LT列（K列）の入力を検証
+    If Not Intersect(Target, Me.Columns(InazumaGantt_v3.COL_DEV_LT)) Is Nothing Then
+        Dim ltCell As Range
+        For Each ltCell In Intersect(Target, Me.Columns(InazumaGantt_v3.COL_DEV_LT))
+            If ltCell.Row >= InazumaGantt_v3.ROW_DATA_START Then
+                InazumaGantt_v3.ValidateDevelopmentHoursInput Me, ltCell
+                CollectAffectedRow affectedRows, ltCell.Row
+            End If
+        Next ltCell
+    End If
+
+    ' 日付列（L-M列）の入力を検証
+    If Not Intersect(Target, Me.Range(InazumaGantt_v3.COL_START_PLAN & ":" & InazumaGantt_v3.COL_END_PLAN)) Is Nothing Then
+        Dim validateCell As Range
+        For Each validateCell In Intersect(Target, Me.Range(InazumaGantt_v3.COL_START_PLAN & ":" & InazumaGantt_v3.COL_END_PLAN))
+            If validateCell.Row >= InazumaGantt_v3.ROW_DATA_START Then
+                InazumaGantt_v3.ValidateDateInput Me, validateCell
+                CollectAffectedRow affectedRows, validateCell.Row
+            End If
+        Next validateCell
+    End If
+
+    ' 予定日付列（L, M列）に土日祝日を入力した場合に確認メッセージ
+    If Not Intersect(Target, Me.Range(InazumaGantt_v3.COL_START_PLAN & ":" & InazumaGantt_v3.COL_END_PLAN)) Is Nothing Then
+        Dim planDateCell As Range
+        Dim inputDate As Date
+        Dim isWeekend As Boolean
+        Dim isHoliday As Boolean
+        Dim warningMsg As String
+
+        For Each planDateCell In Intersect(Target, Me.Range(InazumaGantt_v3.COL_START_PLAN & ":" & InazumaGantt_v3.COL_END_PLAN))
+            If planDateCell.Row >= InazumaGantt_v3.ROW_DATA_START Then
+                If IsDate(planDateCell.Value) Then
+                    inputDate = CDate(planDateCell.Value)
+                    isWeekend = (Weekday(inputDate, vbMonday) >= 6)
+                    isHoliday = CheckHoliday(inputDate)
+
+                    If isWeekend Or isHoliday Then
+                        If isHoliday Then
+                            warningMsg = "祝日"
+                        ElseIf Weekday(inputDate, vbMonday) = 6 Then
+                            warningMsg = "土曜日"
+                        Else
+                            warningMsg = "日曜日"
+                        End If
+
+                        If MsgBox(Format(inputDate, "yy/mm/dd") & " は " & warningMsg & " です。" & vbCrLf & _
+                                  "この日付を入力しますか？", vbYesNo + vbQuestion, "確認") = vbNo Then
+                            Application.EnableEvents = False
+                            planDateCell.ClearContents
+                            Application.EnableEvents = True
+                        End If
+                    End If
+                End If
+                CollectAffectedRow affectedRows, planDateCell.Row
+            End If
+        Next planDateCell
+    End If
+
+    ApplyRollupAndAlerts affectedRows
+
+    Application.EnableEvents = True
+    Exit Sub
+
+ErrorHandler:
+    Application.EnableEvents = True
+End Sub
+
+' ==========================================
+'  祝日チェック
+' ==========================================
+Private Function CheckHoliday(ByVal targetDate As Date) As Boolean
+    Dim wsSettings As Worksheet
+    On Error Resume Next
+    ' InazumaGantt_v3の定数を使用
+    Set wsSettings = ThisWorkbook.Worksheets(InazumaGantt_v3.SETTINGS_SHEET_NAME)
+    On Error GoTo 0
+
+    CheckHoliday = False
+    If wsSettings Is Nothing Then Exit Function
+
+    ' 祝日マスタハ設定マスタのA13から
+    Dim lastRow As Long
+    lastRow = wsSettings.Cells(wsSettings.Rows.Count, "A").End(xlUp).Row
+    If lastRow < InazumaGantt_v3.HOLIDAY_DATA_START_ROW Then Exit Function
+
+    Dim r As Long
+    For r = InazumaGantt_v3.HOLIDAY_DATA_START_ROW To lastRow
+        If IsDate(wsSettings.Cells(r, "A").Value) Then
+            If CDate(wsSettings.Cells(r, "A").Value) = targetDate Then
+                CheckHoliday = True
+                Exit Function
+            End If
+        End If
+    Next r
+End Function
+
+Private Sub UpdateStatusByProgress(ByVal targetRow As Long)
+    Dim progressValue As Variant
+    Dim rate As Double
+
+    progressValue = Me.Cells(targetRow, "I").Value
+
+    If Trim$(CStr(progressValue)) = "" Then
+        Me.Cells(targetRow, "H").Value = "未着手"
+        Exit Sub
+    End If
+
+    rate = InazumaGantt_v3.NormalizeProgressValue(progressValue, -1)
+    If rate < 0 Then Exit Sub
+
+    ' 状況を設定
+    If rate >= 1 Then
+        Me.Cells(targetRow, "H").Value = "完了"
+    ElseIf rate <= 0 Then
+        Me.Cells(targetRow, "H").Value = "未着手"
+    Else
+        Me.Cells(targetRow, "H").Value = "進行中"
+    End If
+End Sub
+
+Private Sub CollectAffectedRow(ByVal affectedRows As Object, ByVal rowNumber As Long)
+    If rowNumber < InazumaGantt_v3.ROW_DATA_START Then Exit Sub
+    affectedRows(CStr(rowNumber)) = True
+End Sub
+
+Private Sub ApplyRollupAndAlerts(ByVal affectedRows As Object)
+    Dim rowKey As Variant
+
+    For Each rowKey In affectedRows.Keys
+        WBSParentRollup.RecalculateTaskRowAndAncestors Me, CLng(rowKey)
+    Next rowKey
+
+    WBSParentRollup.RefreshTaskAlertMarkers Me
+End Sub
