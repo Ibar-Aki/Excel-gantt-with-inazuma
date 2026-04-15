@@ -124,39 +124,9 @@ Private Sub Worksheet_Change(ByVal Target As Range)
 
     ' タスク入力列（C～F列）に変更があった場合
     If Not Intersect(Target, Me.Range("C:F")) Is Nothing Then
-        Dim cell As Range
-        For Each cell In Intersect(Target, Me.Range("C:F"))
-            If cell.Row >= InazumaGantt_v3.ROW_DATA_START Then
-                ' タスクが入力された場合
-                If Trim$(CStr(cell.Value)) <> "" Then
-                    ' 進捗率が空なら0%を入力
-                    If Trim$(CStr(Me.Cells(cell.Row, "I").Value)) = "" Then
-                        Me.Cells(cell.Row, "I").Value = 0
-                    End If
-
-                    ' 状況が空なら「未着手」を入力
-                    If Trim$(CStr(Me.Cells(cell.Row, "H").Value)) = "" Then
-                        Me.Cells(cell.Row, "H").Value = "未着手"
-                    End If
-                End If
-
-                taskAreaChanged = True
-                CollectAffectedRow affectedRows, cell.Row
-            End If
-        Next cell
-
-        If taskAreaChanged Then
-            InazumaGantt_v3.AutoDetectTaskLevel
-            InazumaGantt_v3.RenumberRows
-
-            Dim taskRowKey As Variant
-            For Each taskRowKey In affectedRows.Keys
-                InazumaGantt_v3.AutoDetectTaskLevel CLng(taskRowKey)
-                If Application.WorksheetFunction.CountA(Me.Range("C" & CLng(taskRowKey) & ":F" & CLng(taskRowKey))) = 0 Then
-                    Me.Cells(CLng(taskRowKey), "B").ClearContents
-                End If
-            Next taskRowKey
-        End If
+        taskAreaChanged = True
+        PrepareChangedTaskRows Intersect(Target, Me.Range("C:F")), affectedRows
+        RefreshTaskStructureForRange Intersect(Target, Me.Range("C:F"))
     End If
 
     ' 進捗率列（I列）に変更があった場合、状況を自動更新
@@ -302,6 +272,59 @@ End Sub
 Private Sub CollectAffectedRow(ByVal affectedRows As Object, ByVal rowNumber As Long)
     If rowNumber < InazumaGantt_v3.ROW_DATA_START Then Exit Sub
     affectedRows(CStr(rowNumber)) = True
+End Sub
+
+Private Sub PrepareChangedTaskRows(ByVal changedRange As Range, ByVal affectedRows As Object)
+    Dim area As Range
+    Dim currentRow As Long
+    Dim lastSupportedRow As Long
+
+    If changedRange Is Nothing Then Exit Sub
+
+    lastSupportedRow = InazumaGantt_v3.ROW_DATA_START + InazumaGantt_v3.DATA_ROWS_DEFAULT - 1
+    For Each area In changedRange.Areas
+        For currentRow = area.Row To area.Row + area.Rows.Count - 1
+            If currentRow >= InazumaGantt_v3.ROW_DATA_START And currentRow <= lastSupportedRow Then
+                NormalizeTaskRowState currentRow
+                CollectAffectedRow affectedRows, currentRow - 1
+                CollectAffectedRow affectedRows, currentRow
+                CollectAffectedRow affectedRows, currentRow + 1
+            End If
+        Next currentRow
+    Next area
+End Sub
+
+Private Sub NormalizeTaskRowState(ByVal targetRow As Long)
+    If targetRow < InazumaGantt_v3.ROW_DATA_START Then Exit Sub
+
+    If InazumaGantt_v3.HasTaskContentInRow(Me, targetRow) Then
+        If Trim$(CStr(Me.Cells(targetRow, "I").Value)) = "" Then
+            Me.Cells(targetRow, "I").Value = 0
+        End If
+
+        If Trim$(CStr(Me.Cells(targetRow, "H").Value)) = "" Then
+            Me.Cells(targetRow, "H").Value = "未着手"
+        End If
+    Else
+        InazumaGantt_v3.ResetTaskRowDisplay Me, targetRow
+    End If
+End Sub
+
+Private Sub RefreshTaskStructureForRange(ByVal changedRange As Range)
+    Dim startRow As Long
+    Dim endRow As Long
+    Dim lastSupportedRow As Long
+
+    If changedRange Is Nothing Then Exit Sub
+
+    lastSupportedRow = InazumaGantt_v3.ROW_DATA_START + InazumaGantt_v3.DATA_ROWS_DEFAULT - 1
+    startRow = changedRange.Row - 1
+    If startRow < InazumaGantt_v3.ROW_DATA_START Then startRow = InazumaGantt_v3.ROW_DATA_START
+    endRow = changedRange.Row + changedRange.Rows.Count
+    If endRow > lastSupportedRow Then endRow = lastSupportedRow
+
+    InazumaGantt_v3.AutoDetectTaskLevelsInRange Me, startRow, endRow
+    InazumaGantt_v3.RenumberRowsForWorksheet Me
 End Sub
 
 Private Sub ApplyRollupAndAlerts(ByVal affectedRows As Object, Optional ByVal refreshAllMarkers As Boolean = True)

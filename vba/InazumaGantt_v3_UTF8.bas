@@ -702,24 +702,21 @@ Sub DrawGanttBars()
         ganttStartDate = Date
     End If
 
-    ' 既存のシェイプを削除
-    Dim shp As Shape
-    For Each shp In ws.Shapes
-        If Left(shp.Name, 4) = "Bar_" Or Left(shp.Name, 6) = "Today_" Or Left(shp.Name, 8) = "Inazuma_" Then
-            shp.Delete
-        End If
-    Next shp
+    DeleteExistingGanttShapes ws
 
     ' 各行のバーを描画
     Dim r As Long
+    Dim shp As Shape
     Dim startPlan As Variant, endPlan As Variant
     Dim startActual As Variant, endActual As Variant
     Dim progress As Double
     Dim startCol As Long, endCol As Long, progressCol As Long
     Dim cellTop As Double, cellLeft As Double, cellWidth As Double, cellHeight As Double
-    Dim barHeight As Double
+    Dim planBarHeight As Double
+    Dim actualBarHeight As Double
 
-    barHeight = 12  ' バーの高さ
+    planBarHeight = 6
+    actualBarHeight = 6
 
     Dim inazumaPoints() As Variant
     ReDim inazumaPoints(1 To lastRow - ROW_DATA_START + 1, 1 To 2)
@@ -747,18 +744,18 @@ Sub DrawGanttBars()
 
             If startCol <= ganttStartCol + GANTT_DAYS - 1 And endCol >= ganttStartCol Then
                 If endCol >= startCol Then
-                    cellTop = ws.Cells(r, startCol).Top + 2
+                    cellTop = GetStackedBarTop(ws, r, startCol, planBarHeight, actualBarHeight, False)
                     cellLeft = ws.Cells(r, startCol).Left
                     cellWidth = ws.Cells(r, endCol).Left + ws.Cells(r, endCol).Width - cellLeft
-                    barHeight = 6  ' 予定バーの高さ
 
                     ' 予定バー（薄い灰色 + 黒枠線）
-                    Set shp = ws.Shapes.AddShape(msoShapeRectangle, cellLeft, cellTop, cellWidth, barHeight)
+                    Set shp = ws.Shapes.AddShape(msoShapeRectangle, cellLeft, cellTop, cellWidth, planBarHeight)
                     shp.Name = "Bar_Plan_" & r
                     shp.Fill.ForeColor.RGB = COLOR_PLAN
                     shp.Line.Visible = msoTrue
                     shp.Line.ForeColor.RGB = RGB(0, 0, 0)  ' 黒枠線
                     shp.Line.Weight = 1
+                    shp.Placement = xlMoveAndSize
 
                     ' 進捗バー（紺色 + 黒枠線）
                     If progress > 0 Then
@@ -770,12 +767,13 @@ Sub DrawGanttBars()
                             If progressWidth < ws.Cells(r, startCol).Width Then progressWidth = ws.Cells(r, startCol).Width
                             If progress >= 1 Then progressWidth = cellWidth
 
-                            Set shp = ws.Shapes.AddShape(msoShapeRectangle, cellLeft, cellTop, progressWidth, barHeight)
+                            Set shp = ws.Shapes.AddShape(msoShapeRectangle, cellLeft, cellTop, progressWidth, planBarHeight)
                             shp.Name = "Bar_Progress_" & r
                             shp.Fill.ForeColor.RGB = COLOR_PROGRESS
                             shp.Line.Visible = msoTrue
                             shp.Line.ForeColor.RGB = RGB(0, 0, 0)  ' 黒枠線
                             shp.Line.Weight = 1
+                            shp.Placement = xlMoveAndSize
                         End If
                     End If
 
@@ -829,7 +827,7 @@ Sub DrawGanttBars()
 
                     inazumaCount = inazumaCount + 1
                     inazumaPoints(inazumaCount, 1) = inazumaX
-                    inazumaPoints(inazumaCount, 2) = cellTop + barHeight / 2
+                    inazumaPoints(inazumaCount, 2) = cellTop + planBarHeight / 2
                 End If
             End If
         End If
@@ -841,12 +839,9 @@ Sub DrawGanttBars()
             Dim planStartCol As Long
             Dim planEndCol As Long
             Dim visibleStartCol As Long
-            Dim actualBarHeight As Double
-
             actualStartCol = DateToColumn(ganttStartDate, CDate(startActual), ganttStartCol)
             planStartCol = DateToColumn(ganttStartDate, CDate(startPlan), ganttStartCol)
             planEndCol = DateToColumn(ganttStartDate, CDate(endPlan), ganttStartCol)
-            actualBarHeight = 6  ' 実績バーの高さ
 
             ' 進捗バーの右端位置を計算
             Dim progressEndCol As Long
@@ -867,7 +862,7 @@ Sub DrawGanttBars()
             If greenEndCol > ganttStartCol + GANTT_DAYS - 1 Then greenEndCol = ganttStartCol + GANTT_DAYS - 1
 
             If greenEndCol >= ganttStartCol And visibleStartCol <= ganttStartCol + GANTT_DAYS - 1 And greenEndCol >= visibleStartCol Then
-                cellTop = ws.Cells(r, visibleStartCol).Top + 10  ' 予定バーの下に配置
+                cellTop = GetStackedBarTop(ws, r, visibleStartCol, planBarHeight, actualBarHeight, True)
                 cellLeft = ws.Cells(r, visibleStartCol).Left
                 cellWidth = ws.Cells(r, greenEndCol).Left + ws.Cells(r, greenEndCol).Width - cellLeft
 
@@ -875,6 +870,7 @@ Sub DrawGanttBars()
                 shp.Name = "Bar_Actual_" & r
                 shp.Fill.ForeColor.RGB = COLOR_ACTUAL
                 shp.Line.Visible = msoFalse
+                shp.Placement = xlMoveAndSize
             End If
 
             ' 完了時に実績で超過している場合は超過部分を別色で描画
@@ -892,7 +888,7 @@ Sub DrawGanttBars()
                     If overrunStartCol <= ganttStartCol + GANTT_DAYS - 1 And overrunEndCol >= overrunStartCol Then
                         Dim overrunLeft As Double
                         Dim overrunWidth As Double
-                        cellTop = ws.Cells(r, overrunStartCol).Top + 10
+                        cellTop = GetStackedBarTop(ws, r, overrunStartCol, planBarHeight, actualBarHeight, True)
                         overrunLeft = ws.Cells(r, overrunStartCol).Left
                         overrunWidth = ws.Cells(r, overrunEndCol).Left + ws.Cells(r, overrunEndCol).Width - overrunLeft
 
@@ -900,6 +896,7 @@ Sub DrawGanttBars()
                         shp.Name = "Bar_Overrun_" & r
                         shp.Fill.ForeColor.RGB = COLOR_ACTUAL_OVERRUN
                         shp.Line.Visible = msoFalse
+                        shp.Placement = xlMoveAndSize
                     End If
                 End If
             End If
@@ -924,6 +921,7 @@ Sub DrawGanttBars()
         shp.Name = "Today_Line"
         shp.Line.ForeColor.RGB = COLOR_TODAY
         shp.Line.Weight = TODAY_LINE_WEIGHT
+        shp.Placement = xlMoveAndSize
     End If
 
     ' イナズマ線を描画（複数ポイントがある場合）
@@ -941,6 +939,7 @@ Sub DrawGanttBars()
         shp.Line.ForeColor.RGB = COLOR_INAZUMA
         shp.Line.Weight = 2
         shp.Fill.Visible = msoFalse
+        shp.Placement = xlMoveAndSize
     End If
 
     Application.Calculation = prevCalc  ' P2修正: 元設定に復元
@@ -1020,6 +1019,38 @@ ErrorHandler:
     MsgBox "更新中にエラーが発生しました: " & Err.Description, vbCritical, "エラー"
 End Sub
 
+Private Sub DeleteExistingGanttShapes(ByVal ws As Worksheet)
+    Dim shapeIndex As Long
+
+    For shapeIndex = ws.Shapes.Count To 1 Step -1
+        With ws.Shapes(shapeIndex)
+            If Left(.Name, 4) = "Bar_" Or Left(.Name, 6) = "Today_" Or Left(.Name, 8) = "Inazuma_" Then
+                .Delete
+            End If
+        End With
+    Next shapeIndex
+End Sub
+
+Private Function GetStackedBarTop(ByVal ws As Worksheet, ByVal targetRow As Long, ByVal targetCol As Long, _
+                                  ByVal upperBarHeight As Double, ByVal lowerBarHeight As Double, _
+                                  ByVal lowerBar As Boolean) As Double
+    Dim baseTop As Double
+    Dim cellHeight As Double
+    Dim gapHeight As Double
+    Dim totalBarHeight As Double
+
+    cellHeight = ws.Cells(targetRow, targetCol).Height
+    gapHeight = 2
+    totalBarHeight = upperBarHeight + lowerBarHeight + gapHeight
+    baseTop = ws.Cells(targetRow, targetCol).Top + (cellHeight - totalBarHeight) / 2
+
+    If lowerBar Then
+        GetStackedBarTop = baseTop + upperBarHeight + gapHeight
+    Else
+        GetStackedBarTop = baseTop
+    End If
+End Function
+
 
 ' ==========================================
 '  祝日列の色塗り（設定マスタ B13:B28）
@@ -1082,6 +1113,62 @@ End Function
 ' ==========================================
 '  タスク入力列から階層を自動判定
 ' ==========================================
+Public Function HasTaskContentInRow(ByVal ws As Worksheet, ByVal targetRow As Long) As Boolean
+    If ws Is Nothing Then Exit Function
+    If targetRow < ROW_DATA_START Then Exit Function
+
+    If Trim$(CStr(ws.Cells(targetRow, "F").Value)) <> "" Then
+        HasTaskContentInRow = True
+    ElseIf Trim$(CStr(ws.Cells(targetRow, "E").Value)) <> "" Then
+        HasTaskContentInRow = True
+    ElseIf Trim$(CStr(ws.Cells(targetRow, "D").Value)) <> "" Then
+        HasTaskContentInRow = True
+    ElseIf Trim$(CStr(ws.Cells(targetRow, "C").Value)) <> "" And _
+           Trim$(CStr(ws.Cells(targetRow, "C").Value)) <> WBSParentRollup.ALERT_MARK_TODAY And _
+           Trim$(CStr(ws.Cells(targetRow, "C").Value)) <> WBSParentRollup.ALERT_MARK_DELAY Then
+        HasTaskContentInRow = True
+    End If
+End Function
+
+Private Function GetTaskLevelForRow(ByVal ws As Worksheet, ByVal targetRow As Long) As Long
+    If ws Is Nothing Then Exit Function
+    If targetRow < ROW_DATA_START Then Exit Function
+
+    If Trim$(CStr(ws.Cells(targetRow, "F").Value)) <> "" Then
+        GetTaskLevelForRow = 4
+    ElseIf Trim$(CStr(ws.Cells(targetRow, "E").Value)) <> "" Then
+        GetTaskLevelForRow = 3
+    ElseIf Trim$(CStr(ws.Cells(targetRow, "D").Value)) <> "" Then
+        GetTaskLevelForRow = 2
+    ElseIf Trim$(CStr(ws.Cells(targetRow, "C").Value)) <> "" And _
+           Trim$(CStr(ws.Cells(targetRow, "C").Value)) <> WBSParentRollup.ALERT_MARK_TODAY And _
+           Trim$(CStr(ws.Cells(targetRow, "C").Value)) <> WBSParentRollup.ALERT_MARK_DELAY Then
+        GetTaskLevelForRow = 1
+    End If
+End Function
+
+Public Sub AutoDetectTaskLevelsInRange(ByVal ws As Worksheet, ByVal startRow As Long, ByVal endRow As Long)
+    Dim r As Long
+    Dim taskLevel As Long
+    Dim lastSupportedRow As Long
+
+    If ws Is Nothing Then Exit Sub
+
+    If startRow < ROW_DATA_START Then startRow = ROW_DATA_START
+    lastSupportedRow = ROW_DATA_START + DATA_ROWS_DEFAULT - 1
+    If endRow > lastSupportedRow Then endRow = lastSupportedRow
+    If endRow < startRow Then Exit Sub
+
+    For r = startRow To endRow
+        taskLevel = GetTaskLevelForRow(ws, r)
+        If taskLevel > 0 Then
+            ws.Cells(r, COL_HIERARCHY).Value = taskLevel
+        Else
+            ws.Cells(r, COL_HIERARCHY).ClearContents
+        End If
+    Next r
+End Sub
+
 Public Sub AutoDetectTaskLevel(Optional ByVal targetRow As Long = 0)
     On Error GoTo ErrorHandler
 
@@ -1089,10 +1176,10 @@ Public Sub AutoDetectTaskLevel(Optional ByVal targetRow As Long = 0)
     Set ws = RequireMainWorksheet("階層自動判定")
     If ws Is Nothing Then Exit Sub
 
-    Dim startRow As Long, endRow As Long
+    Dim startRow As Long
+    Dim endRow As Long
 
     If targetRow > 0 Then
-        If targetRow < ROW_DATA_START Then Exit Sub
         startRow = targetRow
         endRow = targetRow
     Else
@@ -1101,33 +1188,7 @@ Public Sub AutoDetectTaskLevel(Optional ByVal targetRow As Long = 0)
         If endRow < ROW_DATA_START Then endRow = ROW_DATA_START + DATA_ROWS_DEFAULT - 1
     End If
 
-    ' Note: EnableEvents control is handled by the caller (Worksheet_Change)
-
-    Dim r As Long
-    Dim taskLevel As Long
-
-    For r = startRow To endRow
-        taskLevel = 0
-
-        If Trim$(CStr(ws.Cells(r, "F").Value)) <> "" Then
-            taskLevel = 4
-        ElseIf Trim$(CStr(ws.Cells(r, "E").Value)) <> "" Then
-            taskLevel = 3
-        ElseIf Trim$(CStr(ws.Cells(r, "D").Value)) <> "" Then
-            taskLevel = 2
-        ElseIf Trim$(CStr(ws.Cells(r, "C").Value)) <> "" And _
-               Trim$(CStr(ws.Cells(r, "C").Value)) <> WBSParentRollup.ALERT_MARK_TODAY And _
-               Trim$(CStr(ws.Cells(r, "C").Value)) <> WBSParentRollup.ALERT_MARK_DELAY Then
-            taskLevel = 1
-        End If
-
-        If taskLevel > 0 Then
-            ws.Cells(r, COL_HIERARCHY).Value = taskLevel
-        Else
-            ws.Cells(r, COL_HIERARCHY).ClearContents
-        End If
-    Next r
-
+    AutoDetectTaskLevelsInRange ws, startRow, endRow
     Exit Sub
 
 ErrorHandler:
@@ -1664,27 +1725,32 @@ End Sub
 ' ==========================================
 '  No.列の自動採番
 ' ==========================================
-Sub RenumberRows()
-    On Error GoTo ErrorHandler
+Public Sub ResetTaskRowDisplay(ByVal ws As Worksheet, ByVal targetRow As Long)
+    If ws Is Nothing Then Exit Sub
+    If targetRow < ROW_DATA_START Then Exit Sub
+    If HasTaskContentInRow(ws, targetRow) Then Exit Sub
 
-    Dim ws As Worksheet
-    Set ws = RequireMainWorksheet("再採番")
+    ws.Cells(targetRow, COL_HIERARCHY).ClearContents
+    ws.Cells(targetRow, "B").ClearContents
+    ws.Range("C" & targetRow & ":F" & targetRow).Font.Strikethrough = False
+    ws.Range("C" & targetRow & ":F" & targetRow).Font.ColorIndex = xlColorIndexAutomatic
+End Sub
+
+Public Sub RenumberRowsForWorksheet(ByVal ws As Worksheet)
+    Dim lastRow As Long
+    Dim taskData As Variant
+    Dim numArray() As Variant
+    Dim r As Long
+    Dim num As Long
+
     If ws Is Nothing Then Exit Sub
 
-    Application.ScreenUpdating = False
-    Application.EnableEvents = False
-
-    Dim lastRow As Long
     lastRow = GetLastDataRow(ws)
     If lastRow < ROW_DATA_START Then lastRow = ROW_DATA_START
 
-    Dim taskData As Variant
     taskData = ws.Range("C" & ROW_DATA_START & ":F" & lastRow).Value
-
-    Dim numArray() As Variant
     ReDim numArray(1 To lastRow - ROW_DATA_START + 1, 1 To 1)
 
-    Dim r As Long, num As Long
     num = 1
     For r = 1 To UBound(taskData, 1)
         If Trim$(CStr(taskData(r, 1))) <> "" Or Trim$(CStr(taskData(r, 2))) <> "" Or _
@@ -1697,7 +1763,18 @@ Sub RenumberRows()
     Next r
 
     ws.Range("B" & ROW_DATA_START & ":B" & lastRow).Value = numArray
+End Sub
 
+Sub RenumberRows()
+    On Error GoTo ErrorHandler
+
+    Dim ws As Worksheet
+    Set ws = RequireMainWorksheet("再採番")
+    If ws Is Nothing Then Exit Sub
+
+    Application.ScreenUpdating = False
+    Application.EnableEvents = False
+    RenumberRowsForWorksheet ws
     Application.EnableEvents = True
     Application.ScreenUpdating = True
     Exit Sub

@@ -43,6 +43,46 @@ function Throw-VbaAccessGuidance([string]$detail) {
            "File > Options > Trust Center > Trust Center Settings > Macro Settings. Detail: " + $detail)
 }
 
+function Get-WorksheetOrThrow($workbook, [string]$sheetName) {
+    try {
+        return $workbook.Worksheets.Item($sheetName)
+    }
+    catch {
+        throw "Required worksheet was not created: $sheetName"
+    }
+}
+
+function Close-WorkbookSafely([ref]$workbookRef, [bool]$saveChanges = $false) {
+    if ($null -ne $workbookRef.Value) {
+        try {
+            $workbookRef.Value.Close($saveChanges)
+        }
+        catch {
+        }
+        finally {
+            $workbookRef.Value = $null
+        }
+    }
+}
+
+function Close-ExcelSafely([ref]$excelRef) {
+    if ($null -ne $excelRef.Value) {
+        try {
+            $excelRef.Value.Quit()
+        }
+        catch {
+        }
+        finally {
+            try {
+                [System.Runtime.Interopservices.Marshal]::ReleaseComObject($excelRef.Value) | Out-Null
+            }
+            catch {
+            }
+            $excelRef.Value = $null
+        }
+    }
+}
+
 try {
     Write-Host "Creating new workbook..."
     $wb = $excel.Workbooks.Add()
@@ -62,7 +102,7 @@ try {
         if (Test-Path $path) {
             Write-Host "Importing $file..."
             try {
-                $wb.VBProject.VBComponents.Import($path)
+                $wb.VBProject.VBComponents.Import($path) | Out-Null
             }
             catch {
                 Throw-VbaAccessGuidance($_.Exception.Message)
@@ -80,10 +120,10 @@ try {
         Write-Host "SilentSetup completed successfully."
     }
     catch {
-        Write-Warning "Failed to run SilentSetup: $($_.Exception.Message)"
+        throw "SilentSetup failed: $($_.Exception.Message)"
     }
 
-    $mainSheet = $wb.Worksheets.Item("InazumaGantt_Lite")
+    $mainSheet = Get-WorksheetOrThrow $wb "InazumaGantt_Lite"
 
     # Inject sheet module code into the main worksheet
     $sheetModPath = Join-Path $vbaDir "SheetModule_Lite_SJIS.bas"
@@ -102,11 +142,8 @@ try {
 
     Write-Host "Saving to $outputFile..."
     $wb.SaveAs($outputFile, 52) # xlOpenXMLWorkbookMacroEnabled
-    $wb.Close($false)
-    $wb = $null
-    $excel.Quit()
-    [System.Runtime.Interopservices.Marshal]::ReleaseComObject($excel) | Out-Null
-    Remove-Variable excel -ErrorAction SilentlyContinue
+    Close-WorkbookSafely ([ref]$wb) $false
+    Close-ExcelSafely ([ref]$excel)
 
     $excel = New-Object -ComObject Excel.Application
     $excel.Visible = $false
@@ -141,12 +178,9 @@ try {
 }
 catch {
     Write-Error "Error occurred: $_"
+    throw
 }
 finally {
-    if ($wb) { $wb.Close($false) }
-    if ($excel) {
-        $excel.Quit()
-        [System.Runtime.Interopservices.Marshal]::ReleaseComObject($excel) | Out-Null
-        Remove-Variable excel -ErrorAction SilentlyContinue
-    }
+    Close-WorkbookSafely ([ref]$wb) $false
+    Close-ExcelSafely ([ref]$excel)
 }
