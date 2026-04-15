@@ -355,34 +355,71 @@ Private Function DetermineAlertMarker(ByVal ws As Worksheet, ByVal targetRow As 
     End If
 End Function
 
+Private Sub ApplyAlertMarkerState(ByVal ws As Worksheet, ByVal targetRow As Long, ByVal referenceDate As Date)
+    Dim rowLevel As Long
+    Dim markerText As String
+    Dim markerCell As Range
+    Dim currentValue As String
+
+    If targetRow < InazumaGantt_v3.ROW_DATA_START Then Exit Sub
+
+    rowLevel = GetHierarchyLevel(ws, targetRow)
+    Set markerCell = ws.Cells(targetRow, "C")
+    currentValue = CStr(markerCell.Value)
+
+    If rowLevel <= 1 Then
+        If IsMarkerOnlyText(currentValue) Then
+            markerCell.ClearContents
+        End If
+        Exit Sub
+    End If
+
+    markerText = DetermineAlertMarker(ws, targetRow, referenceDate)
+    If currentValue <> markerText Then
+        markerCell.Value = markerText
+    End If
+
+    markerCell.Font.Color = IIf(markerText <> "", ALERT_COLOR_RED, RGB(0, 0, 0))
+    markerCell.Font.Bold = (markerText <> "")
+    markerCell.HorizontalAlignment = xlCenter
+    markerCell.Interior.Pattern = xlNone
+End Sub
+
 Public Sub RefreshTaskAlertMarkers(ByVal ws As Worksheet)
     Dim workingWs As Worksheet
     Dim lastRow As Long
     Dim r As Long
-    Dim rowLevel As Long
-    Dim markerText As String
+    Dim referenceDate As Date
 
     Set workingWs = GetRollupWorksheet(ws, "タスク強調表示")
     If workingWs Is Nothing Then Exit Sub
 
     lastRow = InazumaGantt_v3.GetLastDataRow(workingWs)
+    referenceDate = Date
 
     For r = InazumaGantt_v3.ROW_DATA_START To lastRow
-        rowLevel = GetHierarchyLevel(workingWs, r)
-
-        If rowLevel <= 1 Then
-            If rowLevel = 0 And IsMarkerOnlyText(CStr(workingWs.Cells(r, "C").Value)) Then
-                workingWs.Cells(r, "C").ClearContents
-            End If
-        Else
-            markerText = DetermineAlertMarker(workingWs, r, Date)
-            workingWs.Cells(r, "C").Value = markerText
-            workingWs.Cells(r, "C").Font.Color = IIf(markerText <> "", ALERT_COLOR_RED, RGB(0, 0, 0))
-            workingWs.Cells(r, "C").Font.Bold = (markerText <> "")
-            workingWs.Cells(r, "C").HorizontalAlignment = xlCenter
-            workingWs.Cells(r, "C").Interior.Pattern = xlNone
-        End If
+        ApplyAlertMarkerState workingWs, r, referenceDate
     Next r
+End Sub
+
+Public Sub RefreshTaskAlertMarkersForRowAndAncestors(ByVal ws As Worksheet, ByVal targetRow As Long)
+    Dim workingWs As Worksheet
+    Dim currentRow As Long
+    Dim referenceDate As Date
+
+    Set workingWs = GetRollupWorksheet(ws, "タスク強調表示")
+    If workingWs Is Nothing Then Exit Sub
+    If targetRow < InazumaGantt_v3.ROW_DATA_START Then Exit Sub
+
+    referenceDate = Date
+    currentRow = targetRow
+    ApplyAlertMarkerState workingWs, currentRow, referenceDate
+
+    currentRow = FindParentTaskRow(workingWs, targetRow)
+    Do While currentRow >= InazumaGantt_v3.ROW_DATA_START
+        ApplyAlertMarkerState workingWs, currentRow, referenceDate
+        currentRow = FindParentTaskRow(workingWs, currentRow)
+    Loop
 End Sub
 
 Public Sub RefreshAllDerivedTaskData(ByVal ws As Worksheet)

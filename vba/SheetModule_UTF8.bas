@@ -12,6 +12,8 @@ Option Explicit
 '
 ' ==========================================
 
+Private isHandlingWorksheetChange As Boolean
+
 ' API宣言（Shiftキー検知用）
 #If VBA7 Then
     Private Declare PtrSafe Function GetKeyState Lib "user32" (ByVal nVirtKey As Long) As Integer
@@ -106,9 +108,18 @@ Private Sub Worksheet_Change(ByVal Target As Range)
 
     On Error GoTo ErrorHandler
     Dim taskAreaChanged As Boolean
+    Dim refreshAllMarkers As Boolean
     Dim affectedRows As Object
+    Dim prevCalc As XlCalculation
     Set affectedRows = CreateObject("Scripting.Dictionary")
 
+    If isHandlingWorksheetChange Then Exit Sub
+    If Target Is Nothing Then Exit Sub
+
+    isHandlingWorksheetChange = True
+    prevCalc = Application.Calculation
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
     Application.EnableEvents = False
 
     ' タスク入力列（C～F列）に変更があった場合
@@ -118,9 +129,6 @@ Private Sub Worksheet_Change(ByVal Target As Range)
             If cell.Row >= InazumaGantt_v3.ROW_DATA_START Then
                 ' タスクが入力された場合
                 If Trim$(CStr(cell.Value)) <> "" Then
-                    ' 階層を自動判定
-                    InazumaGantt_v3.AutoDetectTaskLevel cell.Row
-
                     ' 進捗率が空なら0%を入力
                     If Trim$(CStr(Me.Cells(cell.Row, "I").Value)) = "" Then
                         Me.Cells(cell.Row, "I").Value = 0
@@ -130,9 +138,6 @@ Private Sub Worksheet_Change(ByVal Target As Range)
                     If Trim$(CStr(Me.Cells(cell.Row, "H").Value)) = "" Then
                         Me.Cells(cell.Row, "H").Value = "未着手"
                     End If
-                Else
-                    ' タスクが削除された場合も階層を更新
-                    InazumaGantt_v3.AutoDetectTaskLevel cell.Row
                 End If
 
                 taskAreaChanged = True
@@ -141,7 +146,16 @@ Private Sub Worksheet_Change(ByVal Target As Range)
         Next cell
 
         If taskAreaChanged Then
+            InazumaGantt_v3.AutoDetectTaskLevel
             InazumaGantt_v3.RenumberRows
+
+            Dim taskRowKey As Variant
+            For Each taskRowKey In affectedRows.Keys
+                InazumaGantt_v3.AutoDetectTaskLevel CLng(taskRowKey)
+                If Application.WorksheetFunction.CountA(Me.Range("C" & CLng(taskRowKey) & ":F" & CLng(taskRowKey))) = 0 Then
+                    Me.Cells(CLng(taskRowKey), "B").ClearContents
+                End If
+            Next taskRowKey
         End If
     End If
 
@@ -216,13 +230,20 @@ Private Sub Worksheet_Change(ByVal Target As Range)
         Next planDateCell
     End If
 
-    ApplyRollupAndAlerts affectedRows
+    refreshAllMarkers = (Not taskAreaChanged)
+    ApplyRollupAndAlerts affectedRows, refreshAllMarkers
 
     Application.EnableEvents = True
+    Application.Calculation = prevCalc
+    Application.ScreenUpdating = True
+    isHandlingWorksheetChange = False
     Exit Sub
 
 ErrorHandler:
     Application.EnableEvents = True
+    Application.Calculation = prevCalc
+    Application.ScreenUpdating = True
+    isHandlingWorksheetChange = False
 End Sub
 
 ' ==========================================
@@ -283,12 +304,17 @@ Private Sub CollectAffectedRow(ByVal affectedRows As Object, ByVal rowNumber As 
     affectedRows(CStr(rowNumber)) = True
 End Sub
 
-Private Sub ApplyRollupAndAlerts(ByVal affectedRows As Object)
+Private Sub ApplyRollupAndAlerts(ByVal affectedRows As Object, Optional ByVal refreshAllMarkers As Boolean = True)
     Dim rowKey As Variant
 
     For Each rowKey In affectedRows.Keys
         WBSParentRollup.RecalculateTaskRowAndAncestors Me, CLng(rowKey)
+        If Not refreshAllMarkers Then
+            WBSParentRollup.RefreshTaskAlertMarkersForRowAndAncestors Me, CLng(rowKey)
+        End If
     Next rowKey
 
-    WBSParentRollup.RefreshTaskAlertMarkers Me
+    If refreshAllMarkers Then
+        WBSParentRollup.RefreshTaskAlertMarkers Me
+    End If
 End Sub

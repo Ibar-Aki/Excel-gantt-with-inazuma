@@ -47,6 +47,7 @@ $converterInputDir = Join-Path $converterRoot "input_files"
 $converterOutputDir = Join-Path $converterRoot "output_bundle"
 $bundleFolderName = "InazumaGantt_v3_Distribution"
 $workbookPayloadPath = Join-Path $excelDir "WorkbookPayload.json"
+$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 
 $activeVbaFiles = @(
     "InazumaGantt_v3_UTF8.bas",
@@ -113,7 +114,8 @@ $workbookPayload = [ordered]@{
     contentBase64 = [Convert]::ToBase64String([System.IO.File]::ReadAllBytes($latestFile.FullName))
 }
 
-$workbookPayload | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $workbookPayloadPath -Encoding UTF8
+$payloadJson = $workbookPayload | ConvertTo-Json -Depth 4
+[System.IO.File]::WriteAllText($workbookPayloadPath, $payloadJson, $utf8NoBom)
 
 foreach ($fileName in $activeVbaFiles) {
     Copy-Item -LiteralPath (Join-Path (Join-Path $scriptDir "vba") $fileName) -Destination (Join-Path $vbaDir $fileName) -Force
@@ -128,7 +130,10 @@ foreach ($fileName in $docFiles) {
 }
 
 $bundleLines = @(
-    "InazumaGantt v3 distribution package",
+    "# InazumaGantt v3 distribution package",
+    "",
+    ("Created at: " + (Get-Date -Format "yyyy-MM-dd HH:mm:ss") + " JST"),
+    "Author: Codex (GPT-5)",
     "",
     ("Generated at: " + (Get-Date -Format "yyyy-MM-dd HH:mm:ss K")),
     ("Package root: ."),
@@ -158,6 +163,10 @@ $bundleLines = @(
     "[Documents]",
     "docs\RestoreGuide.md",
     "",
+    "[VBA note]",
+    "Read *_UTF8.bas files when you inspect source text.",
+    "Use *_SJIS.bas files only for Excel VBA import on Windows.",
+    "",
     "[Usage]",
     "1. Double-click scripts\Run_OneClick_CreateLatestWorkbook.bat to generate the latest workbook.",
     ("2. Open excel\" + $latestFile.Name + " to review the generated sample workbook."),
@@ -165,7 +174,7 @@ $bundleLines = @(
     "4. Use scripts\Run_CreateDistributionPackage.bat to rebuild this distribution folder."
 )
 
-Set-Content -LiteralPath $bundleTextPath -Value $bundleLines -Encoding UTF8
+[System.IO.File]::WriteAllLines($bundleTextPath, $bundleLines, $utf8NoBom)
 
 if (-not (Test-Path -LiteralPath $converterRoot)) {
     throw "Converter root not found: $converterRoot"
