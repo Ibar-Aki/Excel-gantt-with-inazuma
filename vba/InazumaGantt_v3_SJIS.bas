@@ -1977,8 +1977,20 @@ Public Sub ResetTaskRowDisplay(ByVal ws As Worksheet, ByVal targetRow As Long)
 
     ws.Cells(targetRow, COL_HIERARCHY).ClearContents
     ws.Cells(targetRow, "B").ClearContents
+    ws.Cells(targetRow, COL_STATUS).ClearContents
+    ws.Cells(targetRow, COL_PROGRESS).ClearContents
+    ws.Cells(targetRow, COL_DEV_LT).ClearContents
+    ws.Cells(targetRow, COL_START_PLAN).ClearContents
+    ws.Cells(targetRow, COL_END_PLAN).ClearContents
+    ws.Cells(targetRow, COL_START_ACTUAL).ClearContents
+    ws.Cells(targetRow, COL_END_ACTUAL).ClearContents
+    If Trim$(CStr(ws.Cells(targetRow, "C").Value)) = WBSParentRollup.ALERT_MARK_TODAY Or _
+       Trim$(CStr(ws.Cells(targetRow, "C").Value)) = WBSParentRollup.ALERT_MARK_DELAY Then
+        ws.Cells(targetRow, "C").ClearContents
+    End If
     ws.Range("C" & targetRow & ":F" & targetRow).Font.Strikethrough = False
     ws.Range("C" & targetRow & ":F" & targetRow).Font.ColorIndex = xlColorIndexAutomatic
+    ws.Range("C" & targetRow & ":F" & targetRow).Font.Bold = False
 End Sub
 
 Public Sub RenumberRowsForWorksheet(ByVal ws As Worksheet)
