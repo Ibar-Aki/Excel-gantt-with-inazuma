@@ -52,6 +52,16 @@ function Get-WorksheetOrThrow($workbook, [string]$sheetName) {
     }
 }
 
+function Invoke-WorkbookMacroOrThrow($excelApp, $workbook, [string]$macroName) {
+    try {
+        $qualifiedMacro = "'{0}'!{1}" -f $workbook.Name, $macroName
+        $excelApp.Run($qualifiedMacro)
+    }
+    catch {
+        throw ("Macro smoke test failed for {0}: {1}" -f $macroName, $_.Exception.Message)
+    }
+}
+
 function Close-WorkbookSafely([ref]$workbookRef, [bool]$saveChanges = $false) {
     if ($null -ne $workbookRef.Value) {
         try {
@@ -139,6 +149,10 @@ try {
             Throw-VbaAccessGuidance($_.Exception.Message)
         }
     }
+
+    Write-Host "Running compile smoke tests..."
+    Invoke-WorkbookMacroOrThrow $excel $wb "RefreshInazumaGantt"
+    Invoke-WorkbookMacroOrThrow $excel $wb "ResetFormatting"
 
     Write-Host "Saving to $outputFile..."
     $wb.SaveAs($outputFile, 52) # xlOpenXMLWorkbookMacroEnabled

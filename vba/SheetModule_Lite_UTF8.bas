@@ -101,6 +101,7 @@ Private Sub Worksheet_Change(ByVal Target As Range)
     Dim taskAreaChanged As Boolean
     Dim refreshAllMarkers As Boolean
     Dim affectedRows As Object
+    Dim bulkEditMode As Boolean
     Dim prevCalc As XlCalculation
     Set affectedRows = CreateObject("Scripting.Dictionary")
 
@@ -108,6 +109,7 @@ Private Sub Worksheet_Change(ByVal Target As Range)
     If Target Is Nothing Then Exit Sub
 
     isHandlingWorksheetChange = True
+    bulkEditMode = InazumaGantt_v3.IsBulkEditModeEnabled()
     prevCalc = Application.Calculation
     Application.ScreenUpdating = False
     Application.Calculation = xlCalculationManual
@@ -117,19 +119,32 @@ Private Sub Worksheet_Change(ByVal Target As Range)
     If Not Intersect(Target, Me.Range("C:F")) Is Nothing Then
         taskAreaChanged = True
         PrepareChangedTaskRows Intersect(Target, Me.Range("C:F")), affectedRows
-        RefreshTaskStructureForRange Intersect(Target, Me.Range("C:F"))
+        If Not bulkEditMode Then
+            RefreshTaskStructureForRange Intersect(Target, Me.Range("C:F"))
+        End If
     End If
 
-    ' 進捗率列（I列）に変更があった場合、状況を自動更新
-    If Not Intersect(Target, Me.Columns("I")) Is Nothing Then
-        Dim progressCell As Range
-        For Each progressCell In Intersect(Target, Me.Columns("I"))
-            If progressCell.Row >= InazumaGantt_v3.ROW_DATA_START Then
-                InazumaGantt_v3.ValidateProgressInput Me, progressCell
-                UpdateStatusByProgress progressCell.Row
-                CollectAffectedRow affectedRows, progressCell.Row
+    ' 状況列（H列）または進捗率列（I列）に変更があった場合、相互同期
+    If Not Intersect(Target, Me.Range("H:I")) Is Nothing Then
+        Dim statusProgressCell As Range
+        For Each statusProgressCell In Intersect(Target, Me.Range("H:I"))
+            If statusProgressCell.Row >= InazumaGantt_v3.ROW_DATA_START Then
+                If statusProgressCell.Column = Me.Columns("I").Column Then
+                    InazumaGantt_v3.ValidateProgressInput Me, Me.Cells(statusProgressCell.Row, "I")
+                End If
+
+                If InazumaGantt_v3.HasTaskContentInRow(Me, statusProgressCell.Row) Then
+                    If statusProgressCell.Column = Me.Columns("I").Column Then
+                        UpdateStatusByProgress statusProgressCell.Row
+                    Else
+                        InazumaGantt_v3.SyncTaskStatusAndProgressRow Me, statusProgressCell.Row
+                    End If
+                Else
+                    InazumaGantt_v3.ResetTaskRowDisplay Me, statusProgressCell.Row
+                End If
+                CollectAffectedRow affectedRows, statusProgressCell.Row
             End If
-        Next progressCell
+        Next statusProgressCell
     End If
 
     ' 開発LT列（K列）の入力を検証
@@ -144,7 +159,7 @@ Private Sub Worksheet_Change(ByVal Target As Range)
     End If
 
     ' 日付列（L-M列）の入力を検証
-    If Not Intersect(Target, Me.Range(InazumaGantt_v3.COL_START_PLAN & ":" & InazumaGantt_v3.COL_END_PLAN)) Is Nothing Then
+    If Not bulkEditMode And Not Intersect(Target, Me.Range(InazumaGantt_v3.COL_START_PLAN & ":" & InazumaGantt_v3.COL_END_PLAN)) Is Nothing Then
         Dim validateCell As Range
         For Each validateCell In Intersect(Target, Me.Range(InazumaGantt_v3.COL_START_PLAN & ":" & InazumaGantt_v3.COL_END_PLAN))
             If validateCell.Row >= InazumaGantt_v3.ROW_DATA_START Then
@@ -191,8 +206,12 @@ Private Sub Worksheet_Change(ByVal Target As Range)
         Next planDateCell
     End If
 
-    refreshAllMarkers = (Not taskAreaChanged)
-    ApplyRollupAndAlerts affectedRows, refreshAllMarkers
+    If bulkEditMode Then
+        Application.StatusBar = "一括編集モード中: 親再計算とアラート更新を保留しました"
+    Else
+        refreshAllMarkers = (Not taskAreaChanged)
+        ApplyRollupAndAlerts affectedRows, refreshAllMarkers
+    End If
 
     Application.EnableEvents = True
     Application.Calculation = prevCalc
@@ -240,23 +259,29 @@ Private Sub UpdateStatusByProgress(ByVal targetRow As Long)
     Dim progressValue As Variant
     Dim rate As Double
 
-    progressValue = Me.Cells(targetRow, "I").Value
-
-    If Trim$(CStr(progressValue)) = "" Then
-        Me.Cells(targetRow, "H").Value = "未着手"
+    If targetRow < InazumaGantt_v3.ROW_DATA_START Then Exit Sub
+    If Not InazumaGantt_v3.HasTaskContentInRow(Me, targetRow) Then
+        InazumaGantt_v3.ResetTaskRowDisplay Me, targetRow
         Exit Sub
     End If
 
-    rate = InazumaGantt_v3.NormalizeProgressValue(progressValue, -1)
-    If rate < 0 Then Exit Sub
+    progressValue = Me.Cells(targetRow, "I").Value
+    If Trim$(CStr(progressValue)) = "" Then
+        Me.Cells(targetRow, "H").Value = InazumaGantt_v3.STATUS_NOT_STARTED
+        Me.Cells(targetRow, "I").Value = 0
+        Exit Sub
+    End If
 
-    ' 状況を設定
+    rate = InazumaGantt_v3.NormalizeProgressValue(progressValue, 0)
     If rate >= 1 Then
-        Me.Cells(targetRow, "H").Value = "完了"
+        Me.Cells(targetRow, "H").Value = InazumaGantt_v3.STATUS_COMPLETED
+        Me.Cells(targetRow, "I").Value = 1
     ElseIf rate <= 0 Then
-        Me.Cells(targetRow, "H").Value = "未着手"
+        Me.Cells(targetRow, "H").Value = InazumaGantt_v3.STATUS_NOT_STARTED
+        Me.Cells(targetRow, "I").Value = 0
     Else
-        Me.Cells(targetRow, "H").Value = "進行中"
+        Me.Cells(targetRow, "H").Value = InazumaGantt_v3.STATUS_IN_PROGRESS
+        Me.Cells(targetRow, "I").Value = rate
     End If
 End Sub
 
@@ -289,13 +314,7 @@ Private Sub NormalizeTaskRowState(ByVal targetRow As Long)
     If targetRow < InazumaGantt_v3.ROW_DATA_START Then Exit Sub
 
     If InazumaGantt_v3.HasTaskContentInRow(Me, targetRow) Then
-        If Trim$(CStr(Me.Cells(targetRow, "I").Value)) = "" Then
-            Me.Cells(targetRow, "I").Value = 0
-        End If
-
-        If Trim$(CStr(Me.Cells(targetRow, "H").Value)) = "" Then
-            Me.Cells(targetRow, "H").Value = "未着手"
-        End If
+        InazumaGantt_v3.SyncTaskStatusAndProgressRow Me, targetRow
     Else
         InazumaGantt_v3.ResetTaskRowDisplay Me, targetRow
     End If

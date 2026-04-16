@@ -58,6 +58,12 @@ Public Const COLOR_GANTT_HEADER As Long = 8421504
 Public Const COLOR_WEEKEND As Long = 5263430     ' RGB(70,70,80) 濃い灰色
 Public Const TODAY_LINE_WEIGHT As Double = 2
 Public Const ACTUAL_LINE_WEIGHT As Double = 4
+Public Const STATUS_NOT_STARTED As String = "未着手"
+Public Const STATUS_IN_PROGRESS As String = "進行中"
+Public Const STATUS_COMPLETED As String = "完了"
+Public Const STATUS_ON_HOLD As String = "保留"
+Public Const DEV_HOURS_NUMBER_FORMAT As String = "0.##""h"""
+Public Const SETTINGS_ROW_BULK_EDIT_MODE As Long = 9
 
 Private Function GetMainWorksheet() As Worksheet
     On Error Resume Next
@@ -143,6 +149,114 @@ Public Function FormatDevelopmentHours(ByVal normalizedHours As Double) As Strin
     End If
 End Function
 
+Public Function GetDevelopmentHoursValue(ByVal hoursValue As Variant, Optional ByVal fallback As Double = 0) As Double
+    Dim normalizedHours As Double
+
+    If TryParseDevelopmentHours(hoursValue, normalizedHours) Then
+        GetDevelopmentHoursValue = normalizedHours
+    Else
+        GetDevelopmentHoursValue = fallback
+    End If
+End Function
+
+Private Function NormalizeStatusText(ByVal statusValue As Variant) As String
+    Dim textValue As String
+
+    textValue = Trim$(CStr(statusValue))
+    Select Case textValue
+        Case ""
+            NormalizeStatusText = STATUS_NOT_STARTED
+        Case STATUS_NOT_STARTED, STATUS_IN_PROGRESS, STATUS_COMPLETED, STATUS_ON_HOLD
+            NormalizeStatusText = textValue
+        Case Else
+            NormalizeStatusText = STATUS_NOT_STARTED
+    End Select
+End Function
+
+Public Sub SyncTaskStatusAndProgressRow(ByVal ws As Worksheet, ByVal targetRow As Long)
+    Dim statusText As String
+    Dim rawStatusText As String
+    Dim progressRate As Double
+    Dim progressText As String
+
+    If ws Is Nothing Then Exit Sub
+    If targetRow < ROW_DATA_START Then Exit Sub
+    If Not HasTaskContentInRow(ws, targetRow) Then Exit Sub
+
+    rawStatusText = Trim$(CStr(ws.Cells(targetRow, COL_STATUS).Value))
+    statusText = NormalizeStatusText(rawStatusText)
+    progressText = Trim$(CStr(ws.Cells(targetRow, COL_PROGRESS).Value))
+
+    If progressText = "" Then
+        progressRate = 0
+    Else
+        progressRate = NormalizeProgressValue(ws.Cells(targetRow, COL_PROGRESS).Value, 0)
+    End If
+
+    If rawStatusText = "" Then
+        If progressRate <= 0 Then
+            statusText = STATUS_NOT_STARTED
+            progressRate = 0
+        ElseIf progressRate >= 1 Then
+            statusText = STATUS_COMPLETED
+            progressRate = 1
+        Else
+            statusText = STATUS_IN_PROGRESS
+        End If
+        ws.Cells(targetRow, COL_STATUS).Value = statusText
+        ws.Cells(targetRow, COL_PROGRESS).Value = progressRate
+        Exit Sub
+    End If
+
+    Select Case statusText
+        Case STATUS_COMPLETED
+            progressRate = 1
+        Case STATUS_NOT_STARTED
+            If progressText = "" Or progressRate <= 0 Then
+                progressRate = 0
+            ElseIf progressRate >= 1 Then
+                statusText = STATUS_COMPLETED
+                progressRate = 1
+            Else
+                statusText = STATUS_IN_PROGRESS
+            End If
+        Case STATUS_ON_HOLD
+            If progressRate >= 1 Then
+                statusText = STATUS_COMPLETED
+                progressRate = 1
+            ElseIf progressText = "" Then
+                progressRate = 0
+            End If
+        Case Else
+            If progressRate <= 0 Then
+                statusText = STATUS_NOT_STARTED
+                progressRate = 0
+            ElseIf progressRate >= 1 Then
+                statusText = STATUS_COMPLETED
+                progressRate = 1
+            Else
+                statusText = STATUS_IN_PROGRESS
+            End If
+    End Select
+
+    ws.Cells(targetRow, COL_STATUS).Value = statusText
+    ws.Cells(targetRow, COL_PROGRESS).Value = progressRate
+End Sub
+
+Public Sub NormalizeTaskStatusAndProgressRange(ByVal ws As Worksheet, ByVal startRow As Long, ByVal endRow As Long)
+    Dim r As Long
+
+    If ws Is Nothing Then Exit Sub
+    If startRow < ROW_DATA_START Then startRow = ROW_DATA_START
+    If endRow < startRow Then Exit Sub
+
+    For r = startRow To endRow
+        If HasTaskContentInRow(ws, r) Then
+            SyncTaskStatusAndProgressRow ws, r
+        End If
+    Next r
+End Sub
+
 Public Sub ValidateDevelopmentHoursInput(ByVal ws As Worksheet, ByVal Target As Range)
     On Error GoTo ErrorHandler
 
@@ -157,7 +271,8 @@ Public Sub ValidateDevelopmentHoursInput(ByVal ws As Worksheet, ByVal Target As 
         Exit Sub
     End If
 
-    Target.Value = FormatDevelopmentHours(normalizedHours)
+    Target.Value = normalizedHours
+    Target.NumberFormat = DEV_HOURS_NUMBER_FORMAT
     Exit Sub
 
 ErrorHandler:
@@ -195,10 +310,13 @@ Sub SetupInazumaGantt(Optional ByVal silentMode As Boolean = False, Optional ByV
 
     ' P2修正: 元の設定を保存
     Dim prevCalc As XlCalculation
+    Dim prevEvents As Boolean
     prevCalc = Application.Calculation
+    prevEvents = Application.EnableEvents
 
     Application.ScreenUpdating = False
     Application.Calculation = xlCalculationManual
+    Application.EnableEvents = False
 
     ' タイトル・情報エリア
     ws.Range("A" & ROW_TITLE).Value = "イナズマガントチャート"
@@ -361,9 +479,9 @@ End Sub
 Private Sub ApplyDataValidationAndFormats(ByVal ws As Worksheet, ByVal lastRow As Long)
     If lastRow < ROW_DATA_START Then lastRow = ROW_DATA_START
 
-    ' 開発LTは文字列で扱う
+    ' 開発LTは数値で保持し、表示だけ h 付きにする
     With ws.Range(COL_DEV_LT & ROW_DATA_START & ":" & COL_DEV_LT & lastRow)
-        .NumberFormat = "@"
+        .NumberFormat = DEV_HOURS_NUMBER_FORMAT
         .HorizontalAlignment = xlCenter
     End With
 
@@ -683,10 +801,13 @@ Sub DrawGanttBars()
 
     ' P2修正: 元の設定を保存
     Dim prevCalc As XlCalculation
+    Dim prevEvents As Boolean
     prevCalc = Application.Calculation
+    prevEvents = Application.EnableEvents
 
     Application.ScreenUpdating = False
     Application.Calculation = xlCalculationManual
+    Application.EnableEvents = False
 
     Dim lastRow As Long
     lastRow = GetLastDataRow(ws)
@@ -973,14 +1094,19 @@ Sub RefreshInazumaGantt()
 
     ' P2修正: 元の設定を保存
     Dim prevCalc As XlCalculation
+    Dim prevEvents As Boolean
     prevCalc = Application.Calculation
+    prevEvents = Application.EnableEvents
 
     Application.ScreenUpdating = False
     Application.Calculation = xlCalculationManual
+    Application.EnableEvents = False
 
     Dim lastRow As Long
     lastRow = GetLastDataRow(ws)
     If lastRow < ROW_DATA_START Then lastRow = ROW_DATA_START
+
+    NormalizeTaskStatusAndProgressRange ws, ROW_DATA_START, lastRow
 
     ' 日付ヘッダーを再生成（開始日変更対応）
     RegenerateDateHeaders ws
@@ -1007,6 +1133,7 @@ Sub RefreshInazumaGantt()
     Call DrawGanttBars
 
     Application.Calculation = prevCalc  ' P2修正: 元設定に復元
+    Application.EnableEvents = prevEvents
     Application.ScreenUpdating = True
 
     Application.StatusBar = "イナズマガントを更新しました"
@@ -1015,6 +1142,7 @@ Sub RefreshInazumaGantt()
 ErrorHandler:
     Application.StatusBar = False
     Application.Calculation = prevCalc  ' P2修正: 元設定に復元
+    Application.EnableEvents = prevEvents
     Application.ScreenUpdating = True
     MsgBox "更新中にエラーが発生しました: " & Err.Description, vbCritical, "エラー"
 End Sub
@@ -1261,8 +1389,29 @@ Private Sub CreateControlButtons(ByVal ws As Worksheet)
         .OnAction = "ResetFormatting"
     End With
 
-    ' 日付シフトボタン (v3追加)
+    ' 一括編集切替ボタン
     btnLeft = btnLeft + btnWidth + 10
+    Dim btnBulkEdit As Shape
+    Set btnBulkEdit = ws.Shapes.AddShape(msoShapeRoundedRectangle, btnLeft, btnTop, btnWidth + 20, btnHeight)
+    With btnBulkEdit
+        .Name = "Btn_BulkEdit"
+        If IsBulkEditModeEnabled() Then
+            .Fill.ForeColor.RGB = RGB(192, 80, 77)
+            .TextFrame2.TextRange.Characters.Text = "一括編集 ON"
+        Else
+            .Fill.ForeColor.RGB = RGB(84, 130, 53)
+            .TextFrame2.TextRange.Characters.Text = "一括編集 OFF"
+        End If
+        .Line.Visible = msoFalse
+        .TextFrame2.TextRange.Font.Fill.ForeColor.RGB = RGB(255, 255, 255)
+        .TextFrame2.TextRange.Font.Size = 10
+        .TextFrame2.TextRange.ParagraphFormat.Alignment = msoAlignCenter
+        .TextFrame2.VerticalAnchor = msoAnchorMiddle
+        .OnAction = "ToggleBulkEditMode"
+    End With
+
+    ' 日付シフトボタン (v3追加)
+    btnLeft = btnLeft + btnWidth + 30
     Dim btnShift As Shape
     Set btnShift = ws.Shapes.AddShape(msoShapeRoundedRectangle, btnLeft, btnTop, btnWidth, btnHeight)
     With btnShift
@@ -1292,6 +1441,56 @@ Private Sub CreateControlButtons(ByVal ws As Worksheet)
         .TextFrame2.VerticalAnchor = msoAnchorMiddle
         .OnAction = "ExportToPDF"
     End With
+End Sub
+
+Public Sub ToggleBulkEditMode()
+    On Error GoTo ErrorHandler
+
+    Dim ws As Worksheet
+    Dim isEnabled As Boolean
+    Dim lastRow As Long
+    Dim prevCalc As XlCalculation
+    Dim prevEvents As Boolean
+
+    Set ws = RequireMainWorksheet("一括編集モード切替")
+    If ws Is Nothing Then Exit Sub
+
+    prevCalc = Application.Calculation
+    prevEvents = Application.EnableEvents
+
+    isEnabled = Not IsBulkEditModeEnabled()
+    SetBulkEditMode isEnabled
+    CreateControlButtons ws
+
+    If isEnabled Then
+        Application.StatusBar = "一括編集モードを ON にしました"
+        Exit Sub
+    End If
+
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
+    Application.EnableEvents = False
+
+    lastRow = GetLastDataRow(ws)
+    If lastRow < ROW_DATA_START Then lastRow = ROW_DATA_START
+
+    NormalizeTaskStatusAndProgressRange ws, ROW_DATA_START, lastRow
+    AutoDetectTaskLevelsInRange ws, ROW_DATA_START, lastRow
+    RenumberRowsForWorksheet ws
+    WBSParentRollup.RefreshAllDerivedTaskData ws
+    DrawGanttBars
+
+    Application.EnableEvents = prevEvents
+    Application.Calculation = prevCalc
+    Application.ScreenUpdating = True
+    Application.StatusBar = "一括編集モードを OFF にし、全体を再整合しました"
+    Exit Sub
+
+ErrorHandler:
+    Application.EnableEvents = prevEvents
+    Application.Calculation = prevCalc
+    Application.ScreenUpdating = True
+    MsgBox "一括編集モード切替エラー: " & Err.Description, vbCritical, "エラー"
 End Sub
 
 ' ==========================================
@@ -1363,7 +1562,7 @@ Sub ResetFormatting()
 
     Dim lastRow As Long
     lastRow = GetLastDataRow(ws)
-    If lastRow < ROW_DATA_START Then lastRow = ROW_DATA_START + DATA_ROWS_DEFAULT - 1
+    If lastRow < ROW_DATA_START Then lastRow = ROW_DATA_START
 
     Dim ganttStartDate As Date
     If IsDate(ws.Range(CELL_PROJECT_START).Value) Then
@@ -1377,10 +1576,15 @@ Sub ResetFormatting()
 
     ' P2修正: 元の設定を保存
     Dim prevCalc As XlCalculation
+    Dim prevEvents As Boolean
     prevCalc = Application.Calculation
+    prevEvents = Application.EnableEvents
 
     Application.ScreenUpdating = False
     Application.Calculation = xlCalculationManual
+    Application.EnableEvents = False
+
+    NormalizeTaskStatusAndProgressRange ws, ROW_DATA_START, lastRow
 
     ' 日付ヘッダーを再生成
     RegenerateDateHeaders ws
@@ -1394,15 +1598,19 @@ Sub ResetFormatting()
     ApplyWeekendColors ws, lastRow, ganttStartDate, ganttStartCol
     ApplyDataValidationAndFormats ws, lastRow
     ApplyHolidayColors ws, lastRow
+    WBSParentRollup.RefreshAllDerivedTaskData ws
+    DrawGanttBars
 
     Application.Calculation = prevCalc  ' P2修正: 元設定に復元
+    Application.EnableEvents = prevEvents
     Application.ScreenUpdating = True
 
-    MsgBox "書式リセット完了！", vbInformation, "リセット"
+    Application.StatusBar = "書式リセットを完了しました"
     Exit Sub
 
 ErrorHandler:
     Application.Calculation = prevCalc  ' P2修正: 元設定に復元
+    Application.EnableEvents = prevEvents
     Application.ScreenUpdating = True
     MsgBox "書式リセットエラー: " & Err.Description, vbCritical, "エラー"
 End Sub
@@ -1507,16 +1715,41 @@ End Sub
 '  設定マスタシート作成
 ' ==========================================
 
+Private Function GetSettingsWorksheet() As Worksheet
+    On Error Resume Next
+    Set GetSettingsWorksheet = ThisWorkbook.Worksheets(SETTINGS_SHEET_NAME)
+    On Error GoTo 0
+End Function
+
+Private Sub EnsureBulkEditSettingSection(ByVal wsSettings As Worksheet)
+    If wsSettings Is Nothing Then Exit Sub
+
+    wsSettings.Range("A9").Value = "一括編集モード"
+    If Trim$(CStr(wsSettings.Range("B9").Value)) = "" Then
+        wsSettings.Range("B9").Value = False
+    Else
+        wsSettings.Range("B9").Value = CBool(wsSettings.Range("B9").Value)
+    End If
+    wsSettings.Range("C9").Value = "← TRUE: 親再計算とアラート更新を一時停止"
+    wsSettings.Range("A10").Value = "使い方"
+    wsSettings.Range("C10").Value = "← ボタンでON/OFFを切り替え、OFF復帰時にまとめて再計算"
+    wsSettings.Range("B9:B10").HorizontalAlignment = xlCenter
+
+    With wsSettings.Range("A9:C10").Borders
+        .LineStyle = xlContinuous
+        .Weight = xlThin
+        .ColorIndex = 48
+    End With
+End Sub
+
 Sub EnsureSettingsSheet()
     Dim wsSettings As Worksheet
-    On Error Resume Next
-    Set wsSettings = ThisWorkbook.Worksheets(SETTINGS_SHEET_NAME)
-    On Error GoTo 0
+    Set wsSettings = GetSettingsWorksheet()
 
-    If Not wsSettings Is Nothing Then Exit Sub
-
-    Set wsSettings = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
-    wsSettings.Name = SETTINGS_SHEET_NAME
+    If wsSettings Is Nothing Then
+        Set wsSettings = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
+        wsSettings.Name = SETTINGS_SHEET_NAME
+    End If
 
     ' === タイトル (A1) ===
     wsSettings.Range("A1").Value = "設定マスタ"
@@ -1528,19 +1761,19 @@ Sub EnsureSettingsSheet()
     wsSettings.Range("A3").Font.Bold = True
 
     wsSettings.Range("A4").Value = "機能有効"
-    wsSettings.Range("B4").Value = True
+    If Trim$(CStr(wsSettings.Range("B4").Value)) = "" Then wsSettings.Range("B4").Value = True
     wsSettings.Range("C4").Value = "← TRUE: ダブルクリックで完了処理を行う"
 
     wsSettings.Range("A5").Value = "完了日自動入力"
-    wsSettings.Range("B5").Value = True
+    If Trim$(CStr(wsSettings.Range("B5").Value)) = "" Then wsSettings.Range("B5").Value = True
     wsSettings.Range("C5").Value = "← TRUE: 完了実績日に今日を入力"
 
     wsSettings.Range("A6").Value = "取り消し線"
-    wsSettings.Range("B6").Value = True
+    If Trim$(CStr(wsSettings.Range("B6").Value)) = "" Then wsSettings.Range("B6").Value = True
     wsSettings.Range("C6").Value = "← TRUE: タスクに取り消し線を入れる"
 
     wsSettings.Range("A7").Value = "灰色変更"
-    wsSettings.Range("B7").Value = True
+    If Trim$(CStr(wsSettings.Range("B7").Value)) = "" Then wsSettings.Range("B7").Value = True
     wsSettings.Range("C7").Value = "← TRUE: タスクを濃い灰色に変更"
 
     wsSettings.Columns("A").ColumnWidth = 18
@@ -1548,12 +1781,13 @@ Sub EnsureSettingsSheet()
     wsSettings.Columns("C").ColumnWidth = 45
     wsSettings.Range("B4:B7").HorizontalAlignment = xlCenter
 
-    ' ダブルクリック設定エリアの罫線 (A4:C7)
     With wsSettings.Range("A4:C7").Borders
         .LineStyle = xlContinuous
         .Weight = xlThin
         .ColorIndex = 48
     End With
+
+    EnsureBulkEditSettingSection wsSettings
 
     ' === 祝日マスタセクション (A12, A13-A27, B12-B18) ===
     wsSettings.Range("A12").Value = "祝日マスタ"
@@ -1564,7 +1798,6 @@ Sub EnsureSettingsSheet()
     wsSettings.Range("B12").Value = "【祝日マスタの使い方】"
     wsSettings.Range("B12").Font.Bold = True
 
-    ' 祝日入力エリア（A13:A27）
     wsSettings.Range("A13:A27").NumberFormat = "yy/mm/dd"
     With wsSettings.Range("A13:A27").Borders
         .LineStyle = xlContinuous
@@ -1572,14 +1805,12 @@ Sub EnsureSettingsSheet()
         .ColorIndex = 48
     End With
 
-    ' 説明テキスト（B列）
     wsSettings.Range("B13").Value = "A列に祝日の日付を入力してください。"
     wsSettings.Range("B14").Value = "入力した日付はガントチャート上で濃い灰色で表示されます。"
     wsSettings.Range("B16").Value = "例: 26/01/01, 26/01/13, 26/02/11 ..."
     wsSettings.Range("B16").Font.Color = RGB(128, 128, 128)
     wsSettings.Range("B18").Value = "※ ガント更新後に反映されます。"
 
-    ' 目盛線オフ
     ActiveWindow.DisplayGridlines = False
 End Sub
 
@@ -1588,9 +1819,7 @@ End Sub
 ' ==========================================
 Public Function GetSettingValue(ByVal settingRow As Long) As Boolean
     Dim wsSettings As Worksheet
-    On Error Resume Next
-    Set wsSettings = ThisWorkbook.Worksheets(SETTINGS_SHEET_NAME)
-    On Error GoTo 0
+    Set wsSettings = GetSettingsWorksheet()
 
     If wsSettings Is Nothing Then
         GetSettingValue = True
@@ -1599,6 +1828,21 @@ Public Function GetSettingValue(ByVal settingRow As Long) As Boolean
 
     GetSettingValue = (wsSettings.Cells(settingRow, "B").Value = True)
 End Function
+
+Public Function IsBulkEditModeEnabled() As Boolean
+    Dim wsSettings As Worksheet
+    Set wsSettings = GetSettingsWorksheet()
+
+    If wsSettings Is Nothing Then Exit Function
+    If Trim$(CStr(wsSettings.Cells(SETTINGS_ROW_BULK_EDIT_MODE, "B").Value)) = "" Then Exit Function
+
+    IsBulkEditModeEnabled = CBool(wsSettings.Cells(SETTINGS_ROW_BULK_EDIT_MODE, "B").Value)
+End Function
+
+Public Sub SetBulkEditMode(ByVal isEnabled As Boolean)
+    EnsureSettingsSheet
+    GetSettingsWorksheet().Cells(SETTINGS_ROW_BULK_EDIT_MODE, "B").Value = isEnabled
+End Sub
 
 Private Function HasChildTaskRows(ByVal ws As Worksheet, ByVal startRow As Long, ByVal endRow As Long, ByVal currentLevel As Long) As Boolean
     Dim r As Long
@@ -1656,7 +1900,8 @@ Public Sub RollupDevelopmentHours(ByVal targetRow As Long)
 
     If Not hasLeafTask Then Exit Sub
 
-    ws.Cells(targetRow, COL_DEV_LT).Value = FormatDevelopmentHours(totalHours)
+    ws.Cells(targetRow, COL_DEV_LT).Value = totalHours
+    ws.Cells(targetRow, COL_DEV_LT).NumberFormat = DEV_HOURS_NUMBER_FORMAT
 
     If invalidCount > 0 Then
         MsgBox "配下タスクに集計できない開発LTが " & invalidCount & " 件ありました。", vbExclamation, "開発LT集計"

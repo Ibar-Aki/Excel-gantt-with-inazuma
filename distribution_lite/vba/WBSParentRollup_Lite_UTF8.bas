@@ -122,6 +122,24 @@ Private Function TryParseDevelopmentHoursLocal(ByVal hoursValue As Variant, ByRe
     TryParseDevelopmentHoursLocal = True
 End Function
 
+Private Function SubtreeHasLeafHours(ByVal ws As Worksheet, ByVal startRow As Long, ByVal endRow As Long) As Boolean
+    Dim r As Long
+    Dim rowLevel As Long
+    Dim hoursValue As Double
+
+    For r = startRow + 1 To endRow
+        rowLevel = GetHierarchyLevel(ws, r)
+        If rowLevel > GetHierarchyLevel(ws, startRow) And HasTaskName(ws, r) Then
+            If Not HasChildTaskRows(ws, r, endRow, rowLevel) Then
+                If TryParseDevelopmentHoursLocal(ws.Cells(r, InazumaGantt_v3.COL_DEV_LT).Value, hoursValue) Then
+                    SubtreeHasLeafHours = True
+                    Exit Function
+                End If
+            End If
+        End If
+    Next r
+End Function
+
 Private Sub UpdateMinDate(ByRef currentValue As Variant, ByVal candidateValue As Variant)
     If Not IsDate(candidateValue) Then Exit Sub
 
@@ -187,6 +205,9 @@ Private Sub RecalculateParentRow(ByVal ws As Worksheet, ByVal targetRow As Long,
     Dim planStart As Variant
     Dim planEnd As Variant
     Dim progressValue As Double
+    Dim childEndRow As Long
+    Dim targetManualHours As Double
+    Dim subtreeHasHours As Boolean
 
     targetLevel = GetHierarchyLevel(ws, targetRow)
     If targetLevel <= 0 Then Exit Sub
@@ -237,6 +258,16 @@ Private Sub RecalculateParentRow(ByVal ws As Worksheet, ByVal targetRow As Long,
                         allFutureOnly = False
                     End If
                 End If
+            ElseIf targetLevel = 1 And rowLevel = 2 Then
+                childEndRow = FindSubtreeEndRow(ws, r, lastRow)
+                If Not SubtreeHasLeafHours(ws, r, childEndRow) Then
+                    If TryParseDevelopmentHoursLocal(ws.Cells(r, InazumaGantt_v3.COL_DEV_LT).Value, hoursValue) Then
+                        rowProgress = InazumaGantt_v3.NormalizeProgressValue(ws.Cells(r, InazumaGantt_v3.COL_PROGRESS).Value, 0)
+                        totalHours = totalHours + hoursValue
+                        weightedProgress = weightedProgress + (rowProgress * hoursValue)
+                        hasHours = True
+                    End If
+                End If
             End If
         End If
     Next r
@@ -253,9 +284,19 @@ Private Sub RecalculateParentRow(ByVal ws As Worksheet, ByVal targetRow As Long,
     If progressValue < 0 Then progressValue = 0
     If progressValue > 1 Then progressValue = 1
 
+    If targetLevel = 2 Then
+        subtreeHasHours = SubtreeHasLeafHours(ws, targetRow, endRow)
+        If Not subtreeHasHours Then
+            If TryParseDevelopmentHoursLocal(ws.Cells(targetRow, InazumaGantt_v3.COL_DEV_LT).Value, targetManualHours) Then
+                totalHours = targetManualHours
+            End If
+        End If
+    End If
+
     ws.Cells(targetRow, InazumaGantt_v3.COL_STATUS).Value = DetermineParentStatus(allComplete, anyInProgress, anyOverdueIncomplete, allFutureOnly)
     ws.Cells(targetRow, InazumaGantt_v3.COL_PROGRESS).Value = progressValue
-    ws.Cells(targetRow, InazumaGantt_v3.COL_DEV_LT).Value = InazumaGantt_v3.FormatDevelopmentHours(totalHours)
+    ws.Cells(targetRow, InazumaGantt_v3.COL_DEV_LT).Value = totalHours
+    ws.Cells(targetRow, InazumaGantt_v3.COL_DEV_LT).NumberFormat = InazumaGantt_v3.DEV_HOURS_NUMBER_FORMAT
 
     SetDateCell ws.Cells(targetRow, InazumaGantt_v3.COL_START_PLAN), planStart
     SetDateCell ws.Cells(targetRow, InazumaGantt_v3.COL_END_PLAN), planEnd

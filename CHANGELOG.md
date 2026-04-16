@@ -1,6 +1,6 @@
 # Changelog
 
-更新日: 2026-04-15
+更新日: 2026-04-17
 
 All notable changes to InazumaGantt will be documented in this file.
 
@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [3.1.4] - 2026-04-11
+
+## [3.2.1] - 2026-04-17
+
+### Changed
+
+- **状況 / 進捗同期**: `H` と `I` を相互同期し、空欄は `未着手 / 0%` に正規化
+- **書式リセット**: 使用中範囲だけを対象にするよう変更
+- **一括編集モード**: 行操作中の親再計算と C 列アラート更新を保留できる切替ボタンを追加
+- **開発LT**: 内部保持を数値化し、表示のみ `h` 付きに変更
+- **LV2 fallback LT**: 配下末端 LT が無い LV2 では、親行 K 列の手入力 LT を代表値として採用
 
 ## [3.2.0] - 2026-04-15
 
