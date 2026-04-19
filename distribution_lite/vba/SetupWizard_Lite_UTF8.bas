@@ -157,7 +157,7 @@ Sub RunSetupWizard()
            "- ガントチャート描画" & vbCrLf & vbCrLf & _
            "【シートモジュールの設定】" & vbCrLf & _
            "ダブルクリック完了・折りたたみ機能を使うには、" & vbCrLf & _
-           "SheetModule_Lite_SJIS.bas をシートモジュールに貼り付けてください。", _
+           "SheetModule_Lite_UTF8.bas をシートモジュールに貼り付けてください。", _
            vbInformation, "セットアップ完了"
     Exit Sub
 
@@ -270,7 +270,7 @@ Sub ShowSheetModuleInstructions()
                   "1. Alt + F11 でVBAエディタを開く" & vbCrLf & _
                   "2. プロジェクトエクスプローラーで" & vbCrLf & _
                   "   「" & InazumaGantt_v3.MAIN_SHEET_NAME & "」シートをダブルクリック" & vbCrLf & _
-                  "3. vba/SheetModule_Lite_SJIS.bas の内容を" & vbCrLf & _
+                  "3. vba/SheetModule_Lite_UTF8.bas の内容を" & vbCrLf & _
                   "   コピー＆貼り付け" & vbCrLf & _
                   "4. 保存して閉じる" & vbCrLf & vbCrLf & _
                   "これにより以下の機能が有効になります:" & vbCrLf & _

@@ -26,15 +26,7 @@ Private Function IsMarkerOnlyText(ByVal textValue As String) As Boolean
 End Function
 
 Private Function HasTaskName(ByVal ws As Worksheet, ByVal targetRow As Long) As Boolean
-    If Trim$(CStr(ws.Cells(targetRow, "F").Value)) <> "" Then
-        HasTaskName = True
-    ElseIf Trim$(CStr(ws.Cells(targetRow, "E").Value)) <> "" Then
-        HasTaskName = True
-    ElseIf Trim$(CStr(ws.Cells(targetRow, "D").Value)) <> "" Then
-        HasTaskName = True
-    ElseIf Trim$(CStr(ws.Cells(targetRow, "C").Value)) <> "" And Not IsMarkerOnlyText(CStr(ws.Cells(targetRow, "C").Value)) Then
-        HasTaskName = True
-    End If
+    HasTaskName = InazumaGantt_v3.HasTaskContentInRow(ws, targetRow)
 End Function
 
 Private Function GetHierarchyLevel(ByVal ws As Worksheet, ByVal targetRow As Long) As Long
@@ -376,7 +368,7 @@ Private Function DetermineAlertMarker(ByVal ws As Worksheet, ByVal targetRow As 
 
     rowLevel = GetHierarchyLevel(ws, targetRow)
     If rowLevel <= 1 Then Exit Function
-    If Not HasTaskName(ws, targetRow) Then Exit Function
+    If Not InazumaGantt_v3.HasTaskContentInRow(ws, targetRow) Then Exit Function
 
     statusText = Trim$(CStr(ws.Cells(targetRow, InazumaGantt_v3.COL_STATUS).Value))
     progressValue = InazumaGantt_v3.NormalizeProgressValue(ws.Cells(targetRow, InazumaGantt_v3.COL_PROGRESS).Value, 0)
@@ -408,29 +400,34 @@ Private Sub ApplyAlertMarkerState(ByVal ws As Worksheet, ByVal targetRow As Long
     Dim markerText As String
     Dim markerCell As Range
     Dim currentValue As String
+    Dim nextValue As String
 
     If targetRow < InazumaGantt_v3.ROW_DATA_START Then Exit Sub
 
     rowLevel = GetHierarchyLevel(ws, targetRow)
     Set markerCell = ws.Cells(targetRow, "C")
-    currentValue = CStr(markerCell.Value)
+    currentValue = Trim$(CStr(markerCell.Value))
 
     If rowLevel <= 1 Then
         If IsMarkerOnlyText(currentValue) Then
             markerCell.ClearContents
         End If
+        InazumaGantt_v3.RefreshTaskLabelPresentation ws, targetRow
         Exit Sub
     End If
 
     markerText = DetermineAlertMarker(ws, targetRow, referenceDate)
-    If currentValue <> markerText Then
-        markerCell.Value = markerText
+    If InazumaGantt_v3.HasPrimaryTaskContentInRow(ws, targetRow) Then
+        nextValue = markerText
+    ElseIf InazumaGantt_v3.HasTaskContentInRow(ws, targetRow) Then
+        nextValue = InazumaGantt_v3.BuildAuxiliaryDisplayText(markerText)
     End If
 
-    markerCell.Font.Color = IIf(markerText <> "", ALERT_COLOR_RED, RGB(0, 0, 0))
-    markerCell.Font.Bold = (markerText <> "")
-    markerCell.HorizontalAlignment = xlCenter
-    markerCell.Interior.Pattern = xlNone
+    If currentValue <> nextValue Then
+        markerCell.Value = nextValue
+    End If
+
+    InazumaGantt_v3.RefreshTaskLabelPresentation ws, targetRow
 End Sub
 
 Public Sub RefreshTaskAlertMarkers(ByVal ws As Worksheet)

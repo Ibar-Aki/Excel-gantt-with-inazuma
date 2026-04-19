@@ -34,14 +34,198 @@ function Resolve-ConverterRoot {
     throw "Converter root not found. Specify -ConverterRoot or set INAZUMA_BUNDLE_CONVERTER_ROOT."
 }
 
+function Get-AvailablePowerShellPath {
+    try {
+        $currentProcess = Get-Process -Id $PID -ErrorAction Stop
+        if (-not [string]::IsNullOrWhiteSpace($currentProcess.Path)) {
+            return $currentProcess.Path
+        }
+    }
+    catch {
+    }
+
+    foreach ($candidate in @("powershell.exe", "pwsh.exe")) {
+        $command = Get-Command $candidate -ErrorAction SilentlyContinue
+        if ($null -ne $command) {
+            return $command.Source
+        }
+    }
+
+    throw "PowerShell executable not found."
+}
+
+function Invoke-BuildScriptWithWatchdog {
+    param(
+        [Parameter(Mandatory)]
+        [string]$BuildScriptPath,
+        [Parameter(Mandatory)]
+        [string]$WorkingDirectory,
+        [Parameter(Mandatory)]
+        [string]$ActionName
+    )
+
+    $watchdogScript = Join-Path $env:USERPROFILE ".codex\tools\invoke_with_desktop_watchdog.ps1"
+    $powerShellPath = Get-AvailablePowerShellPath
+
+    if (Test-Path -LiteralPath $watchdogScript) {
+        & $watchdogScript `
+            -ActionName $ActionName `
+            -FilePath $powerShellPath `
+            -ArgumentList @("-File", $BuildScriptPath) `
+            -WorkingDirectory $WorkingDirectory `
+            -TimeoutSeconds 120 `
+            -CaptureIntervalSeconds 15 `
+            -MaxCaptures 8
+    }
+    else {
+        & $powerShellPath -File $BuildScriptPath
+    }
+}
+
+function Move-PathWithRetry {
+    param(
+        [Parameter(Mandatory)]
+        [string]$SourcePath,
+        [Parameter(Mandatory)]
+        [string]$DestinationPath,
+        [int]$RetryCount = 5,
+        [int]$DelayMilliseconds = 750
+    )
+
+    for ($attempt = 1; $attempt -le $RetryCount; $attempt++) {
+        try {
+            Move-Item -LiteralPath $SourcePath -Destination $DestinationPath -Force
+            return
+        }
+        catch {
+            if ($attempt -eq $RetryCount) {
+                throw "Failed to move '$SourcePath' to '$DestinationPath'. Close Excel or Explorer windows using this path and retry. $($_.Exception.Message)"
+            }
+            Start-Sleep -Milliseconds $DelayMilliseconds
+        }
+    }
+}
+
+function Remove-PathWithRetry {
+    param(
+        [Parameter(Mandatory)]
+        [string]$TargetPath,
+        [int]$RetryCount = 5,
+        [int]$DelayMilliseconds = 750
+    )
+
+    if (-not (Test-Path -LiteralPath $TargetPath)) {
+        return
+    }
+
+    for ($attempt = 1; $attempt -le $RetryCount; $attempt++) {
+        try {
+            Remove-Item -LiteralPath $TargetPath -Recurse -Force
+            return
+        }
+        catch {
+            if ($attempt -eq $RetryCount) {
+                throw "Failed to remove '$TargetPath'. Close Excel or Explorer windows using this path and retry. $($_.Exception.Message)"
+            }
+            Start-Sleep -Milliseconds $DelayMilliseconds
+        }
+    }
+}
+
+function Sync-DirectoryWithRobocopy {
+    param(
+        [Parameter(Mandatory)]
+        [string]$SourcePath,
+        [Parameter(Mandatory)]
+        [string]$DestinationPath
+    )
+
+    $robocopyLog = Join-Path ([System.IO.Path]::GetTempPath()) ("robocopy_inazuma_" + [guid]::NewGuid().ToString("N") + ".log")
+    try {
+        $arguments = @(
+            $SourcePath,
+            $DestinationPath,
+            "/MIR",
+            "/R:2",
+            "/W:1",
+            "/NFL",
+            "/NDL",
+            "/NJH",
+            "/NJS",
+            "/NP",
+            "/LOG:$robocopyLog"
+        )
+
+        & robocopy @arguments | Out-Null
+        $exitCode = $LASTEXITCODE
+        if ($exitCode -gt 7) {
+            $logText = ""
+            if (Test-Path -LiteralPath $robocopyLog) {
+                $logText = Get-Content -LiteralPath $robocopyLog -Raw
+            }
+            throw "Robocopy mirror failed with exit code $exitCode. $logText"
+        }
+    }
+    finally {
+        if (Test-Path -LiteralPath $robocopyLog) {
+            Remove-Item -LiteralPath $robocopyLog -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+function Replace-DirectoryFromStaging {
+    param(
+        [Parameter(Mandatory)]
+        [string]$StagingPath,
+        [Parameter(Mandatory)]
+        [string]$TargetPath
+    )
+
+    $targetParent = Split-Path -Parent $TargetPath
+    $targetLeaf = Split-Path -Leaf $TargetPath
+    $backupPath = Join-Path $targetParent ($targetLeaf + "_previous_" + [guid]::NewGuid().ToString("N"))
+
+    if (Test-Path -LiteralPath $TargetPath) {
+        try {
+            Move-PathWithRetry -SourcePath $TargetPath -DestinationPath $backupPath
+        }
+        catch {
+            Write-Warning $_
+            Sync-DirectoryWithRobocopy -SourcePath $StagingPath -DestinationPath $TargetPath
+            Remove-PathWithRetry -TargetPath $StagingPath
+            return
+        }
+    }
+
+    try {
+        Move-PathWithRetry -SourcePath $StagingPath -DestinationPath $TargetPath
+    }
+    catch {
+        if ((Test-Path -LiteralPath $backupPath) -and -not (Test-Path -LiteralPath $TargetPath)) {
+            Move-PathWithRetry -SourcePath $backupPath -DestinationPath $TargetPath
+        }
+        throw
+    }
+
+    if (Test-Path -LiteralPath $backupPath) {
+        try {
+            Remove-PathWithRetry -TargetPath $backupPath
+        }
+        catch {
+            Write-Warning $_
+        }
+    }
+}
+
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $outputDir = Join-Path $scriptDir "output"
 $distributionDir = Join-Path $scriptDir "distribution_lite"
-$scriptsDir = Join-Path $distributionDir "scripts"
-$excelDir = Join-Path $distributionDir "excel"
-$vbaDir = Join-Path $distributionDir "vba"
-$docsDir = Join-Path $distributionDir "docs"
-$bundleTextPath = Join-Path $distributionDir "PackageContents.md"
+$distributionStagingDir = Join-Path $scriptDir ("distribution_lite_staging_" + [guid]::NewGuid().ToString("N"))
+$scriptsDir = Join-Path $distributionStagingDir "scripts"
+$excelDir = Join-Path $distributionStagingDir "excel"
+$vbaDir = Join-Path $distributionStagingDir "vba"
+$docsDir = Join-Path $distributionStagingDir "docs"
+$bundleTextPath = Join-Path $distributionStagingDir "PackageContents.md"
 $converterRoot = Resolve-ConverterRoot -PreferredRoot $ConverterRoot -BaseDir $scriptDir
 $converterInputDir = Join-Path $converterRoot "input_files"
 $converterOutputDir = Join-Path $converterRoot "output_bundle"
@@ -81,7 +265,18 @@ $docFiles = @(
     "RestoreGuide_Lite.md"
 )
 
-& (Join-Path $scriptDir "BuildInazumaGantt_Lite_UTF8.ps1")
+$fixEncodingScript = Join-Path $scriptDir "FixEncoding.ps1"
+if (-not (Test-Path -LiteralPath $fixEncodingScript)) {
+    throw "FixEncoding.ps1 not found: $fixEncodingScript"
+}
+
+Write-Host "Synchronizing SJIS modules for distribution..."
+& $fixEncodingScript
+
+Invoke-BuildScriptWithWatchdog `
+    -BuildScriptPath (Join-Path $scriptDir "BuildInazumaGantt_Lite_UTF8.ps1") `
+    -WorkingDirectory $scriptDir `
+    -ActionName "Create Lite distribution workbook"
 
 $latestFile = Get-ChildItem -Path $outputDir -Filter "InazumaGantt_Lite_*.xlsm" |
     Sort-Object LastWriteTime -Descending |
@@ -91,13 +286,10 @@ if ($null -eq $latestFile) {
     throw "No workbook available for distribution."
 }
 
-if (Test-Path $distributionDir) {
-    Get-ChildItem -Path $distributionDir -Force | Remove-Item -Recurse -Force
+if (Test-Path -LiteralPath $distributionStagingDir) {
+    Remove-PathWithRetry -TargetPath $distributionStagingDir
 }
-else {
-    New-Item -ItemType Directory -Path $distributionDir | Out-Null
-}
-
+New-Item -ItemType Directory -Path $distributionStagingDir | Out-Null
 New-Item -ItemType Directory -Path $scriptsDir | Out-Null
 New-Item -ItemType Directory -Path $excelDir | Out-Null
 New-Item -ItemType Directory -Path $vbaDir | Out-Null
@@ -164,8 +356,8 @@ $bundleLines = @(
     "docs\RestoreGuide_Lite.md",
     "",
     "[VBA note]",
-    "Read *_UTF8.bas files when you inspect source text.",
-    "Use *_SJIS.bas files only for Excel VBA import on Windows.",
+    "Use *_UTF8.bas files for editing and manual copy/paste into the VBA editor.",
+    "Refresh *_SJIS.bas with scripts\\FixEncoding.ps1, then use them only for Excel VBA import on Windows.",
     "",
     "[Usage]",
     "1. Double-click scripts\Run_OneClick_CreateLiteWorkbook.bat to generate the latest workbook.",
@@ -191,7 +383,7 @@ try {
         Move-Item -LiteralPath $_.FullName -Destination $backupDir
     }
 
-    Copy-Item -LiteralPath $distributionDir -Destination $stagingDir -Recurse -Force
+    Copy-Item -LiteralPath $distributionStagingDir -Destination $stagingDir -Recurse -Force
 
     $beforeBundlePaths = @(Get-ChildItem -LiteralPath $converterOutputDir -Filter "bundle_*.txt" -File | Select-Object -ExpandProperty FullName)
 
@@ -218,9 +410,9 @@ try {
         throw "No converter bundle file was created."
     }
 
-    Get-ChildItem -LiteralPath $distributionDir -Filter "bundle_*.txt" -File -ErrorAction SilentlyContinue | Remove-Item -Force
-    Get-ChildItem -LiteralPath $distributionDir -Filter "配布内容.txt" -File -ErrorAction SilentlyContinue | Remove-Item -Force
-    Copy-Item -LiteralPath $bundleOutputFile.FullName -Destination (Join-Path $distributionDir $bundleOutputFile.Name) -Force
+    Get-ChildItem -LiteralPath $distributionStagingDir -Filter "bundle_*.txt" -File -ErrorAction SilentlyContinue | Remove-Item -Force
+    Get-ChildItem -LiteralPath $distributionStagingDir -Filter "配布内容.txt" -File -ErrorAction SilentlyContinue | Remove-Item -Force
+    Copy-Item -LiteralPath $bundleOutputFile.FullName -Destination (Join-Path $distributionStagingDir $bundleOutputFile.Name) -Force
 }
 finally {
     if (Test-Path -LiteralPath $stagingDir) {
@@ -235,6 +427,8 @@ finally {
         Remove-Item -LiteralPath $backupDir -Recurse -Force
     }
 }
+
+Replace-DirectoryFromStaging -StagingPath $distributionStagingDir -TargetPath $distributionDir
 
 Write-Host "Distribution package created: $distributionDir"
 Write-Host "Workbook bundled: $($latestFile.Name)"

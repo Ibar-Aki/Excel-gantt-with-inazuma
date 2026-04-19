@@ -62,14 +62,86 @@ Public Const STATUS_NOT_STARTED As String = "未着手"
 Public Const STATUS_IN_PROGRESS As String = "進行中"
 Public Const STATUS_COMPLETED As String = "完了"
 Public Const STATUS_ON_HOLD As String = "保留"
-Public Const DEV_HOURS_NUMBER_FORMAT As String = "0.##""h"""
+Public Const DEV_HOURS_NUMBER_FORMAT As String = "0.0""h"""
+Public Const AUXILIARY_TASK_PLACEHOLDER As String = "（補助情報のみ）"
+Private Const HIDDEN_VALUE_NUMBER_FORMAT As String = ";;;"
 Public Const SETTINGS_ROW_BULK_EDIT_MODE As Long = 9
+Private Const BULK_EDIT_STATUS_RANGE As String = "A3:J3"
 
 Private Function GetMainWorksheet() As Worksheet
     On Error Resume Next
     Set GetMainWorksheet = ThisWorkbook.Worksheets(MAIN_SHEET_NAME)
     On Error GoTo 0
 End Function
+
+Private Function BuildBulkEditIndicatorText(Optional ByVal note As String = "") As String
+    Dim baseText As String
+
+    If IsBulkEditModeEnabled() Then
+        baseText = "高速入力 ON: LV/No は即時更新。親集計・色分け・ガントは OFF に戻すか「ガント更新」で反映します。"
+    Else
+        baseText = "高速入力 OFF: すべての計算と見た目をその場で更新します。"
+    End If
+
+    If Trim$(note) <> "" Then
+        BuildBulkEditIndicatorText = note & " " & baseText
+    Else
+        BuildBulkEditIndicatorText = baseText
+    End If
+End Function
+
+Private Sub UpdateBulkEditModeIndicator(ByVal ws As Worksheet, Optional ByVal note As String = "")
+    Dim statusRange As Range
+
+    If ws Is Nothing Then Exit Sub
+
+    Set statusRange = ws.Range(BULK_EDIT_STATUS_RANGE)
+    On Error Resume Next
+    If statusRange.MergeCells Then statusRange.UnMerge
+    On Error GoTo 0
+    statusRange.Merge
+    statusRange.Value = BuildBulkEditIndicatorText(note)
+    statusRange.WrapText = False
+    statusRange.HorizontalAlignment = xlLeft
+    statusRange.VerticalAlignment = xlCenter
+    statusRange.Font.Size = 9
+    statusRange.Font.Bold = True
+
+    If IsBulkEditModeEnabled() Then
+        statusRange.Interior.Color = RGB(252, 228, 214)
+        statusRange.Font.Color = RGB(156, 0, 6)
+    Else
+        statusRange.Interior.Color = RGB(226, 239, 218)
+        statusRange.Font.Color = RGB(0, 97, 0)
+    End If
+End Sub
+
+Private Sub ReconcileDeferredTaskState(ByVal ws As Worksheet)
+    Dim lastRow As Long
+
+    If ws Is Nothing Then Exit Sub
+
+    lastRow = GetLastDataRow(ws)
+    If lastRow < ROW_DATA_START Then lastRow = ROW_DATA_START
+
+    NormalizeTaskStatusAndProgressRange ws, ROW_DATA_START, lastRow
+    AutoDetectTaskLevelsInRange ws, ROW_DATA_START, lastRow
+    RenumberRowsForWorksheet ws
+    WBSParentRollup.RefreshAllDerivedTaskData ws
+    DrawGanttBars
+End Sub
+
+Public Sub CancelDeferredBulkEditReconcile()
+End Sub
+
+Public Sub QueueDeferredBulkEditReconcile(Optional ByVal note As String = "")
+    Dim ws As Worksheet
+
+    Set ws = GetMainWorksheet()
+    If ws Is Nothing Then Exit Sub
+
+    UpdateBulkEditModeIndicator ws, note
+End Sub
 
 Private Function RequireMainWorksheet(ByVal operationName As String, Optional ByVal requireActiveMainSheet As Boolean = False) As Worksheet
     Dim ws As Worksheet
@@ -142,11 +214,7 @@ Private Function TryParseDevelopmentHours(ByVal hoursValue As Variant, ByRef nor
 End Function
 
 Public Function FormatDevelopmentHours(ByVal normalizedHours As Double) As String
-    If Abs(normalizedHours - Round(normalizedHours, 0)) < 0.000001 Then
-        FormatDevelopmentHours = CStr(CLng(Round(normalizedHours, 0))) & "h"
-    Else
-        FormatDevelopmentHours = Format$(normalizedHours, "0.##") & "h"
-    End If
+    FormatDevelopmentHours = Format$(normalizedHours, "0.0") & "h"
 End Function
 
 Public Function GetDevelopmentHoursValue(ByVal hoursValue As Variant, Optional ByVal fallback As Double = 0) As Double
@@ -518,6 +586,9 @@ Public Function GetLastDataRow(ByVal ws As Worksheet) As Long
     lastRow = MaxRow(lastRow, ws.Cells(ws.Rows.Count, "E").End(xlUp).Row) ' Lv3
     lastRow = MaxRow(lastRow, ws.Cells(ws.Rows.Count, "F").End(xlUp).Row) ' Lv4
     lastRow = MaxRow(lastRow, ws.Cells(ws.Rows.Count, COL_TASK_DETAIL).End(xlUp).Row)
+    lastRow = MaxRow(lastRow, ws.Cells(ws.Rows.Count, COL_STATUS).End(xlUp).Row)
+    lastRow = MaxRow(lastRow, ws.Cells(ws.Rows.Count, COL_PROGRESS).End(xlUp).Row)
+    lastRow = MaxRow(lastRow, ws.Cells(ws.Rows.Count, COL_ASSIGNEE).End(xlUp).Row)
     lastRow = MaxRow(lastRow, ws.Cells(ws.Rows.Count, COL_DEV_LT).End(xlUp).Row)
     lastRow = MaxRow(lastRow, ws.Cells(ws.Rows.Count, COL_START_PLAN).End(xlUp).Row)
     lastRow = MaxRow(lastRow, ws.Cells(ws.Rows.Count, COL_END_PLAN).End(xlUp).Row)
@@ -1091,6 +1162,7 @@ Sub RefreshInazumaGantt()
     Dim ws As Worksheet
     Set ws = RequireMainWorksheet("ガント更新")
     If ws Is Nothing Then Exit Sub
+    CancelDeferredBulkEditReconcile
 
     ' P2修正: 元の設定を保存
     Dim prevCalc As XlCalculation
@@ -1137,6 +1209,7 @@ Sub RefreshInazumaGantt()
     Application.ScreenUpdating = True
 
     Application.StatusBar = "イナズマガントを更新しました"
+    UpdateBulkEditModeIndicator ws, "最新状態へ更新しました。"
     Exit Sub
 
 ErrorHandler:
@@ -1238,6 +1311,179 @@ Public Function GetTaskColumnByLevel(ByVal level As Long) As String
     End Select
 End Function
 
+Public Function IsAlertMarkerText(ByVal textValue As String) As Boolean
+    textValue = Trim$(textValue)
+    IsAlertMarkerText = (textValue = WBSParentRollup.ALERT_MARK_TODAY Or textValue = WBSParentRollup.ALERT_MARK_DELAY)
+End Function
+
+Public Function ExtractAlertMarkerText(ByVal textValue As String) As String
+    textValue = Trim$(textValue)
+
+    If textValue = "" Then Exit Function
+
+    If textValue = WBSParentRollup.ALERT_MARK_DELAY Or _
+       Left$(textValue, Len(WBSParentRollup.ALERT_MARK_DELAY & " ")) = WBSParentRollup.ALERT_MARK_DELAY & " " Then
+        ExtractAlertMarkerText = WBSParentRollup.ALERT_MARK_DELAY
+    ElseIf textValue = WBSParentRollup.ALERT_MARK_TODAY Or _
+           Left$(textValue, Len(WBSParentRollup.ALERT_MARK_TODAY & " ")) = WBSParentRollup.ALERT_MARK_TODAY & " " Then
+        ExtractAlertMarkerText = WBSParentRollup.ALERT_MARK_TODAY
+    End If
+End Function
+
+Public Function BuildAuxiliaryDisplayText(Optional ByVal markerText As String = "") As String
+    markerText = Trim$(markerText)
+    If markerText <> "" Then
+        BuildAuxiliaryDisplayText = markerText & " " & AUXILIARY_TASK_PLACEHOLDER
+    Else
+        BuildAuxiliaryDisplayText = AUXILIARY_TASK_PLACEHOLDER
+    End If
+End Function
+
+Public Function IsAuxiliaryPlaceholderText(ByVal textValue As String) As Boolean
+    textValue = Trim$(textValue)
+    IsAuxiliaryPlaceholderText = (textValue = AUXILIARY_TASK_PLACEHOLDER Or _
+                                  textValue = BuildAuxiliaryDisplayText(WBSParentRollup.ALERT_MARK_TODAY) Or _
+                                  textValue = BuildAuxiliaryDisplayText(WBSParentRollup.ALERT_MARK_DELAY))
+End Function
+
+Private Function IsDisplayOnlyTaskText(ByVal textValue As String) As Boolean
+    IsDisplayOnlyTaskText = (IsAlertMarkerText(textValue) Or IsAuxiliaryPlaceholderText(textValue))
+End Function
+
+Public Function GetVisibleTaskLabelForRow(ByVal ws As Worksheet, ByVal targetRow As Long) As String
+    Dim cellText As String
+
+    If ws Is Nothing Then Exit Function
+    If targetRow < ROW_DATA_START Then Exit Function
+
+    cellText = Trim$(CStr(ws.Cells(targetRow, "F").Value))
+    If cellText <> "" Then
+        GetVisibleTaskLabelForRow = cellText
+        Exit Function
+    End If
+
+    cellText = Trim$(CStr(ws.Cells(targetRow, "E").Value))
+    If cellText <> "" Then
+        GetVisibleTaskLabelForRow = cellText
+        Exit Function
+    End If
+
+    cellText = Trim$(CStr(ws.Cells(targetRow, "D").Value))
+    If cellText <> "" Then
+        GetVisibleTaskLabelForRow = cellText
+        Exit Function
+    End If
+
+    cellText = Trim$(CStr(ws.Cells(targetRow, "C").Value))
+    If cellText <> "" And Not IsDisplayOnlyTaskText(cellText) Then
+        GetVisibleTaskLabelForRow = cellText
+    ElseIf HasTaskContentInRow(ws, targetRow) Then
+        GetVisibleTaskLabelForRow = AUXILIARY_TASK_PLACEHOLDER
+    End If
+End Function
+
+Private Function GetRetainedTaskLevel(ByVal ws As Worksheet, ByVal targetRow As Long) As Long
+    Dim r As Long
+
+    If ws Is Nothing Then Exit Function
+    If targetRow < ROW_DATA_START Then Exit Function
+
+    If IsNumeric(ws.Cells(targetRow, COL_HIERARCHY).Value) Then
+        GetRetainedTaskLevel = CLng(ws.Cells(targetRow, COL_HIERARCHY).Value)
+        If GetRetainedTaskLevel > 0 Then Exit Function
+    End If
+
+    For r = targetRow - 1 To ROW_DATA_START Step -1
+        If IsNumeric(ws.Cells(r, COL_HIERARCHY).Value) Then
+            GetRetainedTaskLevel = CLng(ws.Cells(r, COL_HIERARCHY).Value)
+            If GetRetainedTaskLevel > 0 Then Exit Function
+        End If
+    Next r
+End Function
+
+Private Sub ClearTaskLabelPresentation(ByVal taskCell As Range)
+    If taskCell Is Nothing Then Exit Sub
+
+    taskCell.Font.Italic = False
+    taskCell.Font.Bold = False
+    taskCell.Font.ColorIndex = xlColorIndexAutomatic
+    taskCell.HorizontalAlignment = xlGeneral
+End Sub
+
+Public Sub RefreshTaskLabelPresentation(ByVal ws As Worksheet, ByVal targetRow As Long)
+    Dim taskCell As Range
+    Dim textValue As String
+    Dim markerText As String
+
+    If ws Is Nothing Then Exit Sub
+    If targetRow < ROW_DATA_START Then Exit Sub
+
+    Set taskCell = ws.Cells(targetRow, "C")
+    textValue = Trim$(CStr(taskCell.Value))
+
+    If IsAuxiliaryPlaceholderText(textValue) Then
+        markerText = ExtractAlertMarkerText(textValue)
+        taskCell.Font.Italic = True
+        taskCell.Font.Bold = (markerText <> "")
+        If markerText <> "" Then
+            taskCell.Font.Color = WBSParentRollup.ALERT_COLOR_RED
+        Else
+            taskCell.Font.Color = RGB(127, 127, 127)
+        End If
+        taskCell.HorizontalAlignment = xlLeft
+    ElseIf IsAlertMarkerText(textValue) Then
+        taskCell.Font.Italic = False
+        taskCell.Font.Bold = True
+        taskCell.Font.Color = WBSParentRollup.ALERT_COLOR_RED
+        taskCell.HorizontalAlignment = xlCenter
+    Else
+        ClearTaskLabelPresentation taskCell
+    End If
+End Sub
+
+Public Sub RefreshTaskRowDisplayState(ByVal ws As Worksheet, ByVal targetRow As Long)
+    Dim taskLevel As Long
+    Dim retainedLevel As Long
+    Dim taskCell As Range
+
+    If ws Is Nothing Then Exit Sub
+    If targetRow < ROW_DATA_START Then Exit Sub
+
+    Set taskCell = ws.Cells(targetRow, "C")
+
+    If HasPrimaryTaskContentInRow(ws, targetRow) Then
+        taskLevel = GetTaskLevelForRow(ws, targetRow)
+        If taskLevel > 0 Then
+            ws.Cells(targetRow, COL_HIERARCHY).Value = taskLevel
+            ws.Cells(targetRow, COL_HIERARCHY).NumberFormat = "General"
+        End If
+
+        If IsAuxiliaryPlaceholderText(CStr(taskCell.Value)) Then
+            taskCell.ClearContents
+        End If
+
+        RefreshTaskLabelPresentation ws, targetRow
+        Exit Sub
+    End If
+
+    If HasTaskContentInRow(ws, targetRow) Then
+        retainedLevel = GetRetainedTaskLevel(ws, targetRow)
+        If retainedLevel > 0 Then
+            ws.Cells(targetRow, COL_HIERARCHY).Value = retainedLevel
+            ws.Cells(targetRow, COL_HIERARCHY).NumberFormat = HIDDEN_VALUE_NUMBER_FORMAT
+        Else
+            ws.Cells(targetRow, COL_HIERARCHY).ClearContents
+            ws.Cells(targetRow, COL_HIERARCHY).NumberFormat = "General"
+        End If
+
+        taskCell.Value = BuildAuxiliaryDisplayText()
+        RefreshTaskLabelPresentation ws, targetRow
+        Exit Sub
+    End If
+
+    ResetTaskRowDisplay ws, targetRow
+End Sub
+
 ' ==========================================
 '  タスク入力列から階層を自動判定
 ' ==========================================
@@ -1245,16 +1491,42 @@ Public Function HasTaskContentInRow(ByVal ws As Worksheet, ByVal targetRow As Lo
     If ws Is Nothing Then Exit Function
     If targetRow < ROW_DATA_START Then Exit Function
 
+    If HasPrimaryTaskContentInRow(ws, targetRow) Then
+        HasTaskContentInRow = True
+    ElseIf Trim$(CStr(ws.Cells(targetRow, COL_TASK_DETAIL).Value)) <> "" Then
+        HasTaskContentInRow = True
+    ElseIf Trim$(CStr(ws.Cells(targetRow, COL_STATUS).Value)) <> "" Then
+        HasTaskContentInRow = True
+    ElseIf Trim$(CStr(ws.Cells(targetRow, COL_PROGRESS).Value)) <> "" Then
+        HasTaskContentInRow = True
+    ElseIf Trim$(CStr(ws.Cells(targetRow, COL_ASSIGNEE).Value)) <> "" Then
+        HasTaskContentInRow = True
+    ElseIf Trim$(CStr(ws.Cells(targetRow, COL_DEV_LT).Value)) <> "" Then
+        HasTaskContentInRow = True
+    ElseIf Trim$(CStr(ws.Cells(targetRow, COL_START_PLAN).Value)) <> "" Then
+        HasTaskContentInRow = True
+    ElseIf Trim$(CStr(ws.Cells(targetRow, COL_END_PLAN).Value)) <> "" Then
+        HasTaskContentInRow = True
+    ElseIf Trim$(CStr(ws.Cells(targetRow, COL_START_ACTUAL).Value)) <> "" Then
+        HasTaskContentInRow = True
+    ElseIf Trim$(CStr(ws.Cells(targetRow, COL_END_ACTUAL).Value)) <> "" Then
+        HasTaskContentInRow = True
+    End If
+End Function
+
+Public Function HasPrimaryTaskContentInRow(ByVal ws As Worksheet, ByVal targetRow As Long) As Boolean
+    If ws Is Nothing Then Exit Function
+    If targetRow < ROW_DATA_START Then Exit Function
+
     If Trim$(CStr(ws.Cells(targetRow, "F").Value)) <> "" Then
-        HasTaskContentInRow = True
+        HasPrimaryTaskContentInRow = True
     ElseIf Trim$(CStr(ws.Cells(targetRow, "E").Value)) <> "" Then
-        HasTaskContentInRow = True
+        HasPrimaryTaskContentInRow = True
     ElseIf Trim$(CStr(ws.Cells(targetRow, "D").Value)) <> "" Then
-        HasTaskContentInRow = True
+        HasPrimaryTaskContentInRow = True
     ElseIf Trim$(CStr(ws.Cells(targetRow, "C").Value)) <> "" And _
-           Trim$(CStr(ws.Cells(targetRow, "C").Value)) <> WBSParentRollup.ALERT_MARK_TODAY And _
-           Trim$(CStr(ws.Cells(targetRow, "C").Value)) <> WBSParentRollup.ALERT_MARK_DELAY Then
-        HasTaskContentInRow = True
+           Not IsDisplayOnlyTaskText(CStr(ws.Cells(targetRow, "C").Value)) Then
+        HasPrimaryTaskContentInRow = True
     End If
 End Function
 
@@ -1269,8 +1541,7 @@ Private Function GetTaskLevelForRow(ByVal ws As Worksheet, ByVal targetRow As Lo
     ElseIf Trim$(CStr(ws.Cells(targetRow, "D").Value)) <> "" Then
         GetTaskLevelForRow = 2
     ElseIf Trim$(CStr(ws.Cells(targetRow, "C").Value)) <> "" And _
-           Trim$(CStr(ws.Cells(targetRow, "C").Value)) <> WBSParentRollup.ALERT_MARK_TODAY And _
-           Trim$(CStr(ws.Cells(targetRow, "C").Value)) <> WBSParentRollup.ALERT_MARK_DELAY Then
+           Not IsDisplayOnlyTaskText(CStr(ws.Cells(targetRow, "C").Value)) Then
         GetTaskLevelForRow = 1
     End If
 End Function
@@ -1291,9 +1562,9 @@ Public Sub AutoDetectTaskLevelsInRange(ByVal ws As Worksheet, ByVal startRow As 
         taskLevel = GetTaskLevelForRow(ws, r)
         If taskLevel > 0 Then
             ws.Cells(r, COL_HIERARCHY).Value = taskLevel
-        Else
-            ws.Cells(r, COL_HIERARCHY).ClearContents
+            ws.Cells(r, COL_HIERARCHY).NumberFormat = "General"
         End If
+        RefreshTaskRowDisplayState ws, r
     Next r
 End Sub
 
@@ -1397,10 +1668,10 @@ Private Sub CreateControlButtons(ByVal ws As Worksheet)
         .Name = "Btn_BulkEdit"
         If IsBulkEditModeEnabled() Then
             .Fill.ForeColor.RGB = RGB(192, 80, 77)
-            .TextFrame2.TextRange.Characters.Text = "一括編集 ON"
+            .TextFrame2.TextRange.Characters.Text = "高速入力 ON"
         Else
             .Fill.ForeColor.RGB = RGB(84, 130, 53)
-            .TextFrame2.TextRange.Characters.Text = "一括編集 OFF"
+            .TextFrame2.TextRange.Characters.Text = "高速入力 OFF"
         End If
         .Line.Visible = msoFalse
         .TextFrame2.TextRange.Font.Fill.ForeColor.RGB = RGB(255, 255, 255)
@@ -1409,6 +1680,8 @@ Private Sub CreateControlButtons(ByVal ws As Worksheet)
         .TextFrame2.VerticalAnchor = msoAnchorMiddle
         .OnAction = "ToggleBulkEditMode"
     End With
+
+    UpdateBulkEditModeIndicator ws
 
     ' 日付シフトボタン (v3追加)
     btnLeft = btnLeft + btnWidth + 30
@@ -1460,10 +1733,12 @@ Public Sub ToggleBulkEditMode()
 
     isEnabled = Not IsBulkEditModeEnabled()
     SetBulkEditMode isEnabled
+    CancelDeferredBulkEditReconcile
     CreateControlButtons ws
 
     If isEnabled Then
-        Application.StatusBar = "一括編集モードを ON にしました"
+        Application.StatusBar = "高速入力モードを ON にしました"
+        UpdateBulkEditModeIndicator ws, "LV/No は即時更新します。"
         Exit Sub
     End If
 
@@ -1471,26 +1746,20 @@ Public Sub ToggleBulkEditMode()
     Application.Calculation = xlCalculationManual
     Application.EnableEvents = False
 
-    lastRow = GetLastDataRow(ws)
-    If lastRow < ROW_DATA_START Then lastRow = ROW_DATA_START
-
-    NormalizeTaskStatusAndProgressRange ws, ROW_DATA_START, lastRow
-    AutoDetectTaskLevelsInRange ws, ROW_DATA_START, lastRow
-    RenumberRowsForWorksheet ws
-    WBSParentRollup.RefreshAllDerivedTaskData ws
-    DrawGanttBars
+    ReconcileDeferredTaskState ws
 
     Application.EnableEvents = prevEvents
     Application.Calculation = prevCalc
     Application.ScreenUpdating = True
-    Application.StatusBar = "一括編集モードを OFF にし、全体を再整合しました"
+    Application.StatusBar = "高速入力モードを OFF にし、全体を再整合しました"
+    UpdateBulkEditModeIndicator ws, "再整合済み。"
     Exit Sub
 
 ErrorHandler:
     Application.EnableEvents = prevEvents
     Application.Calculation = prevCalc
     Application.ScreenUpdating = True
-    MsgBox "一括編集モード切替エラー: " & Err.Description, vbCritical, "エラー"
+    MsgBox "高速入力モード切替エラー: " & Err.Description, vbCritical, "エラー"
 End Sub
 
 ' ==========================================
@@ -1724,15 +1993,15 @@ End Function
 Private Sub EnsureBulkEditSettingSection(ByVal wsSettings As Worksheet)
     If wsSettings Is Nothing Then Exit Sub
 
-    wsSettings.Range("A9").Value = "一括編集モード"
+    wsSettings.Range("A9").Value = "高速入力モード"
     If Trim$(CStr(wsSettings.Range("B9").Value)) = "" Then
         wsSettings.Range("B9").Value = False
     Else
         wsSettings.Range("B9").Value = CBool(wsSettings.Range("B9").Value)
     End If
-    wsSettings.Range("C9").Value = "← TRUE: 親再計算とアラート更新を一時停止"
-    wsSettings.Range("A10").Value = "使い方"
-    wsSettings.Range("C10").Value = "← ボタンでON/OFFを切り替え、OFF復帰時にまとめて再計算"
+    wsSettings.Range("C9").Value = "← TRUE: LV/No は即時更新し、親集計・色分け・ガントを一時保留"
+    wsSettings.Range("A10").Value = "挙動"
+    wsSettings.Range("C10").Value = "← LV/No は即時更新。親集計・色分け・ガントは OFF 復帰時または手動更新で反映"
     wsSettings.Range("B9:B10").HorizontalAlignment = xlCenter
 
     With wsSettings.Range("A9:C10").Borders
@@ -1976,6 +2245,7 @@ Public Sub ResetTaskRowDisplay(ByVal ws As Worksheet, ByVal targetRow As Long)
     If HasTaskContentInRow(ws, targetRow) Then Exit Sub
 
     ws.Cells(targetRow, COL_HIERARCHY).ClearContents
+    ws.Cells(targetRow, COL_HIERARCHY).NumberFormat = "General"
     ws.Cells(targetRow, "B").ClearContents
     ws.Cells(targetRow, COL_STATUS).ClearContents
     ws.Cells(targetRow, COL_PROGRESS).ClearContents
@@ -1984,18 +2254,18 @@ Public Sub ResetTaskRowDisplay(ByVal ws As Worksheet, ByVal targetRow As Long)
     ws.Cells(targetRow, COL_END_PLAN).ClearContents
     ws.Cells(targetRow, COL_START_ACTUAL).ClearContents
     ws.Cells(targetRow, COL_END_ACTUAL).ClearContents
-    If Trim$(CStr(ws.Cells(targetRow, "C").Value)) = WBSParentRollup.ALERT_MARK_TODAY Or _
-       Trim$(CStr(ws.Cells(targetRow, "C").Value)) = WBSParentRollup.ALERT_MARK_DELAY Then
+    If IsDisplayOnlyTaskText(CStr(ws.Cells(targetRow, "C").Value)) Then
         ws.Cells(targetRow, "C").ClearContents
     End If
     ws.Range("C" & targetRow & ":F" & targetRow).Font.Strikethrough = False
     ws.Range("C" & targetRow & ":F" & targetRow).Font.ColorIndex = xlColorIndexAutomatic
     ws.Range("C" & targetRow & ":F" & targetRow).Font.Bold = False
+    ws.Cells(targetRow, "C").Font.Italic = False
+    ws.Cells(targetRow, "C").HorizontalAlignment = xlGeneral
 End Sub
 
 Public Sub RenumberRowsForWorksheet(ByVal ws As Worksheet)
     Dim lastRow As Long
-    Dim taskData As Variant
     Dim numArray() As Variant
     Dim r As Long
     Dim num As Long
@@ -2005,17 +2275,15 @@ Public Sub RenumberRowsForWorksheet(ByVal ws As Worksheet)
     lastRow = GetLastDataRow(ws)
     If lastRow < ROW_DATA_START Then lastRow = ROW_DATA_START
 
-    taskData = ws.Range("C" & ROW_DATA_START & ":F" & lastRow).Value
     ReDim numArray(1 To lastRow - ROW_DATA_START + 1, 1 To 1)
 
     num = 1
-    For r = 1 To UBound(taskData, 1)
-        If Trim$(CStr(taskData(r, 1))) <> "" Or Trim$(CStr(taskData(r, 2))) <> "" Or _
-           Trim$(CStr(taskData(r, 3))) <> "" Or Trim$(CStr(taskData(r, 4))) <> "" Then
-            numArray(r, 1) = num
+    For r = ROW_DATA_START To lastRow
+        If HasTaskContentInRow(ws, r) Then
+            numArray(r - ROW_DATA_START + 1, 1) = num
             num = num + 1
         Else
-            numArray(r, 1) = ""
+            numArray(r - ROW_DATA_START + 1, 1) = ""
         End If
     Next r
 

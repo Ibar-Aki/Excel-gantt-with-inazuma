@@ -12,33 +12,10 @@ $vbaDir = Join-Path $projectDir "vba"
 $outputDir = Join-Path $projectDir "output"
 $timestamp = Get-Date -Format "yyyyMMdd_HHmm"
 $outputFile = Join-Path $outputDir "InazumaGantt_Lite_$timestamp.xlsm"
-
-# Sync UTF-8 source modules to SJIS import targets
-$fixEncodingScript = Join-Path $scriptDir "FixEncoding.ps1"
-if (-not (Test-Path $fixEncodingScript)) {
-    $fixEncodingScript = Join-Path $projectDir "FixEncoding.ps1"
-}
-if (Test-Path $fixEncodingScript) {
-    Write-Host "Synchronizing SJIS modules..."
-    & $fixEncodingScript
-}
-else {
-    throw "FixEncoding.ps1 not found: $fixEncodingScript"
-}
-
-# Ensure output directory exists
-if (!(Test-Path $outputDir)) { New-Item -ItemType Directory -Path $outputDir | Out-Null }
-
-# Remove target file if it already exists
-if (Test-Path $outputFile) { Remove-Item $outputFile -Force }
-
-# Start Excel
-$excel = New-Object -ComObject Excel.Application
-$excel.Visible = $false
-$excel.DisplayAlerts = $false
+$utf8NoBom = [System.Text.UTF8Encoding]::new($false, $true)
 
 function Throw-VbaAccessGuidance([string]$detail) {
-    throw ("Excel workbook generation failed during VBA import/injection. " +
+    throw ("Excel workbook generation failed during VBA injection. " +
            "On another PC, enable 'Trust access to the VBA project object model' in Excel: " +
            "File > Options > Trust Center > Trust Center Settings > Macro Settings. Detail: " + $detail)
 }
@@ -89,44 +66,154 @@ function Close-ExcelSafely([ref]$excelRef) {
             catch {
             }
             $excelRef.Value = $null
+            [GC]::Collect()
+            [GC]::WaitForPendingFinalizers()
         }
     }
 }
 
+function Read-Utf8Text([string]$path) {
+    return [System.IO.File]::ReadAllText($path, $utf8NoBom)
+}
+
+function Get-VbaModuleNameFromSource([string]$content, [string]$fallbackName) {
+    $match = [regex]::Match($content, '(?m)^Attribute VB_Name = "([^"]+)"')
+    if ($match.Success) {
+        return $match.Groups[1].Value
+    }
+
+    return $fallbackName
+}
+
+function Remove-VbaAttributeLines([string]$content) {
+    return [regex]::Replace($content, '(?m)^Attribute [^\r\n]*\r?\n', '')
+}
+
+function Get-FirstNonAsciiSourceLine([string]$content) {
+    $lines = $content -split "`r?`n"
+    foreach ($line in $lines) {
+        $trimmedLine = $line.Trim()
+        if ($trimmedLine -and $trimmedLine -match '[^\u0000-\u007F]') {
+            return $trimmedLine
+        }
+    }
+
+    return $null
+}
+
+function Get-CodeModuleText($codeModule) {
+    $lineCount = $codeModule.CountOfLines
+    if ($lineCount -le 0) {
+        return ""
+    }
+
+    return $codeModule.Lines(1, $lineCount)
+}
+
+function Assert-CodeModuleContainsSentinel($codeModule, [string]$moduleName, [string]$expectedText) {
+    if ([string]::IsNullOrWhiteSpace($expectedText)) {
+        return
+    }
+
+    $moduleText = Get-CodeModuleText $codeModule
+    if (-not $moduleText.Contains($expectedText)) {
+        throw ("Imported VBA text for module '{0}' did not retain sentinel '{1}'. " +
+               "Possible mojibake during workbook generation." -f $moduleName, $expectedText)
+    }
+}
+
+function Add-StandardModuleFromUtf8Source($workbook, [string]$sourcePath) {
+    if (-not (Test-Path -LiteralPath $sourcePath)) {
+        Write-Warning "File not found: $sourcePath"
+        return
+    }
+
+    $rawSource = Read-Utf8Text $sourcePath
+    $moduleName = Get-VbaModuleNameFromSource $rawSource ([System.IO.Path]::GetFileNameWithoutExtension($sourcePath))
+    $moduleBody = Remove-VbaAttributeLines $rawSource
+    $sentinel = Get-FirstNonAsciiSourceLine $moduleBody
+
+    Write-Host ("Injecting {0} as {1}..." -f ([System.IO.Path]::GetFileName($sourcePath)), $moduleName)
+    try {
+        $component = $workbook.VBProject.VBComponents.Add(1)
+        $component.Name = $moduleName
+        $component.CodeModule.AddFromString($moduleBody)
+        Assert-CodeModuleContainsSentinel $component.CodeModule $moduleName $sentinel
+    }
+    catch {
+        Throw-VbaAccessGuidance($_.Exception.Message)
+    }
+}
+
+function Get-WorksheetDocumentCodeModule($workbook, [string]$worksheetName) {
+    foreach ($component in $workbook.VBProject.VBComponents) {
+        if ($component.Type -ne 100) {
+            continue
+        }
+
+        try {
+            if ($component.Properties.Item("Name").Value -eq $worksheetName) {
+                return $component.CodeModule
+            }
+        }
+        catch {
+        }
+    }
+
+    throw "Worksheet VBComponent was not found for sheet: $worksheetName"
+}
+
+function Inject-WorksheetModuleFromUtf8Source($workbook, [string]$worksheetName, [string]$sourcePath) {
+    if (-not (Test-Path -LiteralPath $sourcePath)) {
+        Write-Warning "File not found: $sourcePath"
+        return
+    }
+
+    $rawSource = Read-Utf8Text $sourcePath
+    $moduleName = Get-VbaModuleNameFromSource $rawSource ([System.IO.Path]::GetFileNameWithoutExtension($sourcePath))
+    $moduleBody = Remove-VbaAttributeLines $rawSource
+    $sentinel = Get-FirstNonAsciiSourceLine $moduleBody
+
+    Write-Host ("Injecting worksheet module from {0}..." -f ([System.IO.Path]::GetFileName($sourcePath)))
+    try {
+        $codeModule = Get-WorksheetDocumentCodeModule $workbook $worksheetName
+        if ($codeModule.CountOfLines -gt 0) {
+            $codeModule.DeleteLines(1, $codeModule.CountOfLines)
+        }
+        $codeModule.AddFromString($moduleBody)
+        Assert-CodeModuleContainsSentinel $codeModule $moduleName $sentinel
+    }
+    catch {
+        Throw-VbaAccessGuidance($_.Exception.Message)
+    }
+}
+
+if (!(Test-Path $outputDir)) { New-Item -ItemType Directory -Path $outputDir | Out-Null }
+if (Test-Path $outputFile) { Remove-Item $outputFile -Force }
+
+$excel = New-Object -ComObject Excel.Application
+$excel.Visible = $false
+$excel.DisplayAlerts = $false
+
 try {
     Write-Host "Creating new workbook..."
     $wb = $excel.Workbooks.Add()
-    # Required standard modules to import
     $coreModules = @(
-        "InazumaGantt_Lite_SJIS.bas",
-        "WBSParentRollup_Lite_SJIS.bas",
-        "WBSRoadmapReport_Lite_SJIS.bas",
-        "WBSSampleShowcase_Lite_SJIS.bas",
-        "HierarchyColor_Lite_SJIS.bas",
-        "SetupWizard_Lite_SJIS.bas"
+        "InazumaGantt_Lite_UTF8.bas",
+        "WBSParentRollup_Lite_UTF8.bas",
+        "WBSRoadmapReport_Lite_UTF8.bas",
+        "WBSSampleShowcase_Lite_UTF8.bas",
+        "HierarchyColor_Lite_UTF8.bas",
+        "SetupWizard_Lite_UTF8.bas"
     )
 
-    # Import standard modules
     foreach ($file in $coreModules) {
-        $path = Join-Path $vbaDir $file
-        if (Test-Path $path) {
-            Write-Host "Importing $file..."
-            try {
-                $wb.VBProject.VBComponents.Import($path) | Out-Null
-            }
-            catch {
-                Throw-VbaAccessGuidance($_.Exception.Message)
-            }
-        }
-        else {
-            Write-Warning "File not found: $path"
-        }
+        Add-StandardModuleFromUtf8Source $wb (Join-Path $vbaDir $file)
     }
-    
-    # Run setup after module import
+
     Write-Host "Running SilentSetup..."
     try {
-        $excel.Run("SilentSetup", $true)
+        $excel.Run(("'{0}'!SilentSetup" -f $wb.Name), $true)
         Write-Host "SilentSetup completed successfully."
     }
     catch {
@@ -134,28 +221,14 @@ try {
     }
 
     $mainSheet = Get-WorksheetOrThrow $wb "InazumaGantt_Lite"
+    Inject-WorksheetModuleFromUtf8Source $wb $mainSheet.Name (Join-Path $vbaDir "SheetModule_Lite_UTF8.bas")
 
-    # Inject sheet module code into the main worksheet
-    $sheetModPath = Join-Path $vbaDir "SheetModule_Lite_SJIS.bas"
-    if (Test-Path $sheetModPath) {
-        Write-Host "Injecting SheetModule code..."
-        $code = Get-Content $sheetModPath -Encoding Default -Raw
-        $code = $code -replace "Attribute VB_Name = .*`r?`n", ""
-        try {
-            $mainSheetCode = $wb.VBProject.VBComponents.Item($mainSheet.CodeName).CodeModule
-            $mainSheetCode.AddFromString($code)
-        }
-        catch {
-            Throw-VbaAccessGuidance($_.Exception.Message)
-        }
-    }
-
-    Write-Host "Running compile smoke tests..."
+    Write-Host "Running in-memory smoke tests..."
     Invoke-WorkbookMacroOrThrow $excel $wb "RefreshInazumaGantt"
     Invoke-WorkbookMacroOrThrow $excel $wb "ResetFormatting"
 
     Write-Host "Saving to $outputFile..."
-    $wb.SaveAs($outputFile, 52) # xlOpenXMLWorkbookMacroEnabled
+    $wb.SaveAs($outputFile, 52)
     Close-WorkbookSafely ([ref]$wb) $false
     Close-ExcelSafely ([ref]$excel)
 
@@ -163,6 +236,10 @@ try {
     $excel.Visible = $false
     $excel.DisplayAlerts = $false
     $wb = $excel.Workbooks.Open($outputFile)
+
+    Write-Host "Running post-save smoke tests..."
+    Invoke-WorkbookMacroOrThrow $excel $wb "RefreshInazumaGantt"
+    Invoke-WorkbookMacroOrThrow $excel $wb "ResetFormatting"
 
     $deleteSheets = @()
     for ($i = $wb.Worksheets.Count; $i -ge 1; $i--) {
@@ -185,9 +262,9 @@ try {
         foreach ($sheetName in $deleteSheets) {
             $wb.Worksheets.Item($sheetName).Delete()
         }
-        $wb.Save()
     }
 
+    $wb.Save()
     Write-Host "Build Complete!"
 }
 catch {

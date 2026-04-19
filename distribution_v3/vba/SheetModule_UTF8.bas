@@ -128,9 +128,7 @@ Private Sub Worksheet_Change(ByVal Target As Range)
     If Not Intersect(Target, Me.Range("C:F")) Is Nothing Then
         taskAreaChanged = True
         PrepareChangedTaskRows Intersect(Target, Me.Range("C:F")), affectedRows
-        If Not bulkEditMode Then
-            RefreshTaskStructureForRange Intersect(Target, Me.Range("C:F"))
-        End If
+        RefreshTaskStructureForRange Intersect(Target, Me.Range("C:F"))
     End If
 
     ' 状況列（H列）または進捗率列（I列）に変更があった場合、相互同期
@@ -215,8 +213,11 @@ Private Sub Worksheet_Change(ByVal Target As Range)
         Next planDateCell
     End If
 
+    RefreshAffectedRowDisplayState affectedRows
+
     If bulkEditMode Then
-        Application.StatusBar = "一括編集モード中: 親再計算とアラート更新を保留しました"
+        InazumaGantt_v3.QueueDeferredBulkEditReconcile "高速入力中。LV/No は即時更新し、親集計・色分け・ガントを保留しています。"
+        Application.StatusBar = "高速入力中: LV/No を即時更新し、親集計・色分け・ガントは保留中です"
     Else
         refreshAllMarkers = (Not taskAreaChanged)
         ApplyRollupAndAlerts affectedRows, refreshAllMarkers
@@ -327,6 +328,8 @@ Private Sub NormalizeTaskRowState(ByVal targetRow As Long)
     Else
         InazumaGantt_v3.ResetTaskRowDisplay Me, targetRow
     End If
+
+    InazumaGantt_v3.RefreshTaskRowDisplayState Me, targetRow
 End Sub
 
 Private Sub RefreshTaskStructureForRange(ByVal changedRange As Range)
@@ -359,4 +362,12 @@ Private Sub ApplyRollupAndAlerts(ByVal affectedRows As Object, Optional ByVal re
     If refreshAllMarkers Then
         WBSParentRollup.RefreshTaskAlertMarkers Me
     End If
+End Sub
+
+Private Sub RefreshAffectedRowDisplayState(ByVal affectedRows As Object)
+    Dim rowKey As Variant
+
+    For Each rowKey In affectedRows.Keys
+        InazumaGantt_v3.RefreshTaskRowDisplayState Me, CLng(rowKey)
+    Next rowKey
 End Sub

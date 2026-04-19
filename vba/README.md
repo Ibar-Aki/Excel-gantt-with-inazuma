@@ -1,6 +1,6 @@
 # VBAモジュール
 
-更新日: 2026-04-15
+更新日: 2026-04-19
 
 InazumaGantt v3 / Lite で使用する VBA モジュール一覧です。
 
@@ -9,10 +9,10 @@ InazumaGantt v3 / Lite で使用する VBA モジュール一覧です。
 | サフィックス | エンコーディング | 用途 |
 |-------------|-----------------|------|
 | `_SJIS.bas` | Shift-JIS (CP932) | Excel にインポート |
-| `_UTF8.bas` | UTF-8 (BOM なし) | 編集・Git 管理 |
+| `_UTF8.bas` | UTF-8 (BOM なし) | 編集・手動コピー/貼り付け |
 
-> Excel に取り込むときは必ず `_SJIS.bas` を使ってください。
-> `_UTF8.bas` を直接インポートすると文字化けします。
+> 標準モジュールを Excel にインポートするときは必ず `_SJIS.bas` を使ってください。
+> `*_UTF8.bas` は編集用であり、手動でコードをコピーして貼り付ける場合に使います。
 
 ## 必須モジュール
 
@@ -38,11 +38,16 @@ InazumaGantt v3 / Lite で使用する VBA モジュール一覧です。
 3. 標準版は `InazumaGantt_v3_SJIS.bas` `WBSRoadmapReport_SJIS.bas` `WBSSampleShowcase_SJIS.bas` `SetupWizard_SJIS.bas` `HierarchyColor_SJIS.bas` をインポート
 4. Lite版は `InazumaGantt_Lite_SJIS.bas` `WBSRoadmapReport_Lite_SJIS.bas` `WBSSampleShowcase_Lite_SJIS.bas` `SetupWizard_Lite_SJIS.bas` `HierarchyColor_Lite_SJIS.bas` をインポート
 5. `Alt + F8 -> RunSetupWizard` を実行
-6. 標準版は `InazumaGantt_v3` シートモジュールへ `SheetModule_SJIS.bas` を貼り付ける
-7. Lite版は `InazumaGantt_Lite` シートモジュールへ `SheetModule_Lite_SJIS.bas` を貼り付ける
+6. 標準版は `InazumaGantt_v3` シートモジュールへ `SheetModule_UTF8.bas` の内容を貼り付ける
+7. Lite版は `InazumaGantt_Lite` シートモジュールへ `SheetModule_Lite_UTF8.bas` の内容を貼り付ける
 
 ## 運用ルール
 
 - 日常編集は `_UTF8.bas` を更新します。
-- Excel 取り込み前に `FixEncoding.ps1` で `_SJIS.bas` を再生成します。
-- `SheetModule_SJIS.bas` は `InazumaGantt_v3` シートモジュール、`SheetModule_Lite_SJIS.bas` は `InazumaGantt_Lite` シートモジュールに貼り付けます。
+- 配布や手動インポートの前に `FixEncoding.ps1` で `_SJIS.bas` を再生成します。
+- 標準モジュールは `_SJIS.bas` をインポートし、シートモジュールは `SheetModule_UTF8.bas` / `SheetModule_Lite_UTF8.bas` の内容を貼り付けます。
+- `高速入力 ON` では `LV` と `No.` を即時更新し、親集計・色分け・ガントは `高速入力 OFF` または `ガント更新` 実行時に反映します。
+- `高速入力 OFF` では、すべての計算と見た目をその場で更新します。
+- `C:F` のタスク名を消しても、タスク詳細・状況・進捗率・担当・開発LT・予定日・実績日が残っていれば、その行は有効行として扱います。
+- 補助情報だけ残った行は `C` 列に `（補助情報のみ）` を表示し、親集計と `WBSサマリ` でも正式な有効行として集計します。
+- `LV` は見た目上は空欄ですが、補助情報保持行は直前の階層を内部的に維持して親子関係と集計を継続します。完全空行になった時点で `LV/No./補助表示` をクリアします。

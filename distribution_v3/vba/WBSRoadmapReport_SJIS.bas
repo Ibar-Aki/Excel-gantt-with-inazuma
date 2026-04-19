@@ -21,15 +21,7 @@ Private Function RequireMainWorksheet(ByVal operationName As String) As Workshee
 End Function
 
 Private Function GetTaskNameFromRow(ByVal ws As Worksheet, ByVal targetRow As Long) As String
-    If Trim$(CStr(ws.Cells(targetRow, "F").Value)) <> "" Then
-        GetTaskNameFromRow = Trim$(CStr(ws.Cells(targetRow, "F").Value))
-    ElseIf Trim$(CStr(ws.Cells(targetRow, "E").Value)) <> "" Then
-        GetTaskNameFromRow = Trim$(CStr(ws.Cells(targetRow, "E").Value))
-    ElseIf Trim$(CStr(ws.Cells(targetRow, "D").Value)) <> "" Then
-        GetTaskNameFromRow = Trim$(CStr(ws.Cells(targetRow, "D").Value))
-    Else
-        GetTaskNameFromRow = Trim$(CStr(ws.Cells(targetRow, "C").Value))
-    End If
+    GetTaskNameFromRow = InazumaGantt_v3.GetVisibleTaskLabelForRow(ws, targetRow)
 End Function
 
 Private Function GetHierarchyLevel(ByVal ws As Worksheet, ByVal targetRow As Long) As Long
@@ -39,7 +31,7 @@ Private Function GetHierarchyLevel(ByVal ws As Worksheet, ByVal targetRow As Lon
 End Function
 
 Private Function IsTaskRow(ByVal ws As Worksheet, ByVal targetRow As Long) As Boolean
-    IsTaskRow = (GetTaskNameFromRow(ws, targetRow) <> "")
+    IsTaskRow = InazumaGantt_v3.HasTaskContentInRow(ws, targetRow)
 End Function
 
 Private Function HasChildTaskRows(ByVal ws As Worksheet, ByVal startRow As Long, ByVal endRow As Long, ByVal currentLevel As Long) As Boolean
