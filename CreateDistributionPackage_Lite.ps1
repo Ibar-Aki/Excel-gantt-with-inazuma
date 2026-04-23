@@ -217,6 +217,17 @@ function Replace-DirectoryFromStaging {
     }
 }
 
+function Ensure-DirectoryExists {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Path
+    )
+
+    if (-not (Test-Path -LiteralPath $Path)) {
+        New-Item -ItemType Directory -Path $Path -Force | Out-Null
+    }
+}
+
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $outputDir = Join-Path $scriptDir "output"
 $distributionDir = Join-Path $scriptDir "distribution_lite"
@@ -372,6 +383,9 @@ if (-not (Test-Path -LiteralPath $converterRoot)) {
     throw "Converter root not found: $converterRoot"
 }
 
+Ensure-DirectoryExists -Path $converterInputDir
+Ensure-DirectoryExists -Path $converterOutputDir
+
 $backupDir = Join-Path ([System.IO.Path]::GetTempPath()) ("inazuma_converter_backup_" + [guid]::NewGuid().ToString("N"))
 $stagingDir = Join-Path $converterInputDir $bundleFolderName
 $bundleOutputFile = $null
@@ -380,7 +394,7 @@ try {
     New-Item -ItemType Directory -Path $backupDir | Out-Null
 
     Get-ChildItem -LiteralPath $converterInputDir -Force | ForEach-Object {
-        Move-Item -LiteralPath $_.FullName -Destination $backupDir
+        Move-PathWithRetry -SourcePath $_.FullName -DestinationPath (Join-Path $backupDir $_.Name)
     }
 
     Copy-Item -LiteralPath $distributionStagingDir -Destination $stagingDir -Recurse -Force
@@ -416,15 +430,15 @@ try {
 }
 finally {
     if (Test-Path -LiteralPath $stagingDir) {
-        Remove-Item -LiteralPath $stagingDir -Recurse -Force
+        Remove-PathWithRetry -TargetPath $stagingDir
     }
 
     Get-ChildItem -LiteralPath $backupDir -Force -ErrorAction SilentlyContinue | ForEach-Object {
-        Move-Item -LiteralPath $_.FullName -Destination $converterInputDir
+        Move-PathWithRetry -SourcePath $_.FullName -DestinationPath (Join-Path $converterInputDir $_.Name)
     }
 
     if (Test-Path -LiteralPath $backupDir) {
-        Remove-Item -LiteralPath $backupDir -Recurse -Force
+        Remove-PathWithRetry -TargetPath $backupDir
     }
 }
 

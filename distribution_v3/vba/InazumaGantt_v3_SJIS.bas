@@ -41,6 +41,10 @@ Public Const GUIDE_LEGEND_START_CELL As String = "E1"
 Public Const CELL_PROJECT_START As String = "L2"
 Public Const CELL_DISPLAY_WEEK As String = "L3"
 Public Const CELL_TODAY As String = "L4"
+Public Const COL_DATA_END As String = "O"
+Private Const BACKUP_SHEET_NAME As String = "WBS_Backup_v3"
+Private Const BACKUP_META_LABEL_START As String = "Q1"
+Private Const BACKUP_META_VALUE_START As String = "R1"
 
 ' 色設定
 Public Const COLOR_PLAN As Long = 16119285       ' RGB(245,245,245) 限りなく白に近い灰色
@@ -66,6 +70,7 @@ Public Const DEV_HOURS_NUMBER_FORMAT As String = "0.0""h"""
 Public Const AUXILIARY_TASK_PLACEHOLDER As String = "（補助情報のみ）"
 Private Const HIDDEN_VALUE_NUMBER_FORMAT As String = ";;;"
 Public Const SETTINGS_ROW_BULK_EDIT_MODE As Long = 9
+Public Const SETTINGS_ROW_WBS_SUMMARY_DEPTH As Long = 11
 Private Const BULK_EDIT_STATUS_RANGE As String = "A3:J3"
 
 Private Function GetMainWorksheet() As Worksheet
@@ -78,9 +83,9 @@ Private Function BuildBulkEditIndicatorText(Optional ByVal note As String = "") 
     Dim baseText As String
 
     If IsBulkEditModeEnabled() Then
-        baseText = "高速入力 ON: LV/No は即時更新。親集計・色分け・ガントは OFF に戻すか「ガント更新」で反映します。"
+        baseText = "高速入力 ON: Ctrl+Z 優先のため自動更新を停止中です。作業後に OFF へ戻すか「ガント更新」で再整合します。"
     Else
-        baseText = "高速入力 OFF: すべての計算と見た目をその場で更新します。"
+        baseText = "高速入力 OFF: 通常モードです。入力に合わせて計算と見た目をその場で更新します。"
     End If
 
     If Trim$(note) <> "" Then
@@ -116,8 +121,179 @@ Private Sub UpdateBulkEditModeIndicator(ByVal ws As Worksheet, Optional ByVal no
     End If
 End Sub
 
+Private Function RepairBulkEditRuntimeState(Optional ByVal ws As Worksheet = Nothing) As String
+    Dim storedEnabled As Boolean
+
+    EnsureSettingsSheet
+    storedEnabled = IsBulkEditModeEnabled()
+    If ws Is Nothing Then Set ws = GetMainWorksheet()
+
+    If storedEnabled And Application.EnableEvents Then
+        SetBulkEditMode False
+        RepairBulkEditRuntimeState = "高速入力状態を自動修復し、通常モードに戻しました。"
+    ElseIf (Not storedEnabled) And (Not Application.EnableEvents) Then
+        Application.EnableEvents = True
+        RepairBulkEditRuntimeState = "イベント停止状態を自動修復しました。"
+    End If
+End Function
+
+Private Function GetBackupWorksheet() As Worksheet
+    On Error Resume Next
+    Set GetBackupWorksheet = ThisWorkbook.Worksheets(BACKUP_SHEET_NAME)
+    On Error GoTo 0
+End Function
+
+Private Function GetOrCreateBackupWorksheet() As Worksheet
+    Dim wsBackup As Worksheet
+
+    Set wsBackup = GetBackupWorksheet()
+    If wsBackup Is Nothing Then
+        Set wsBackup = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
+        wsBackup.Name = BACKUP_SHEET_NAME
+    End If
+
+    wsBackup.Visible = xlSheetVisible
+    Set GetOrCreateBackupWorksheet = wsBackup
+End Function
+
+Private Sub ClearAllShapes(ByVal ws As Worksheet)
+    Dim shp As Shape
+
+    If ws Is Nothing Then Exit Sub
+
+    On Error Resume Next
+    For Each shp In ws.Shapes
+        shp.Delete
+    Next shp
+    On Error GoTo 0
+End Sub
+
+Private Sub CopyWbsSnapshot(ByVal sourceWs As Worksheet, ByVal targetWs As Worksheet, ByVal lastRow As Long, _
+                            Optional ByVal clearWholeSheet As Boolean = False)
+    Dim copyRange As Range
+    Dim targetRange As Range
+    Dim rowIndex As Long
+
+    If sourceWs Is Nothing Or targetWs Is Nothing Then Exit Sub
+    If lastRow < ROW_DATA_START Then lastRow = ROW_DATA_START
+
+    Set copyRange = sourceWs.Range("A1:" & COL_DATA_END & lastRow)
+    Set targetRange = targetWs.Range("A1:" & COL_DATA_END & lastRow)
+
+    If clearWholeSheet Then
+        targetWs.Cells.Clear
+        ClearAllShapes targetWs
+    End If
+
+    copyRange.Copy
+    targetWs.Range("A1").PasteSpecial xlPasteAll
+    targetWs.Range("A1").PasteSpecial xlPasteColumnWidths
+    Application.CutCopyMode = False
+    targetRange.Value = targetRange.Value
+
+    For rowIndex = 1 To lastRow
+        targetWs.Rows(rowIndex).RowHeight = sourceWs.Rows(rowIndex).RowHeight
+    Next rowIndex
+End Sub
+
+Private Sub WriteBackupMetadata(ByVal wsBackup As Worksheet, ByVal sourceWs As Worksheet, ByVal lastRow As Long)
+    If wsBackup Is Nothing Then Exit Sub
+
+    With wsBackup
+        .Range(BACKUP_META_LABEL_START).Value = "Backup updated"
+        .Range(BACKUP_META_VALUE_START).Value = Now
+        .Range(BACKUP_META_VALUE_START).NumberFormatLocal = "yyyy/mm/dd hh:mm:ss"
+        .Range("Q2").Value = "Source sheet"
+        .Range("R2").Value = sourceWs.Name
+        .Range("Q3").Value = "Snapshot last row"
+        .Range("R3").Value = lastRow
+        .Range("Q1:R3").Font.Size = 9
+        .Range("Q1:Q3").Font.Bold = True
+    End With
+End Sub
+
+Private Function GetBackupTimestampLabel(ByVal wsBackup As Worksheet) As String
+    Dim rawValue As Variant
+
+    If wsBackup Is Nothing Then Exit Function
+
+    rawValue = wsBackup.Range(BACKUP_META_VALUE_START).Value
+    If IsDate(rawValue) Then
+        GetBackupTimestampLabel = Format$(CDate(rawValue), "yyyy/mm/dd hh:nn:ss")
+    Else
+        GetBackupTimestampLabel = Trim$(CStr(rawValue))
+    End If
+End Function
+
+Private Function BuildRestoreConfirmationMessage(ByVal wsBackup As Worksheet, ByVal backupLastRow As Long) As String
+    Dim timestampLabel As String
+
+    timestampLabel = GetBackupTimestampLabel(wsBackup)
+    If Trim$(timestampLabel) = "" Then timestampLabel = "不明"
+
+    BuildRestoreConfirmationMessage = "現在の WBS をバックアップで上書きします。" & vbCrLf & vbCrLf & _
+                                      "バックアップ更新日時: " & timestampLabel & vbCrLf & _
+                                      "復元対象シート: " & wsBackup.Name & vbCrLf & _
+                                      "バックアップ最終行: " & backupLastRow & vbCrLf & vbCrLf & _
+                                      "続行しますか？"
+End Function
+
+Private Sub DeleteManagedSheetShapes(ByVal ws As Worksheet)
+    Dim shapeIndex As Long
+
+    If ws Is Nothing Then Exit Sub
+
+    For shapeIndex = ws.Shapes.Count To 1 Step -1
+        With ws.Shapes(shapeIndex)
+            If Left(.Name, 4) = "Bar_" Or Left(.Name, 6) = "Today_" Or _
+               Left(.Name, 8) = "Inazuma_" Or Left(.Name, 4) = "Btn_" Then
+                .Delete
+            End If
+        End With
+    Next shapeIndex
+End Sub
+
+Private Sub ClearMainWorksheetForRestore(ByVal ws As Worksheet, ByVal clearEndRow As Long)
+    Dim ganttStartCol As Long
+    Dim ganttEndCol As Long
+
+    If ws Is Nothing Then Exit Sub
+    If clearEndRow < ROW_DATA_START Then clearEndRow = ROW_DATA_START
+
+    ws.Range("A1:" & COL_DATA_END & clearEndRow).Clear
+
+    ganttStartCol = ws.Columns(COL_GANTT_START).Column
+    ganttEndCol = ganttStartCol + GANTT_DAYS - 1
+    ws.Range(ws.Cells(ROW_WEEK_HEADER, ganttStartCol), ws.Cells(clearEndRow, ganttEndCol)).Clear
+
+    DeleteManagedSheetShapes ws
+End Sub
+
+Private Function GetSnapshotClearEndRow(ByVal ws As Worksheet, ByVal snapshotLastRow As Long) As Long
+    Dim currentLastRow As Long
+    Dim defaultLastRow As Long
+
+    currentLastRow = GetLastDataRow(ws)
+    If currentLastRow < ROW_DATA_START Then currentLastRow = ROW_DATA_START
+
+    defaultLastRow = ROW_DATA_START + DATA_ROWS_DEFAULT - 1
+    GetSnapshotClearEndRow = MaxRow(defaultLastRow, currentLastRow)
+    GetSnapshotClearEndRow = MaxRow(GetSnapshotClearEndRow, snapshotLastRow)
+End Function
+
+Private Sub ApplyHierarchyColorsSilently()
+    Dim prevAlerts As Boolean
+
+    prevAlerts = Application.DisplayAlerts
+    Application.DisplayAlerts = False
+    HierarchyColor.SetupHierarchyColors
+    Application.DisplayAlerts = prevAlerts
+End Sub
+
 Private Sub ReconcileDeferredTaskState(ByVal ws As Worksheet)
     Dim lastRow As Long
+    Dim ganttStartDate As Date
+    Dim ganttStartCol As Long
 
     If ws Is Nothing Then Exit Sub
 
@@ -127,8 +303,23 @@ Private Sub ReconcileDeferredTaskState(ByVal ws As Worksheet)
     NormalizeTaskStatusAndProgressRange ws, ROW_DATA_START, lastRow
     AutoDetectTaskLevelsInRange ws, ROW_DATA_START, lastRow
     RenumberRowsForWorksheet ws
+    ganttStartCol = ws.Columns(COL_GANTT_START).Column
+    If IsDate(ws.Range(CELL_PROJECT_START).Value) Then
+        ganttStartDate = CDate(ws.Range(CELL_PROJECT_START).Value)
+    Else
+        ganttStartDate = Date
+    End If
+
+    RegenerateDateHeaders ws
+    ClearGanttColors ws, lastRow, ganttStartCol
+    ApplyGanttBorders ws, lastRow
+    DrawWeekSeparators ws, lastRow
+    ApplyWeekendColors ws, lastRow, ganttStartDate, ganttStartCol
+    ApplyDataValidationAndFormats ws, lastRow
+    ApplyHolidayColors ws, lastRow
     WBSParentRollup.RefreshAllDerivedTaskData ws
-    DrawGanttBars
+    ApplyHierarchyColorsSilently
+    DrawGanttBars True
 End Sub
 
 Public Sub CancelDeferredBulkEditReconcile()
@@ -524,7 +715,7 @@ Sub SetupInazumaGantt(Optional ByVal silentMode As Boolean = False, Optional ByV
     Next noRow
 
     ' コントロールボタンの作成
-    CreateControlButtons ws
+    CreateControlButtons ws, True
 
     Application.Calculation = prevCalc  ' P2修正: 元設定に復元
     Application.ScreenUpdating = True
@@ -639,12 +830,12 @@ Private Sub EnsureGuideSheet()
 
     ' ボタン機能
     content(3, 1) = "■ ボタン機能"
-    content(4, 1) = "【ガント更新】": content(4, 2) = "ガントチャートを最新状態に再描画します。"
-    content(5, 2) = "進捗率や日付を変更した後は必ずクリックしてください。"
+    content(4, 1) = "【ガント更新】": content(4, 2) = "親集計、警告表示、ヘッダー、罫線、土日祝色、ガントをまとめて最新化します。"
+    content(5, 2) = "高速入力後の反映や、表示が崩れた場合の再描画にも使います。"
     content(6, 1) = "【土日切替】": content(6, 2) = "土日列の表示/非表示を切替えます。"
     content(7, 2) = "画面を広く使いたい時に便利です。"
-    content(8, 1) = "【書式リセット】": content(8, 2) = "崩れた罫線・書式を修復します。"
-    content(9, 2) = "表示がおかしくなった時に使用してください。"
+    content(8, 1) = "※ 旧書式リセット": content(8, 2) = "ボタンは廃止し、ガント更新に統合しました。"
+    content(9, 2) = "旧 ResetFormatting マクロは互換用に残し、同じ更新処理を実行します。"
 
     ' ダブルクリック完了
     content(11, 1) = "■ ダブルクリックでタスク完了"
@@ -863,12 +1054,15 @@ End Sub
 ' ==========================================
 '  ガントバー描画
 ' ==========================================
-Sub DrawGanttBars()
+Sub DrawGanttBars(Optional ByVal skipRuntimeStateRepair As Boolean = False)
     On Error GoTo ErrorHandler
 
     Dim ws As Worksheet
     Set ws = RequireMainWorksheet("ガント描画")
     If ws Is Nothing Then Exit Sub
+    If Not skipRuntimeStateRepair Then
+        Call RepairBulkEditRuntimeState(ws)
+    End If
 
     ' P2修正: 元の設定を保存
     Dim prevCalc As XlCalculation
@@ -1162,6 +1356,7 @@ Sub RefreshInazumaGantt()
     Dim ws As Worksheet
     Set ws = RequireMainWorksheet("ガント更新")
     If ws Is Nothing Then Exit Sub
+    Call RepairBulkEditRuntimeState(ws)
     CancelDeferredBulkEditReconcile
 
     ' P2修正: 元の設定を保存
@@ -1174,35 +1369,7 @@ Sub RefreshInazumaGantt()
     Application.Calculation = xlCalculationManual
     Application.EnableEvents = False
 
-    Dim lastRow As Long
-    lastRow = GetLastDataRow(ws)
-    If lastRow < ROW_DATA_START Then lastRow = ROW_DATA_START
-
-    NormalizeTaskStatusAndProgressRange ws, ROW_DATA_START, lastRow
-
-    ' 日付ヘッダーを再生成（開始日変更対応）
-    RegenerateDateHeaders ws
-
-    Dim ganttStartDate As Date
-    Dim ganttStartCol As Long
-    ganttStartCol = ws.Columns(COL_GANTT_START).Column
-    If IsDate(ws.Range(CELL_PROJECT_START).Value) Then
-        ganttStartDate = CDate(ws.Range(CELL_PROJECT_START).Value)
-    Else
-        ganttStartDate = Date
-    End If
-
-    ' ガント領域の背景色をクリアしてから再塗り
-    ClearGanttColors ws, lastRow, ganttStartCol
-
-    ApplyGanttBorders ws, lastRow
-    DrawWeekSeparators ws, lastRow
-    ApplyWeekendColors ws, lastRow, ganttStartDate, ganttStartCol
-    ApplyDataValidationAndFormats ws, lastRow
-    ApplyHolidayColors ws, lastRow
-    WBSParentRollup.RefreshAllDerivedTaskData ws
-
-    Call DrawGanttBars
+    ReconcileDeferredTaskState ws
 
     Application.Calculation = prevCalc  ' P2修正: 元設定に復元
     Application.EnableEvents = prevEvents
@@ -1597,8 +1764,15 @@ End Sub
 ' ==========================================
 '  コントロールボタンの作成
 ' ==========================================
-Private Sub CreateControlButtons(ByVal ws As Worksheet)
+Private Sub CreateControlButtons(ByVal ws As Worksheet, Optional ByVal skipRuntimeStateRepair As Boolean = False)
     On Error Resume Next
+    Dim repairNote As String
+
+    If ws Is Nothing Then Exit Sub
+
+    If Not skipRuntimeStateRepair Then
+        repairNote = RepairBulkEditRuntimeState(ws)
+    End If
 
     ' 既存ボタンを削除
     Dim shp As Shape
@@ -1644,22 +1818,6 @@ Private Sub CreateControlButtons(ByVal ws As Worksheet)
         .OnAction = "ToggleWeekends"
     End With
 
-    ' 書式リセットボタン
-    btnLeft = btnLeft + btnWidth + 10
-    Dim btnReset As Shape
-    Set btnReset = ws.Shapes.AddShape(msoShapeRoundedRectangle, btnLeft, btnTop, btnWidth, btnHeight)
-    With btnReset
-        .Name = "Btn_Reset"
-        .Fill.ForeColor.RGB = RGB(112, 48, 160)
-        .Line.Visible = msoFalse
-        .TextFrame2.TextRange.Characters.Text = "書式リセット"
-        .TextFrame2.TextRange.Font.Fill.ForeColor.RGB = RGB(255, 255, 255)
-        .TextFrame2.TextRange.Font.Size = 10
-        .TextFrame2.TextRange.ParagraphFormat.Alignment = msoAlignCenter
-        .TextFrame2.VerticalAnchor = msoAnchorMiddle
-        .OnAction = "ResetFormatting"
-    End With
-
     ' 一括編集切替ボタン
     btnLeft = btnLeft + btnWidth + 10
     Dim btnBulkEdit As Shape
@@ -1681,10 +1839,42 @@ Private Sub CreateControlButtons(ByVal ws As Worksheet)
         .OnAction = "ToggleBulkEditMode"
     End With
 
-    UpdateBulkEditModeIndicator ws
+    ' WBS退避ボタン
+    btnLeft = btnLeft + btnWidth + 10
+    Dim btnBackup As Shape
+    Set btnBackup = ws.Shapes.AddShape(msoShapeRoundedRectangle, btnLeft, btnTop, btnWidth, btnHeight)
+    With btnBackup
+        .Name = "Btn_WbsBackup"
+        .Fill.ForeColor.RGB = RGB(96, 73, 122)
+        .Line.Visible = msoFalse
+        .TextFrame2.TextRange.Characters.Text = "WBS退避"
+        .TextFrame2.TextRange.Font.Fill.ForeColor.RGB = RGB(255, 255, 255)
+        .TextFrame2.TextRange.Font.Size = 10
+        .TextFrame2.TextRange.ParagraphFormat.Alignment = msoAlignCenter
+        .TextFrame2.VerticalAnchor = msoAnchorMiddle
+        .OnAction = "CreateWbsBackupSheet"
+    End With
+
+    ' バックアップ復元ボタン
+    btnLeft = btnLeft + btnWidth + 10
+    Dim btnRestore As Shape
+    Set btnRestore = ws.Shapes.AddShape(msoShapeRoundedRectangle, btnLeft, btnTop, btnWidth + 20, btnHeight)
+    With btnRestore
+        .Name = "Btn_WbsRestore"
+        .Fill.ForeColor.RGB = RGB(112, 48, 160)
+        .Line.Visible = msoFalse
+        .TextFrame2.TextRange.Characters.Text = "バックアップ復元"
+        .TextFrame2.TextRange.Font.Fill.ForeColor.RGB = RGB(255, 255, 255)
+        .TextFrame2.TextRange.Font.Size = 9
+        .TextFrame2.TextRange.ParagraphFormat.Alignment = msoAlignCenter
+        .TextFrame2.VerticalAnchor = msoAnchorMiddle
+        .OnAction = "RestoreWbsFromBackupSheet"
+    End With
+
+    UpdateBulkEditModeIndicator ws, repairNote
 
     ' 日付シフトボタン (v3追加)
-    btnLeft = btnLeft + btnWidth + 30
+    btnLeft = btnLeft + btnWidth + 50
     Dim btnShift As Shape
     Set btnShift = ws.Shapes.AddShape(msoShapeRoundedRectangle, btnLeft, btnTop, btnWidth, btnHeight)
     With btnShift
@@ -1720,25 +1910,24 @@ Public Sub ToggleBulkEditMode()
     On Error GoTo ErrorHandler
 
     Dim ws As Worksheet
-    Dim isEnabled As Boolean
-    Dim lastRow As Long
     Dim prevCalc As XlCalculation
-    Dim prevEvents As Boolean
+    Dim targetEnabled As Boolean
 
     Set ws = RequireMainWorksheet("一括編集モード切替")
     If ws Is Nothing Then Exit Sub
+    Call RepairBulkEditRuntimeState(ws)
 
     prevCalc = Application.Calculation
-    prevEvents = Application.EnableEvents
+    targetEnabled = Not IsBulkEditModeEnabled()
 
-    isEnabled = Not IsBulkEditModeEnabled()
-    SetBulkEditMode isEnabled
+    SetBulkEditMode targetEnabled
     CancelDeferredBulkEditReconcile
-    CreateControlButtons ws
+    CreateControlButtons ws, True
 
-    If isEnabled Then
-        Application.StatusBar = "高速入力モードを ON にしました"
-        UpdateBulkEditModeIndicator ws, "LV/No は即時更新します。"
+    If targetEnabled Then
+        Application.EnableEvents = False
+        Application.StatusBar = "高速入力モードを ON にしました。Ctrl+Z を優先するため自動更新を停止しています"
+        UpdateBulkEditModeIndicator ws, "Ctrl+Z を優先するため、自動更新を停止しました。"
         Exit Sub
     End If
 
@@ -1748,17 +1937,25 @@ Public Sub ToggleBulkEditMode()
 
     ReconcileDeferredTaskState ws
 
-    Application.EnableEvents = prevEvents
+    Application.EnableEvents = True
     Application.Calculation = prevCalc
     Application.ScreenUpdating = True
+    CreateControlButtons ws, True
     Application.StatusBar = "高速入力モードを OFF にし、全体を再整合しました"
     UpdateBulkEditModeIndicator ws, "再整合済み。"
     Exit Sub
 
 ErrorHandler:
-    Application.EnableEvents = prevEvents
+    If targetEnabled Then
+        SetBulkEditMode False
+        Application.EnableEvents = True
+    Else
+        SetBulkEditMode True
+        Application.EnableEvents = False
+    End If
     Application.Calculation = prevCalc
     Application.ScreenUpdating = True
+    If Not ws Is Nothing Then CreateControlButtons ws, True
     MsgBox "高速入力モード切替エラー: " & Err.Description, vbCritical, "エラー"
 End Sub
 
@@ -1771,6 +1968,7 @@ Sub ToggleWeekends()
     Dim ws As Worksheet
     Set ws = RequireMainWorksheet("土日切替")
     If ws Is Nothing Then Exit Sub
+    Call RepairBulkEditRuntimeState(ws)
 
     Dim ganttStartCol As Long
     ganttStartCol = ws.Columns(COL_GANTT_START).Column
@@ -1820,32 +2018,25 @@ ErrorHandler:
 End Sub
 
 ' ==========================================
-'  書式リセット
+'  旧書式リセット互換
 ' ==========================================
 Sub ResetFormatting()
+    RefreshInazumaGantt
+End Sub
+
+Private Sub CreateWbsBackupSheetCore(Optional ByVal skipNotification As Boolean = False)
     On Error GoTo ErrorHandler
 
     Dim ws As Worksheet
-    Set ws = RequireMainWorksheet("書式リセット")
-    If ws Is Nothing Then Exit Sub
-
+    Dim wsBackup As Worksheet
     Dim lastRow As Long
-    lastRow = GetLastDataRow(ws)
-    If lastRow < ROW_DATA_START Then lastRow = ROW_DATA_START
-
-    Dim ganttStartDate As Date
-    If IsDate(ws.Range(CELL_PROJECT_START).Value) Then
-        ganttStartDate = CDate(ws.Range(CELL_PROJECT_START).Value)
-    Else
-        ganttStartDate = Date
-    End If
-
-    Dim ganttStartCol As Long
-    ganttStartCol = ws.Columns(COL_GANTT_START).Column
-
-    ' P2修正: 元の設定を保存
     Dim prevCalc As XlCalculation
     Dim prevEvents As Boolean
+
+    Set ws = RequireMainWorksheet("WBS退避")
+    If ws Is Nothing Then Exit Sub
+    Call RepairBulkEditRuntimeState(ws)
+
     prevCalc = Application.Calculation
     prevEvents = Application.EnableEvents
 
@@ -1853,35 +2044,105 @@ Sub ResetFormatting()
     Application.Calculation = xlCalculationManual
     Application.EnableEvents = False
 
-    NormalizeTaskStatusAndProgressRange ws, ROW_DATA_START, lastRow
+    lastRow = GetLastDataRow(ws)
+    If lastRow < ROW_DATA_START Then lastRow = ROW_DATA_START
 
-    ' 日付ヘッダーを再生成
-    RegenerateDateHeaders ws
+    Set wsBackup = GetOrCreateBackupWorksheet()
+    CopyWbsSnapshot ws, wsBackup, lastRow, True
+    WriteBackupMetadata wsBackup, ws, lastRow
 
-    ' ガント領域の背景色をクリア
-    ClearGanttColors ws, lastRow, ganttStartCol
-
-    ' 罫線を再適用
-    ApplyGanttBorders ws, lastRow
-    DrawWeekSeparators ws, lastRow
-    ApplyWeekendColors ws, lastRow, ganttStartDate, ganttStartCol
-    ApplyDataValidationAndFormats ws, lastRow
-    ApplyHolidayColors ws, lastRow
-    WBSParentRollup.RefreshAllDerivedTaskData ws
-    DrawGanttBars
-
-    Application.Calculation = prevCalc  ' P2修正: 元設定に復元
     Application.EnableEvents = prevEvents
+    Application.Calculation = prevCalc
     Application.ScreenUpdating = True
+    Application.StatusBar = "WBSバックアップを更新しました"
 
-    Application.StatusBar = "書式リセットを完了しました"
+    If (Not skipNotification) And Application.DisplayAlerts Then
+        MsgBox "最新の WBS バックアップを '" & BACKUP_SHEET_NAME & "' に更新しました。", vbInformation, "WBS退避"
+    End If
     Exit Sub
 
 ErrorHandler:
-    Application.Calculation = prevCalc  ' P2修正: 元設定に復元
     Application.EnableEvents = prevEvents
+    Application.Calculation = prevCalc
     Application.ScreenUpdating = True
-    MsgBox "書式リセットエラー: " & Err.Description, vbCritical, "エラー"
+    MsgBox "WBS退避エラー: " & Err.Description, vbCritical, "エラー"
+End Sub
+
+Public Sub CreateWbsBackupSheet()
+    CreateWbsBackupSheetCore False
+End Sub
+
+Public Sub CreateWbsBackupSheetSilent()
+    CreateWbsBackupSheetCore True
+End Sub
+
+Private Sub RestoreWbsFromBackupSheetCore(Optional ByVal skipConfirmation As Boolean = False)
+    On Error GoTo ErrorHandler
+
+    Dim ws As Worksheet
+    Dim wsBackup As Worksheet
+    Dim backupLastRow As Long
+    Dim clearEndRow As Long
+    Dim prevCalc As XlCalculation
+
+    Set ws = RequireMainWorksheet("バックアップ復元")
+    If ws Is Nothing Then Exit Sub
+    Call RepairBulkEditRuntimeState(ws)
+    prevCalc = Application.Calculation
+
+    Set wsBackup = GetBackupWorksheet()
+    If wsBackup Is Nothing Then
+        MsgBox "バックアップシート '" & BACKUP_SHEET_NAME & "' が見つかりません。", vbExclamation, "バックアップ復元"
+        Exit Sub
+    End If
+
+    backupLastRow = GetLastDataRow(wsBackup)
+    If backupLastRow < ROW_DATA_START Then backupLastRow = ROW_DATA_START
+
+    If Not skipConfirmation Then
+        If MsgBox(BuildRestoreConfirmationMessage(wsBackup, backupLastRow), _
+                  vbYesNo + vbQuestion + vbDefaultButton2, "バックアップ復元") <> vbYes Then
+            Exit Sub
+        End If
+    End If
+
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
+    Application.EnableEvents = False
+    SetBulkEditMode False
+
+    clearEndRow = GetSnapshotClearEndRow(ws, backupLastRow)
+
+    ClearMainWorksheetForRestore ws, clearEndRow
+    CopyWbsSnapshot wsBackup, ws, backupLastRow
+    ReconcileDeferredTaskState ws
+
+    Application.EnableEvents = True
+    Application.Calculation = prevCalc
+    Application.ScreenUpdating = True
+    If Not ws Is Nothing Then CreateControlButtons ws, True
+    Application.StatusBar = "バックアップから WBS を復元し、通常モードへ戻しました"
+
+    If (Not skipConfirmation) And Application.DisplayAlerts Then
+        MsgBox "バックアップシートから WBS を復元しました。", vbInformation, "バックアップ復元"
+    End If
+    Exit Sub
+
+ErrorHandler:
+    SetBulkEditMode False
+    Application.EnableEvents = True
+    Application.Calculation = prevCalc
+    Application.ScreenUpdating = True
+    If Not ws Is Nothing Then CreateControlButtons ws, True
+    MsgBox "バックアップ復元エラー: " & Err.Description, vbCritical, "エラー"
+End Sub
+
+Public Sub RestoreWbsFromBackupSheet()
+    RestoreWbsFromBackupSheetCore False
+End Sub
+
+Public Sub RestoreWbsFromBackupSheetSilent()
+    RestoreWbsFromBackupSheetCore True
 End Sub
 
 
@@ -2004,7 +2265,16 @@ Private Sub EnsureBulkEditSettingSection(ByVal wsSettings As Worksheet)
     wsSettings.Range("C10").Value = "← LV/No は即時更新。親集計・色分け・ガントは OFF 復帰時または手動更新で反映"
     wsSettings.Range("B9:B10").HorizontalAlignment = xlCenter
 
-    With wsSettings.Range("A9:C10").Borders
+    wsSettings.Range("A11").Value = "WBSサマリ表示階層"
+    If Trim$(CStr(wsSettings.Range("B11").Value)) = "" Then wsSettings.Range("B11").Value = "LV1のみ"
+    wsSettings.Range("C11").Value = "← LV1のみ / LV2まで。LV2までの場合は折りたたみ可能な詳細行を追加"
+    wsSettings.Range("B11").HorizontalAlignment = xlCenter
+    With wsSettings.Range("B11").Validation
+        .Delete
+        .Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, Formula1:="LV1のみ,LV2まで"
+    End With
+
+    With wsSettings.Range("A9:C11").Borders
         .LineStyle = xlContinuous
         .Weight = xlThin
         .ColorIndex = 48
@@ -2080,7 +2350,9 @@ Sub EnsureSettingsSheet()
     wsSettings.Range("B16").Font.Color = RGB(128, 128, 128)
     wsSettings.Range("B18").Value = "※ ガント更新後に反映されます。"
 
-    ActiveWindow.DisplayGridlines = False
+    If ThisWorkbook.Windows.Count > 0 Then
+        ActiveWindow.DisplayGridlines = False
+    End If
 End Sub
 
 ' ==========================================
@@ -2106,6 +2378,24 @@ Public Function IsBulkEditModeEnabled() As Boolean
     If Trim$(CStr(wsSettings.Cells(SETTINGS_ROW_BULK_EDIT_MODE, "B").Value)) = "" Then Exit Function
 
     IsBulkEditModeEnabled = CBool(wsSettings.Cells(SETTINGS_ROW_BULK_EDIT_MODE, "B").Value)
+End Function
+
+Public Function GetWbsSummaryDisplayDepth() As Long
+    Dim wsSettings As Worksheet
+    Dim settingText As String
+
+    GetWbsSummaryDisplayDepth = 1
+    EnsureSettingsSheet
+    Set wsSettings = GetSettingsWorksheet()
+    If wsSettings Is Nothing Then Exit Function
+
+    settingText = Trim$(CStr(wsSettings.Cells(SETTINGS_ROW_WBS_SUMMARY_DEPTH, "B").Value))
+    If settingText = "" Then Exit Function
+
+    If InStr(1, settingText, "2", vbTextCompare) > 0 Or _
+       InStr(1, settingText, "LV2", vbTextCompare) > 0 Then
+        GetWbsSummaryDisplayDepth = 2
+    End If
 End Function
 
 Public Sub SetBulkEditMode(ByVal isEnabled As Boolean)
@@ -2319,6 +2609,7 @@ Sub ShiftDates()
     Dim ws As Worksheet
     Set ws = RequireMainWorksheet("日付シフト", True)
     If ws Is Nothing Then Exit Sub
+    Call RepairBulkEditRuntimeState(ws)
 
     Dim shiftDays As Variant
     shiftDays = Application.InputBox("シフトする営業日数を入力（例: 5 または -3）" & vbCrLf & _
@@ -2389,6 +2680,7 @@ Sub ExportToPDF()
     Dim ws As Worksheet
     Set ws = RequireMainWorksheet("PDF出力")
     If ws Is Nothing Then Exit Sub
+    Call RepairBulkEditRuntimeState(ws)
 
     Dim lastRow As Long
     lastRow = GetLastDataRow(ws)

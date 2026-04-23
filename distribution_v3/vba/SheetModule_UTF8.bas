@@ -33,6 +33,7 @@ Private Sub Worksheet_BeforeDoubleClick(ByVal Target As Range, Cancel As Boolean
 
     ' B列(2): 完了処理
     If Target.Column <> 2 Then Exit Sub
+    If InazumaGantt_v3.IsBulkEditModeEnabled() Then Exit Sub
 
     ' 設定マスタから機能有効を確認
     If Not InazumaGantt_v3.GetSettingValue(4) Then Exit Sub
@@ -83,11 +84,12 @@ Private Sub Worksheet_BeforeRightClick(ByVal Target As Range, Cancel As Boolean)
     If (GetKeyState(vbKeyShift) And &H8000) = 0 Then Exit Sub
 
     If Target.Row < InazumaGantt_v3.ROW_DATA_START Then Exit Sub
+    If InazumaGantt_v3.IsBulkEditModeEnabled() Then Exit Sub
 
     If Target.Column = Me.Columns(InazumaGantt_v3.COL_DEV_LT).Column Then
         Application.EnableEvents = False
         WBSParentRollup.RecalculateTaskRowAndAncestors Me, Target.Row
-        WBSParentRollup.RefreshTaskAlertMarkers Me
+        WBSParentRollup.RefreshTaskAlertMarkersForRowAndAncestors Me, Target.Row
         Application.EnableEvents = True
         Cancel = True
         Exit Sub
@@ -107,8 +109,6 @@ End Sub
 Private Sub Worksheet_Change(ByVal Target As Range)
 
     On Error GoTo ErrorHandler
-    Dim taskAreaChanged As Boolean
-    Dim refreshAllMarkers As Boolean
     Dim affectedRows As Object
     Dim bulkEditMode As Boolean
     Dim prevCalc As XlCalculation
@@ -119,6 +119,11 @@ Private Sub Worksheet_Change(ByVal Target As Range)
 
     isHandlingWorksheetChange = True
     bulkEditMode = InazumaGantt_v3.IsBulkEditModeEnabled()
+    If bulkEditMode Then
+        Application.StatusBar = "高速入力中: Ctrl+Z を優先し、自動更新を停止しています"
+        isHandlingWorksheetChange = False
+        Exit Sub
+    End If
     prevCalc = Application.Calculation
     Application.ScreenUpdating = False
     Application.Calculation = xlCalculationManual
@@ -126,7 +131,6 @@ Private Sub Worksheet_Change(ByVal Target As Range)
 
     ' タスク入力列（C～F列）に変更があった場合
     If Not Intersect(Target, Me.Range("C:F")) Is Nothing Then
-        taskAreaChanged = True
         PrepareChangedTaskRows Intersect(Target, Me.Range("C:F")), affectedRows
         RefreshTaskStructureForRange Intersect(Target, Me.Range("C:F"))
     End If
@@ -215,13 +219,7 @@ Private Sub Worksheet_Change(ByVal Target As Range)
 
     RefreshAffectedRowDisplayState affectedRows
 
-    If bulkEditMode Then
-        InazumaGantt_v3.QueueDeferredBulkEditReconcile "高速入力中。LV/No は即時更新し、親集計・色分け・ガントを保留しています。"
-        Application.StatusBar = "高速入力中: LV/No を即時更新し、親集計・色分け・ガントは保留中です"
-    Else
-        refreshAllMarkers = (Not taskAreaChanged)
-        ApplyRollupAndAlerts affectedRows, refreshAllMarkers
-    End If
+    ApplyRollupAndAlerts affectedRows
 
     Application.EnableEvents = True
     Application.Calculation = prevCalc
@@ -349,19 +347,13 @@ Private Sub RefreshTaskStructureForRange(ByVal changedRange As Range)
     InazumaGantt_v3.RenumberRowsForWorksheet Me
 End Sub
 
-Private Sub ApplyRollupAndAlerts(ByVal affectedRows As Object, Optional ByVal refreshAllMarkers As Boolean = True)
+Private Sub ApplyRollupAndAlerts(ByVal affectedRows As Object)
     Dim rowKey As Variant
 
     For Each rowKey In affectedRows.Keys
         WBSParentRollup.RecalculateTaskRowAndAncestors Me, CLng(rowKey)
-        If Not refreshAllMarkers Then
-            WBSParentRollup.RefreshTaskAlertMarkersForRowAndAncestors Me, CLng(rowKey)
-        End If
+        WBSParentRollup.RefreshTaskAlertMarkersForRowAndAncestors Me, CLng(rowKey)
     Next rowKey
-
-    If refreshAllMarkers Then
-        WBSParentRollup.RefreshTaskAlertMarkers Me
-    End If
 End Sub
 
 Private Sub RefreshAffectedRowDisplayState(ByVal affectedRows As Object)

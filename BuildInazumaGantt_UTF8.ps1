@@ -39,6 +39,14 @@ function Invoke-WorkbookMacroOrThrow($excelApp, $workbook, [string]$macroName) {
     }
 }
 
+function Invoke-CoreSmokeMacros($excelApp, $workbook) {
+    Invoke-WorkbookMacroOrThrow $excelApp $workbook "RefreshInazumaGantt"
+    Invoke-WorkbookMacroOrThrow $excelApp $workbook "CreateWbsBackupSheetSilent"
+    Invoke-WorkbookMacroOrThrow $excelApp $workbook "ToggleBulkEditMode"
+    Invoke-WorkbookMacroOrThrow $excelApp $workbook "ToggleBulkEditMode"
+    Invoke-WorkbookMacroOrThrow $excelApp $workbook "RestoreWbsFromBackupSheetSilent"
+}
+
 function Close-WorkbookSafely([ref]$workbookRef, [bool]$saveChanges = $false) {
     if ($null -ne $workbookRef.Value) {
         try {
@@ -224,8 +232,7 @@ try {
     Inject-WorksheetModuleFromUtf8Source $wb $mainSheet.Name (Join-Path $vbaDir "SheetModule_UTF8.bas")
 
     Write-Host "Running in-memory smoke tests..."
-    Invoke-WorkbookMacroOrThrow $excel $wb "RefreshInazumaGantt"
-    Invoke-WorkbookMacroOrThrow $excel $wb "ResetFormatting"
+    Invoke-CoreSmokeMacros $excel $wb
 
     Write-Host "Saving to $outputFile..."
     $wb.SaveAs($outputFile, 52)
@@ -238,8 +245,7 @@ try {
     $wb = $excel.Workbooks.Open($outputFile)
 
     Write-Host "Running post-save smoke tests..."
-    Invoke-WorkbookMacroOrThrow $excel $wb "RefreshInazumaGantt"
-    Invoke-WorkbookMacroOrThrow $excel $wb "ResetFormatting"
+    Invoke-CoreSmokeMacros $excel $wb
 
     $deleteSheets = @()
     for ($i = $wb.Worksheets.Count; $i -ge 1; $i--) {

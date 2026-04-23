@@ -1,14 +1,14 @@
 # InazumaGantt v3 distribution package
 
-Created at: 2026-04-19 10:37:38 JST
+Created at: 2026-04-24 04:18:49 JST
 Author: Codex (GPT-5)
 
-Generated at: 2026-04-19 10:37:38 +09:00
+Generated at: 2026-04-24 04:18:49 +09:00
 Package root: .
 Converter root: set at runtime
 
 [Workbook]
-excel\InazumaGantt_v3_20260419_1037.xlsm
+excel\InazumaGantt_v3_20260424_0418.xlsm
 
 [One-click launchers]
 scripts\Run_OneClick_CreateLatestWorkbook.bat
@@ -37,6 +37,6 @@ Refresh *_SJIS.bas with scripts\\FixEncoding.ps1, then use them only for Excel V
 
 [Usage]
 1. Double-click scripts\Run_OneClick_CreateLatestWorkbook.bat to generate the latest workbook.
-2. Open excel\InazumaGantt_v3_20260419_1037.xlsm to review the generated sample workbook.
+2. Open excel\InazumaGantt_v3_20260424_0418.xlsm to review the generated sample workbook.
 3. If you restore from the converter bundle, run scripts\Run_RestoreWorkbookFromPayload.bat to recreate the xlsm from WorkbookPayload.json.
 4. Use scripts\Run_CreateDistributionPackage.bat to rebuild this distribution folder.
