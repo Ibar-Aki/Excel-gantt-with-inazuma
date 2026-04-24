@@ -7,6 +7,7 @@ Private Const ROADMAP_HEADER_FILL As Long = 11854022
 Private Const ROADMAP_PROGRESS_COLOR As Long = 9851952
 Private Const ROADMAP_COMPLETE_COLOR As Long = 5287936
 Private Const ROADMAP_PLAN_COLOR As Long = 10921638
+Private Const ROADMAP_CHILD_ROW_FILL As Long = 16448250
 Private Const ROADMAP_CELL_FONT As String = "MS Gothic"
 
 Private Function RequireMainWorksheet(ByVal operationName As String) As Worksheet
@@ -41,8 +42,10 @@ Private Function HasChildTaskRows(ByVal ws As Worksheet, ByVal startRow As Long,
         nextLevel = ws.Cells(r, InazumaGantt_v3.COL_HIERARCHY).Value
         If IsNumeric(nextLevel) Then
             If CLng(nextLevel) <= currentLevel Then Exit Function
-            HasChildTaskRows = True
-            Exit Function
+            If IsTaskRow(ws, r) Then
+                HasChildTaskRows = True
+                Exit Function
+            End If
         End If
     Next r
 End Function
@@ -59,6 +62,26 @@ Private Function FindPhaseEndRow(ByVal ws As Worksheet, ByVal phaseRow As Long, 
     Next r
 
     FindPhaseEndRow = lastRow
+End Function
+
+Private Function FindNodeEndRow(ByVal ws As Worksheet, ByVal nodeRow As Long, ByVal boundaryRow As Long) As Long
+    Dim targetLevel As Long
+    Dim r As Long
+    Dim rowLevel As Long
+
+    targetLevel = GetHierarchyLevel(ws, nodeRow)
+    FindNodeEndRow = nodeRow
+    If targetLevel <= 0 Then Exit Function
+
+    For r = nodeRow + 1 To boundaryRow
+        rowLevel = GetHierarchyLevel(ws, r)
+        If rowLevel > 0 And rowLevel <= targetLevel Then
+            FindNodeEndRow = r - 1
+            Exit Function
+        End If
+    Next r
+
+    FindNodeEndRow = boundaryRow
 End Function
 
 Private Sub UpdateMinDate(ByRef currentValue As Variant, ByVal candidateValue As Variant)
@@ -129,10 +152,11 @@ Private Function EvaluatePhaseStatus(ByVal completedCount As Long, ByVal inProgr
 End Function
 
 Private Function CollectPhaseMetrics(ByVal ws As Worksheet, ByVal phaseRow As Long, ByVal phaseEndRow As Long, _
-                                     ByVal referenceDate As Date) As Variant
+                                     ByVal referenceDate As Date, Optional ByVal includeInTotals As Boolean = True) As Variant
     ' 1:フェーズ名 2:配下タスク数 3:進捗率 4:総開発LT 5:残開発LT
     ' 6:開始予定 7:完了予定 8:開始実績 9:完了実績 10:判定
-    Dim metrics(1 To 10) As Variant
+    ' 11:表示LV 12:合計対象 13:元行
+    Dim metrics(1 To 13) As Variant
     Dim r As Long
     Dim leafCount As Long
     Dim completedCount As Long
@@ -234,6 +258,9 @@ Private Function CollectPhaseMetrics(ByVal ws As Worksheet, ByVal phaseRow As Lo
     metrics(8) = Empty
     metrics(9) = Empty
     metrics(10) = EvaluatePhaseStatus(completedCount, inProgressCount, pendingCount, holdCount, phaseProgress, planStart, planEnd, Empty, referenceDate)
+    metrics(11) = GetHierarchyLevel(ws, phaseRow)
+    metrics(12) = includeInTotals
+    metrics(13) = phaseRow
 
     CollectPhaseMetrics = metrics
 End Function
@@ -245,6 +272,9 @@ Private Function BuildPhaseMetricsCollection(ByVal ws As Worksheet, ByVal refere
     Dim lastRow As Long
     Dim phaseRow As Long
     Dim phaseEndRow As Long
+    Dim childRow As Long
+    Dim childEndRow As Long
+    Dim displayDepth As Long
 
     lastRow = InazumaGantt_v3.GetLastDataRow(ws)
     If lastRow < InazumaGantt_v3.ROW_DATA_START Then
@@ -252,11 +282,24 @@ Private Function BuildPhaseMetricsCollection(ByVal ws As Worksheet, ByVal refere
         Exit Function
     End If
 
+    displayDepth = InazumaGantt_v3.GetWbsSummaryDisplayDepth()
     phaseRow = InazumaGantt_v3.ROW_DATA_START
     Do While phaseRow <= lastRow
         If GetHierarchyLevel(ws, phaseRow) = 1 And IsTaskRow(ws, phaseRow) Then
             phaseEndRow = FindPhaseEndRow(ws, phaseRow, lastRow)
-            phases.Add CollectPhaseMetrics(ws, phaseRow, phaseEndRow, referenceDate)
+            phases.Add CollectPhaseMetrics(ws, phaseRow, phaseEndRow, referenceDate, True)
+            If displayDepth >= 2 Then
+                childRow = phaseRow + 1
+                Do While childRow <= phaseEndRow
+                    If GetHierarchyLevel(ws, childRow) = 2 And IsTaskRow(ws, childRow) Then
+                        childEndRow = FindNodeEndRow(ws, childRow, phaseEndRow)
+                        phases.Add CollectPhaseMetrics(ws, childRow, childEndRow, referenceDate, False)
+                        childRow = childEndRow + 1
+                    Else
+                        childRow = childRow + 1
+                    End If
+                Loop
+            End If
             phaseRow = phaseEndRow + 1
         Else
             phaseRow = phaseRow + 1
@@ -289,6 +332,9 @@ Private Function PrepareRoadmapSheet() As Worksheet
         ws.Name = ROADMAP_SHEET_NAME
     Else
         ws.Cells.Clear
+        On Error Resume Next
+        ws.Cells.ClearOutline
+        On Error GoTo 0
         For Each shp In ws.Shapes
             shp.Delete
         Next shp
@@ -457,6 +503,54 @@ Private Sub ApplyRoadmapTableStyle(ByVal ws As Worksheet, ByVal lastCol As Long,
     ws.Range("6:" & lastRow).RowHeight = 18.75
 End Sub
 
+Private Function FormatRoadmapItemName(ByVal metrics As Variant) As String
+    If CLng(metrics(11)) = 2 Then
+        FormatRoadmapItemName = "  └ " & CStr(metrics(1))
+    Else
+        FormatRoadmapItemName = CStr(metrics(1))
+    End If
+End Function
+
+Private Sub FormatRoadmapDataRow(ByVal ws As Worksheet, ByVal rowIndex As Long, ByVal rowLevel As Long, ByVal lastCol As Long)
+    If rowLevel <> 2 Then Exit Sub
+
+    With ws.Range(ws.Cells(rowIndex, 1), ws.Cells(rowIndex, lastCol))
+        .Interior.Color = ROADMAP_CHILD_ROW_FILL
+        .Font.Color = RGB(89, 89, 89)
+    End With
+    ws.Cells(rowIndex, "B").Font.Italic = True
+End Sub
+
+Private Sub ApplyRoadmapOutlineGroups(ByVal ws As Worksheet, ByVal firstDataRow As Long, ByVal lastDataRow As Long)
+    Dim r As Long
+    Dim groupStart As Long
+    Dim displayNo As String
+
+    If lastDataRow < firstDataRow Then Exit Sub
+
+    On Error Resume Next
+    ws.Cells.ClearOutline
+    On Error GoTo 0
+
+    groupStart = 0
+    For r = firstDataRow To lastDataRow
+        displayNo = CStr(ws.Cells(r, "A").Value)
+        If InStr(1, displayNo, ".", vbTextCompare) > 0 Then
+            If groupStart = 0 Then groupStart = r
+        ElseIf groupStart > 0 Then
+            ws.Rows(CStr(groupStart) & ":" & CStr(r - 1)).Group
+            groupStart = 0
+        End If
+    Next r
+
+    If groupStart > 0 Then
+        ws.Rows(CStr(groupStart) & ":" & CStr(lastDataRow)).Group
+    End If
+
+    ws.Outline.SummaryRow = xlAbove
+    ws.Outline.ShowLevels RowLevels:=1
+End Sub
+
 Public Sub CreateRoadmapOverviewSheet(Optional ByVal referenceDate As Variant)
     On Error GoTo ErrorHandler
 
@@ -500,6 +594,12 @@ Public Sub CreateRoadmapOverviewSheet(Optional ByVal referenceDate As Variant)
     Dim totalWeightedProgress As Double
     Dim lastCol As Long
     Dim totalRow As Long
+    Dim displayDepth As Long
+    Dim rowLevel As Long
+    Dim phaseNo As Long
+    Dim childNo As Long
+
+    displayDepth = InazumaGantt_v3.GetWbsSummaryDisplayDepth()
 
     For i = 1 To phases.Count
         metrics = phases(i)
@@ -527,7 +627,8 @@ Public Sub CreateRoadmapOverviewSheet(Optional ByVal referenceDate As Variant)
     wsRoadmap.Range("A2").Value = "生成日時: " & Format$(Now, "yy/mm/dd hh:mm")
     wsRoadmap.Range("A3").Value = "凡例:"
     wsRoadmap.Range("B3").Value = "■　進捗済み, □　残予定, 　■ 後半予定"
-    wsRoadmap.Range("A5:G5").Value = Array("No.", "フェーズ", "進捗率", "総LT", "残LT", "完了日", "判定")
+    If displayDepth >= 2 Then wsRoadmap.Range("D3").Value = "LV2行は左端のアウトラインで展開できます。"
+    wsRoadmap.Range("A5:G5").Value = Array("No.", "WBS項目", "進捗率", "総LT", "残LT", "完了日", "判定")
 
     currentMonth = MonthStartDate(reportDate)
     For i = 0 To monthCount - 1
@@ -542,13 +643,21 @@ Public Sub CreateRoadmapOverviewSheet(Optional ByVal referenceDate As Variant)
     rowIndex = 6
     For i = 1 To phases.Count
         metrics = phases(i)
+        rowLevel = CLng(metrics(11))
         roadmapStart = ResolveRoadmapStartDate(metrics)
         roadmapEnd = ResolveRoadmapEndDate(metrics)
         progressEnd = ResolveRoadmapProgressEndDate(metrics)
         planEndDate = metrics(7)
 
-        wsRoadmap.Cells(rowIndex, "A").Value = i
-        wsRoadmap.Cells(rowIndex, "B").Value = metrics(1)
+        If rowLevel = 1 Then
+            phaseNo = phaseNo + 1
+            childNo = 0
+            wsRoadmap.Cells(rowIndex, "A").Value = CStr(phaseNo)
+        Else
+            childNo = childNo + 1
+            wsRoadmap.Cells(rowIndex, "A").Value = CStr(phaseNo) & "." & CStr(childNo)
+        End If
+        wsRoadmap.Cells(rowIndex, "B").Value = FormatRoadmapItemName(metrics)
         wsRoadmap.Cells(rowIndex, "C").Value = CDbl(metrics(3))
         wsRoadmap.Cells(rowIndex, "C").NumberFormat = "0%"
         wsRoadmap.Cells(rowIndex, "D").Value = FormatHoursText(metrics(4))
@@ -556,17 +665,20 @@ Public Sub CreateRoadmapOverviewSheet(Optional ByVal referenceDate As Variant)
         wsRoadmap.Cells(rowIndex, "F").Value = FormatRoadmapDate(planEndDate)
         wsRoadmap.Cells(rowIndex, "G").Value = metrics(10)
 
-        If IsNumeric(metrics(4)) Then
-            totalHours = totalHours + CDbl(metrics(4))
-            totalWeightedProgress = totalWeightedProgress + (CDbl(metrics(3)) * CDbl(metrics(4)))
+        If CBool(metrics(12)) Then
+            If IsNumeric(metrics(4)) Then
+                totalHours = totalHours + CDbl(metrics(4))
+                totalWeightedProgress = totalWeightedProgress + (CDbl(metrics(3)) * CDbl(metrics(4)))
+            End If
+            If IsNumeric(metrics(5)) Then remainingHours = remainingHours + CDbl(metrics(5))
         End If
-        If IsNumeric(metrics(5)) Then remainingHours = remainingHours + CDbl(metrics(5))
 
         For monthCol = 8 To 7 + monthCount
             SetRoadmapMonthCell wsRoadmap.Cells(rowIndex, monthCol), roadmapStart, roadmapEnd, progressEnd, metrics(9), _
                 DateAdd("m", monthCol - 8, CDate(timelineStart)), CStr(metrics(10))
         Next monthCol
 
+        FormatRoadmapDataRow wsRoadmap, rowIndex, rowLevel, 7 + monthCount
         rowIndex = rowIndex + 1
     Next i
 
@@ -592,6 +704,10 @@ Public Sub CreateRoadmapOverviewSheet(Optional ByVal referenceDate As Variant)
     End With
 
     ApplyRoadmapTableStyle wsRoadmap, lastCol, totalRow
+
+    If displayDepth >= 2 Then
+        ApplyRoadmapOutlineGroups wsRoadmap, 6, totalRow - 1
+    End If
 
     If ThisWorkbook.Windows.Count > 0 Then
         wsRoadmap.Activate

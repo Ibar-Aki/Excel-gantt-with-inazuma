@@ -47,6 +47,32 @@ function Invoke-CoreSmokeMacros($excelApp, $workbook) {
     Invoke-WorkbookMacroOrThrow $excelApp $workbook "RestoreWbsFromBackupSheetSilent"
 }
 
+function Remove-WorksheetIfExists($excelApp, $workbook, [string]$sheetName, [string]$fallbackSheetName) {
+    $targetSheet = $null
+    try {
+        $targetSheet = $workbook.Worksheets.Item($sheetName)
+    }
+    catch {
+        return
+    }
+
+    $prevAlerts = $excelApp.DisplayAlerts
+    try {
+        $excelApp.DisplayAlerts = $false
+        if (-not [string]::IsNullOrWhiteSpace($fallbackSheetName)) {
+            try {
+                $workbook.Worksheets.Item($fallbackSheetName).Activate() | Out-Null
+            }
+            catch {
+            }
+        }
+        $targetSheet.Delete()
+    }
+    finally {
+        $excelApp.DisplayAlerts = $prevAlerts
+    }
+}
+
 function Close-WorkbookSafely([ref]$workbookRef, [bool]$saveChanges = $false) {
     if ($null -ne $workbookRef.Value) {
         try {
@@ -233,6 +259,7 @@ try {
 
     Write-Host "Running in-memory smoke tests..."
     Invoke-CoreSmokeMacros $excel $wb
+    Remove-WorksheetIfExists $excel $wb "WBS_Backup_v3" "InazumaGantt_v3"
 
     Write-Host "Saving to $outputFile..."
     $wb.SaveAs($outputFile, 52)
@@ -246,6 +273,7 @@ try {
 
     Write-Host "Running post-save smoke tests..."
     Invoke-CoreSmokeMacros $excel $wb
+    Remove-WorksheetIfExists $excel $wb "WBS_Backup_v3" "InazumaGantt_v3"
 
     $deleteSheets = @()
     for ($i = $wb.Worksheets.Count; $i -ge 1; $i--) {

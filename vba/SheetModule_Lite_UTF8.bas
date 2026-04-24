@@ -33,7 +33,7 @@ Private Sub Worksheet_BeforeDoubleClick(ByVal Target As Range, Cancel As Boolean
 
     ' B列(2): 完了処理
     If Target.Column <> 2 Then Exit Sub
-    If InazumaGantt_v3.IsBulkEditModeEnabled() Then Exit Sub
+    If InazumaGantt_v3.IsBulkEditModeEnabledAfterRuntimeRepair() Then Exit Sub
 
     ' 設定マスタから機能有効を確認
     If Not InazumaGantt_v3.GetSettingValue(4) Then Exit Sub
@@ -75,7 +75,7 @@ Private Sub Worksheet_BeforeRightClick(ByVal Target As Range, Cancel As Boolean)
     If (GetKeyState(vbKeyShift) And &H8000) = 0 Then Exit Sub
 
     If Target.Row < InazumaGantt_v3.ROW_DATA_START Then Exit Sub
-    If InazumaGantt_v3.IsBulkEditModeEnabled() Then Exit Sub
+    If InazumaGantt_v3.IsBulkEditModeEnabledAfterRuntimeRepair() Then Exit Sub
 
     If Target.Column = Me.Columns(InazumaGantt_v3.COL_DEV_LT).Column Then
         Application.EnableEvents = False
@@ -109,7 +109,7 @@ Private Sub Worksheet_Change(ByVal Target As Range)
     If Target Is Nothing Then Exit Sub
 
     isHandlingWorksheetChange = True
-    bulkEditMode = InazumaGantt_v3.IsBulkEditModeEnabled()
+    bulkEditMode = InazumaGantt_v3.IsBulkEditModeEnabledAfterRuntimeRepair()
     If bulkEditMode Then
         Application.StatusBar = "高速入力中: Ctrl+Z を優先し、自動更新を停止しています"
         isHandlingWorksheetChange = False

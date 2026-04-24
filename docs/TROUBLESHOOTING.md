@@ -1,6 +1,6 @@
 # トラブルシューティング
 
-更新日: 2026-04-19
+更新日: 2026-04-23
 
 InazumaGantt v3 でよくある問題と解決方法です。
 
@@ -229,10 +229,10 @@ Shift + 右クリックしても配下が非表示にならない
 ### 解決方法
 
 ```
-Alt + F8 → ResetFormatting → 実行
+Alt + F8 → RefreshInazumaGantt → 実行
 ```
 
-または「**書式リセット**」ボタンをクリック
+または「**ガント更新**」ボタンをクリック
 
 ---
 
@@ -284,19 +284,15 @@ Alt + F8 → EnsureSettingsSheet → 実行
 
 ## それでも解決しない場合
 
-1. **書式リセットを試す**
-
-   ```
-   Alt + F8 → ResetFormatting → 実行
-   ```
-
-2. **ガント更新を試す**
+1. **ガント更新を試す**
 
    ```
    Alt + F8 → RefreshInazumaGantt → 実行
    ```
 
-3. **開発者向けドキュメント参照**
+   旧 `ResetFormatting` マクロを実行しても、互換用に同じガント更新処理が実行されます。
+
+2. **開発者向けドキュメント参照**
    - `dev/docs/ARCHITECTURE.md`
    - `dev/docs/CODE_QUALITY.md`
 

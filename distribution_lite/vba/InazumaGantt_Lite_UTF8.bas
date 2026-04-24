@@ -134,6 +134,11 @@ Private Function RepairBulkEditRuntimeState(Optional ByVal ws As Worksheet = Not
     End If
 End Function
 
+Public Function IsBulkEditModeEnabledAfterRuntimeRepair() As Boolean
+    Call RepairBulkEditRuntimeState(GetMainWorksheet())
+    IsBulkEditModeEnabledAfterRuntimeRepair = IsBulkEditModeEnabled()
+End Function
+
 Private Function GetBackupWorksheet() As Worksheet
     On Error Resume Next
     Set GetBackupWorksheet = ThisWorkbook.Worksheets(BACKUP_SHEET_NAME)
@@ -279,12 +284,18 @@ Private Function GetSnapshotClearEndRow(ByVal ws As Worksheet, ByVal snapshotLas
 End Function
 
 Private Sub ApplyHierarchyColorsSilently()
+    On Error GoTo CleanUp
+
     Dim prevAlerts As Boolean
 
+    Err.Clear
     prevAlerts = Application.DisplayAlerts
     Application.DisplayAlerts = False
     HierarchyColor.SetupHierarchyColors
+
+CleanUp:
     Application.DisplayAlerts = prevAlerts
+    If Err.Number <> 0 Then Err.Raise Err.Number, Err.Source, Err.Description
 End Sub
 
 Private Sub ReconcileDeferredTaskState(ByVal ws As Worksheet)
