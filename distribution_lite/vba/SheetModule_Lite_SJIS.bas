@@ -103,27 +103,39 @@ Private Sub Worksheet_Change(ByVal Target As Range)
     Dim affectedRows As Object
     Dim bulkEditMode As Boolean
     Dim prevCalc As XlCalculation
-    Set affectedRows = CreateObject("Scripting.Dictionary")
+    Dim prevEvents As Boolean
+    Dim prevScreenUpdating As Boolean
+    Dim appStateCaptured As Boolean
+    Dim taskChangeRange As Range
+    Dim requireFullRenumber As Boolean
 
     If isHandlingWorksheetChange Then Exit Sub
     If Target Is Nothing Then Exit Sub
 
+    prevCalc = Application.Calculation
+    prevEvents = Application.EnableEvents
+    prevScreenUpdating = Application.ScreenUpdating
+    appStateCaptured = True
+    Set affectedRows = CreateObject("Scripting.Dictionary")
+
     isHandlingWorksheetChange = True
     bulkEditMode = InazumaGantt_v3.IsBulkEditModeEnabledAfterRuntimeRepair()
+    prevEvents = Application.EnableEvents
     If bulkEditMode Then
         Application.StatusBar = "高速入力中: Ctrl+Z を優先し、自動更新を停止しています"
         isHandlingWorksheetChange = False
         Exit Sub
     End If
-    prevCalc = Application.Calculation
     Application.ScreenUpdating = False
     Application.Calculation = xlCalculationManual
     Application.EnableEvents = False
 
     ' タスク入力列（C～F列）に変更があった場合
-    If Not Intersect(Target, Me.Range("C:F")) Is Nothing Then
-        PrepareChangedTaskRows Intersect(Target, Me.Range("C:F")), affectedRows
-        RefreshTaskStructureForRange Intersect(Target, Me.Range("C:F"))
+    Set taskChangeRange = Intersect(Target, Me.Range("C:F"))
+    If Not taskChangeRange Is Nothing Then
+        requireFullRenumber = ShouldRenumberAfterTaskChange(taskChangeRange)
+        PrepareChangedTaskRows taskChangeRange, affectedRows
+        RefreshTaskStructureForRange taskChangeRange, requireFullRenumber
     End If
 
     ' 状況列（H列）または進捗率列（I列）に変更があった場合、相互同期
@@ -212,16 +224,22 @@ Private Sub Worksheet_Change(ByVal Target As Range)
 
     ApplyRollupAndAlerts affectedRows
 
-    Application.EnableEvents = True
+    Application.EnableEvents = prevEvents
     Application.Calculation = prevCalc
-    Application.ScreenUpdating = True
+    Application.ScreenUpdating = prevScreenUpdating
     isHandlingWorksheetChange = False
     Exit Sub
 
 ErrorHandler:
-    Application.EnableEvents = True
-    Application.Calculation = prevCalc
-    Application.ScreenUpdating = True
+    On Error Resume Next
+    If appStateCaptured Then
+        Application.EnableEvents = prevEvents
+        Application.Calculation = prevCalc
+        Application.ScreenUpdating = prevScreenUpdating
+    Else
+        Application.EnableEvents = True
+        Application.ScreenUpdating = True
+    End If
     isHandlingWorksheetChange = False
 End Sub
 
@@ -321,7 +339,42 @@ Private Sub NormalizeTaskRowState(ByVal targetRow As Long)
     InazumaGantt_v3.RefreshTaskRowDisplayState Me, targetRow
 End Sub
 
-Private Sub RefreshTaskStructureForRange(ByVal changedRange As Range)
+Private Function ShouldRenumberAfterTaskChange(ByVal changedRange As Range) As Boolean
+    Dim area As Range
+    Dim currentRow As Long
+    Dim lastSupportedRow As Long
+    Dim seenRows As Object
+    Dim rowKey As String
+    Dim hasNumber As Boolean
+    Dim hasTaskContent As Boolean
+
+    If changedRange Is Nothing Then Exit Function
+    If changedRange.Cells.CountLarge > 1 Then
+        ShouldRenumberAfterTaskChange = True
+        Exit Function
+    End If
+
+    Set seenRows = CreateObject("Scripting.Dictionary")
+    lastSupportedRow = InazumaGantt_v3.ROW_DATA_START + InazumaGantt_v3.DATA_ROWS_DEFAULT - 1
+    For Each area In changedRange.Areas
+        For currentRow = area.Row To area.Row + area.Rows.Count - 1
+            If currentRow >= InazumaGantt_v3.ROW_DATA_START And currentRow <= lastSupportedRow Then
+                rowKey = CStr(currentRow)
+                If Not seenRows.Exists(rowKey) Then
+                    seenRows(rowKey) = True
+                    hasNumber = (Trim$(CStr(Me.Cells(currentRow, InazumaGantt_v3.COL_NO).Value)) <> "")
+                    hasTaskContent = InazumaGantt_v3.HasTaskContentInRow(Me, currentRow)
+                    If hasNumber <> hasTaskContent Then
+                        ShouldRenumberAfterTaskChange = True
+                        Exit Function
+                    End If
+                End If
+            End If
+        Next currentRow
+    Next area
+End Function
+
+Private Sub RefreshTaskStructureForRange(ByVal changedRange As Range, ByVal requireFullRenumber As Boolean)
     Dim startRow As Long
     Dim endRow As Long
     Dim lastSupportedRow As Long
@@ -335,7 +388,9 @@ Private Sub RefreshTaskStructureForRange(ByVal changedRange As Range)
     If endRow > lastSupportedRow Then endRow = lastSupportedRow
 
     InazumaGantt_v3.AutoDetectTaskLevelsInRange Me, startRow, endRow
-    InazumaGantt_v3.RenumberRowsForWorksheet Me
+    If requireFullRenumber Then
+        InazumaGantt_v3.RenumberRowsForWorksheet Me
+    End If
 End Sub
 
 Private Sub ApplyRollupAndAlerts(ByVal affectedRows As Object)

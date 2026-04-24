@@ -2,7 +2,7 @@
 
 - 作成日: 2026-04-12 10:16 JST
 - 作成者: Codex (GPT-5)
-- 更新日: 2026-04-19
+- 更新日: 2026-04-24
 
 ## 対象
 
@@ -51,6 +51,8 @@ InazumaGantt_説明
 WBSサマリ
 ```
 
+`WBS_Backup_v3` や `_WBS_` で始まる一時シートが含まれていないことも確認します。バックアップシートは利用者が `WBS退避` を実行した時点で作成されます。
+
 ## ワンクリック生成
 
 1. `restore_output\InazumaGantt_v3_Distribution\scripts\Run_OneClick_CreateLatestWorkbook.bat` を実行します。
@@ -60,6 +62,7 @@ WBSサマリ
 - シート構成が `InazumaGantt_v3 / InazumaGantt_説明 / 設定マスタ / WBSサマリ`
 - `InazumaGantt_v3` にサンプル WBS が入っている
 - `WBSサマリ` が作成されている
+- `WBS_Backup_v3` や `_WBS_` 一時シートが残っていない
 
 ## 動作確認結果
 
@@ -67,6 +70,7 @@ WBSサマリ
 - 空の Excel ファイル作成: 正常
 - Payload からの `.xlsm` 復元: 正常
 - One-click 生成: 正常
+- Build smoke 後のバックアップシート削除: 正常
 
 ## 補助情報のみ行の仕様
 
@@ -77,6 +81,8 @@ WBSサマリ
 ## 注意点
 
 - 変換器は `.xlsm` を bundle に含めないため、配布同梱 workbook を復元するには `WorkbookPayload.json` からの復元が必要です。
+- 配布ブックにはビルド時に作成された WBS バックアップを含めません。復元後に `WBS退避` を押すと、利用者の現在の WBS から `WBS_Backup_v3` が作成されます。
+- `バックアップ復元` は復元前の本 WBS を一時退避し、途中失敗時は直前状態へロールバックします。正常完了後、一時シートは削除されます。
 - `restore_input` には bundle ファイルを 1 件だけ置いてください。複数件あると復元は失敗します。
 - `restore_output` に同名ファイルが残っていると復元に失敗します。
 - `Run_OneClick_CreateLatestWorkbook.bat` は Windows 標準の `powershell.exe` でも動作します。PowerShell 7 は必須ではありません。

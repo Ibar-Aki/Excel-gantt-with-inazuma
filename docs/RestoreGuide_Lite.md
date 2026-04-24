@@ -2,7 +2,7 @@
 
 - 作成日: 2026-04-15 01:05 JST
 - 作成者: Codex (GPT-5)
-- 更新日: 2026-04-19
+- 更新日: 2026-04-24
 
 ## 対象
 
@@ -51,6 +51,8 @@ InazumaGantt_説明
 WBSサマリ
 ```
 
+`WBS_Backup_Lite` や `_WBS_` で始まる一時シートが含まれていないことも確認します。バックアップシートは利用者が `WBS退避` を実行した時点で作成されます。
+
 ## ワンクリック生成
 
 1. `restore_output\InazumaGantt_Lite_Distribution\scripts\Run_OneClick_CreateLiteWorkbook.bat` を実行します。
@@ -61,10 +63,13 @@ WBSサマリ
 - `InazumaGantt_Lite` にサンプル WBS が入っている
 - `WBSサマリ` が作成されている
 - 開始実績 / 完了実績列がなく、ガントは単線表示になっている
+- `WBS_Backup_Lite` や `_WBS_` 一時シートが残っていない
 
 ## 注意点
 
 - 変換器は `.xlsm` を bundle に含めないため、配布同梱 workbook を復元するには `WorkbookPayload.json` からの復元が必要です。
+- 配布ブックにはビルド時に作成された WBS バックアップを含めません。復元後に `WBS退避` を押すと、利用者の現在の WBS から `WBS_Backup_Lite` が作成されます。
+- `バックアップ復元` は復元前の本 WBS を一時退避し、途中失敗時は直前状態へロールバックします。正常完了後、一時シートは削除されます。
 - `restore_input` には bundle ファイルを 1 件だけ置いてください。複数件あると復元は失敗します。
 - `restore_output` に同名ファイルが残っていると復元に失敗します。
 - `Run_OneClick_CreateLiteWorkbook.bat` は Windows 標準の `powershell.exe` でも動作します。PowerShell 7 は必須ではありません。

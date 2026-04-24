@@ -1,11 +1,25 @@
 # Changelog
 
-更新日: 2026-04-23
+更新日: 2026-04-24
 
 All notable changes to InazumaGantt will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [3.2.2] - 2026-04-24
+
+### Fixed
+
+- **配布ブックのバックアップ混入防止**: build smoke test で作成した `WBS_Backup_v3` / `WBS_Backup_Lite` を保存前に削除し、利用者作成前の古いバックアップが配布物に残らないことを確認
+- **高速入力状態の復旧**: `Worksheet_Change` 冒頭でアプリ状態を退避し、再オープン後や VBA リセット後の `設定マスタ` / `EnableEvents` 不整合を通常モードへ修復
+- **DisplayAlerts 復旧**: 階層色更新中の例外でも `Application.DisplayAlerts` を必ず復元
+
+### Changed
+
+- **WBSバックアップ安全化**: 既存バックアップを直接上書きせず、一時シートに完全コピーしてから最新バックアップへ差し替える方式へ変更
+- **バックアップ復元安全化**: 復元前の本 WBS を一時退避し、復元途中の失敗時は直前状態へロールバック
+- **通常入力の軽量化**: C-F の単一セル文言編集では、タスク有無が変わらない限り全体再採番を抑制
 
 ## [3.1.4] - 2026-04-11
 

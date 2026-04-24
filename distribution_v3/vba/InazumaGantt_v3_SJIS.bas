@@ -43,6 +43,9 @@ Public Const CELL_DISPLAY_WEEK As String = "L3"
 Public Const CELL_TODAY As String = "L4"
 Public Const COL_DATA_END As String = "O"
 Private Const BACKUP_SHEET_NAME As String = "WBS_Backup_v3"
+Private Const BACKUP_TEMP_SHEET_NAME As String = "_WBS_Backup_v3_tmp"
+Private Const BACKUP_OLD_SHEET_NAME As String = "_WBS_Backup_v3_old"
+Private Const RESTORE_ROLLBACK_SHEET_NAME As String = "_WBS_Restore_v3_rollback"
 Private Const BACKUP_META_LABEL_START As String = "Q1"
 Private Const BACKUP_META_VALUE_START As String = "R1"
 
@@ -148,6 +151,68 @@ Private Function GetBackupWorksheet() As Worksheet
     On Error GoTo 0
 End Function
 
+Private Function GetWorksheetByName(ByVal sheetName As String) As Worksheet
+    On Error Resume Next
+    Set GetWorksheetByName = ThisWorkbook.Worksheets(sheetName)
+    On Error GoTo 0
+End Function
+
+Private Sub CaptureApplicationState(ByRef prevCalc As XlCalculation, ByRef prevEvents As Boolean, _
+                                    ByRef prevScreenUpdating As Boolean, ByRef stateCaptured As Boolean)
+    prevCalc = Application.Calculation
+    prevEvents = Application.EnableEvents
+    prevScreenUpdating = Application.ScreenUpdating
+    stateCaptured = True
+End Sub
+
+Private Sub RestoreApplicationState(ByVal prevCalc As XlCalculation, ByVal prevEvents As Boolean, _
+                                    ByVal prevScreenUpdating As Boolean, ByVal stateCaptured As Boolean, _
+                                    Optional ByVal forceEventsEnabled As Boolean = False)
+    On Error Resume Next
+    If stateCaptured Then
+        If forceEventsEnabled Then
+            Application.EnableEvents = True
+        Else
+            Application.EnableEvents = prevEvents
+        End If
+        Application.Calculation = prevCalc
+        Application.ScreenUpdating = prevScreenUpdating
+    Else
+        Application.EnableEvents = True
+        Application.ScreenUpdating = True
+    End If
+    On Error GoTo 0
+End Sub
+
+Private Sub DeleteWorksheetIfExists(ByVal sheetName As String, Optional ByVal fallbackSheetName As String = "")
+    Dim ws As Worksheet
+    Dim prevAlerts As Boolean
+
+    Set ws = GetWorksheetByName(sheetName)
+    If ws Is Nothing Then Exit Sub
+
+    prevAlerts = Application.DisplayAlerts
+    On Error GoTo CleanUp
+    Application.DisplayAlerts = False
+    If Len(fallbackSheetName) > 0 Then
+        On Error Resume Next
+        ThisWorkbook.Worksheets(fallbackSheetName).Activate
+        Err.Clear
+        On Error GoTo CleanUp
+    End If
+    ws.Delete
+
+CleanUp:
+    Application.DisplayAlerts = prevAlerts
+    If Err.Number <> 0 Then Err.Raise Err.Number, Err.Source, Err.Description
+End Sub
+
+Private Function CreateTemporaryWorksheet(ByVal tempSheetName As String) As Worksheet
+    DeleteWorksheetIfExists tempSheetName, MAIN_SHEET_NAME
+    Set CreateTemporaryWorksheet = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
+    CreateTemporaryWorksheet.Name = tempSheetName
+End Function
+
 Private Function GetOrCreateBackupWorksheet() As Worksheet
     Dim wsBackup As Worksheet
 
@@ -160,6 +225,42 @@ Private Function GetOrCreateBackupWorksheet() As Worksheet
     wsBackup.Visible = xlSheetVisible
     Set GetOrCreateBackupWorksheet = wsBackup
 End Function
+
+Private Sub ReplaceBackupWorksheetWithStaged(ByVal stagedBackup As Worksheet)
+    Dim oldBackup As Worksheet
+    Dim oldRenamed As Boolean
+    Dim errNumber As Long
+    Dim errSource As String
+    Dim errDescription As String
+
+    If stagedBackup Is Nothing Then Err.Raise vbObjectError + 1200, "ReplaceBackupWorksheetWithStaged", "Backup staging sheet was not created."
+
+    DeleteWorksheetIfExists BACKUP_OLD_SHEET_NAME, MAIN_SHEET_NAME
+    Set oldBackup = GetBackupWorksheet()
+    If Not oldBackup Is Nothing Then
+        oldBackup.Name = BACKUP_OLD_SHEET_NAME
+        oldRenamed = True
+    End If
+
+    On Error GoTo Rollback
+    stagedBackup.Name = BACKUP_SHEET_NAME
+    stagedBackup.Visible = xlSheetVisible
+    On Error Resume Next
+    DeleteWorksheetIfExists BACKUP_OLD_SHEET_NAME, MAIN_SHEET_NAME
+    On Error GoTo 0
+    Exit Sub
+
+Rollback:
+    errNumber = Err.Number
+    errSource = Err.Source
+    errDescription = Err.Description
+    If oldRenamed Then
+        On Error Resume Next
+        oldBackup.Name = BACKUP_SHEET_NAME
+        On Error GoTo 0
+    End If
+    Err.Raise errNumber, errSource, errDescription
+End Sub
 
 Private Sub ClearAllShapes(ByVal ws As Worksheet)
     Dim shp As Shape
@@ -2039,16 +2140,18 @@ Private Sub CreateWbsBackupSheetCore(Optional ByVal skipNotification As Boolean 
     On Error GoTo ErrorHandler
 
     Dim ws As Worksheet
-    Dim wsBackup As Worksheet
+    Dim wsBackupStaging As Worksheet
     Dim lastRow As Long
     Dim prevCalc As XlCalculation
     Dim prevEvents As Boolean
+    Dim prevScreenUpdating As Boolean
+    Dim stateCaptured As Boolean
+    Dim errDescription As String
 
+    CaptureApplicationState prevCalc, prevEvents, prevScreenUpdating, stateCaptured
     Set ws = RequireMainWorksheet("WBS退避")
     If ws Is Nothing Then Exit Sub
     Call RepairBulkEditRuntimeState(ws)
-
-    prevCalc = Application.Calculation
     prevEvents = Application.EnableEvents
 
     Application.ScreenUpdating = False
@@ -2058,13 +2161,12 @@ Private Sub CreateWbsBackupSheetCore(Optional ByVal skipNotification As Boolean 
     lastRow = GetLastDataRow(ws)
     If lastRow < ROW_DATA_START Then lastRow = ROW_DATA_START
 
-    Set wsBackup = GetOrCreateBackupWorksheet()
-    CopyWbsSnapshot ws, wsBackup, lastRow, True
-    WriteBackupMetadata wsBackup, ws, lastRow
+    Set wsBackupStaging = CreateTemporaryWorksheet(BACKUP_TEMP_SHEET_NAME)
+    CopyWbsSnapshot ws, wsBackupStaging, lastRow, True
+    WriteBackupMetadata wsBackupStaging, ws, lastRow
+    ReplaceBackupWorksheetWithStaged wsBackupStaging
 
-    Application.EnableEvents = prevEvents
-    Application.Calculation = prevCalc
-    Application.ScreenUpdating = True
+    RestoreApplicationState prevCalc, prevEvents, prevScreenUpdating, stateCaptured
     Application.StatusBar = "WBSバックアップを更新しました"
 
     If (Not skipNotification) And Application.DisplayAlerts Then
@@ -2073,10 +2175,12 @@ Private Sub CreateWbsBackupSheetCore(Optional ByVal skipNotification As Boolean 
     Exit Sub
 
 ErrorHandler:
-    Application.EnableEvents = prevEvents
-    Application.Calculation = prevCalc
-    Application.ScreenUpdating = True
-    MsgBox "WBS退避エラー: " & Err.Description, vbCritical, "エラー"
+    errDescription = Err.Description
+    On Error Resume Next
+    DeleteWorksheetIfExists BACKUP_TEMP_SHEET_NAME, MAIN_SHEET_NAME
+    On Error GoTo 0
+    RestoreApplicationState prevCalc, prevEvents, prevScreenUpdating, stateCaptured
+    MsgBox "WBS退避エラー: " & errDescription, vbCritical, "エラー"
 End Sub
 
 Public Sub CreateWbsBackupSheet()
@@ -2092,14 +2196,21 @@ Private Sub RestoreWbsFromBackupSheetCore(Optional ByVal skipConfirmation As Boo
 
     Dim ws As Worksheet
     Dim wsBackup As Worksheet
+    Dim wsRollback As Worksheet
     Dim backupLastRow As Long
     Dim clearEndRow As Long
+    Dim rollbackLastRow As Long
     Dim prevCalc As XlCalculation
+    Dim prevEvents As Boolean
+    Dim prevScreenUpdating As Boolean
+    Dim stateCaptured As Boolean
+    Dim restoreStarted As Boolean
+    Dim errDescription As String
 
+    CaptureApplicationState prevCalc, prevEvents, prevScreenUpdating, stateCaptured
     Set ws = RequireMainWorksheet("バックアップ復元")
     If ws Is Nothing Then Exit Sub
     Call RepairBulkEditRuntimeState(ws)
-    prevCalc = Application.Calculation
 
     Set wsBackup = GetBackupWorksheet()
     If wsBackup Is Nothing Then
@@ -2123,14 +2234,19 @@ Private Sub RestoreWbsFromBackupSheetCore(Optional ByVal skipConfirmation As Boo
     SetBulkEditMode False
 
     clearEndRow = GetSnapshotClearEndRow(ws, backupLastRow)
+    rollbackLastRow = clearEndRow
+    Set wsRollback = CreateTemporaryWorksheet(RESTORE_ROLLBACK_SHEET_NAME)
+    CopyWbsSnapshot ws, wsRollback, rollbackLastRow, True
+    restoreStarted = True
 
     ClearMainWorksheetForRestore ws, clearEndRow
     CopyWbsSnapshot wsBackup, ws, backupLastRow
     ReconcileDeferredTaskState ws
+    DeleteWorksheetIfExists RESTORE_ROLLBACK_SHEET_NAME, MAIN_SHEET_NAME
 
     Application.EnableEvents = True
     Application.Calculation = prevCalc
-    Application.ScreenUpdating = True
+    Application.ScreenUpdating = prevScreenUpdating
     If Not ws Is Nothing Then CreateControlButtons ws, True
     Application.StatusBar = "バックアップから WBS を復元し、通常モードへ戻しました"
 
@@ -2140,12 +2256,18 @@ Private Sub RestoreWbsFromBackupSheetCore(Optional ByVal skipConfirmation As Boo
     Exit Sub
 
 ErrorHandler:
+    errDescription = Err.Description
+    On Error Resume Next
+    If restoreStarted And Not wsRollback Is Nothing And Not ws Is Nothing Then
+        ClearMainWorksheetForRestore ws, rollbackLastRow
+        CopyWbsSnapshot wsRollback, ws, rollbackLastRow
+    End If
+    DeleteWorksheetIfExists RESTORE_ROLLBACK_SHEET_NAME, MAIN_SHEET_NAME
+    On Error GoTo 0
     SetBulkEditMode False
-    Application.EnableEvents = True
-    Application.Calculation = prevCalc
-    Application.ScreenUpdating = True
+    RestoreApplicationState prevCalc, prevEvents, prevScreenUpdating, stateCaptured, True
     If Not ws Is Nothing Then CreateControlButtons ws, True
-    MsgBox "バックアップ復元エラー: " & Err.Description, vbCritical, "エラー"
+    MsgBox "バックアップ復元エラー: " & errDescription, vbCritical, "エラー"
 End Sub
 
 Public Sub RestoreWbsFromBackupSheet()

@@ -1,6 +1,6 @@
 # InazumaGantt v3 アーキテクチャ
 
-更新日: 2026-04-07
+更新日: 2026-04-24
 
 InazumaGantt v3 の実行構成と責務分担をまとめた開発者向けメモです。
 
@@ -14,6 +14,8 @@ InazumaGantt v3 の実行構成と責務分担をまとめた開発者向けメ�
 | `SetupWizard` | 初回セットアップとサンプルデータ投入 |
 | `HierarchyColor` | 階層色分け用の条件付き書式設定 |
 | `SheetModule` | シートイベント処理 |
+| `WBSParentRollup` | 親タスク集計、C列アラート、祖先チェーン更新 |
+| `WBSRoadmapReport` | WBSサマリ生成 |
 
 `設定マスタ` は独立モジュールではなく、`InazumaGantt_v3.EnsureSettingsSheet` が作成する補助シートです。祝日入力欄もこのシートに含まれます。
 
@@ -55,14 +57,18 @@ InazumaGantt v3 の実行構成と責務分担をまとめた開発者向けメ�
 - `ShiftDates` は選択セルを使うため、`InazumaGantt_v3` シートを表示した状態で実行します。
 - 進捗率は `0.7` `70` `70%` を受け付け、内部的には 0〜1 に正規化します。
 - `RefreshInazumaGantt` はヘッダー再生成、休日色反映、ガント再描画をまとめて実行します。
+- 高速入力 ON 中は Excel 標準 Undo を優先し、`Worksheet_Change` による自動整合を行いません。
+- バックアップ退避は一時シート完成後に最新バックアップ名へ差し替え、復元は本 WBS の一時退避を作ってから実行します。
 
 ## データの流れ
 
 ### タスク入力
 
 1. `SheetModule.Worksheet_Change` が C-F 列の変更を検知
-2. `AutoDetectTaskLevel` が LV を再判定
-3. B列の No.、H列の状況、I列の進捗率初期値を補完
+2. 高速入力状態の不整合を `IsBulkEditModeEnabledAfterRuntimeRepair` で通常モードへ修復
+3. `AutoDetectTaskLevelsInRange` が変更行周辺の LV を再判定
+4. 複数セル貼り付け、行追加、タスク有無の変化がある場合だけ `RenumberRowsForWorksheet` で全体再採番
+5. 状況、進捗率、補助情報表示、親集計、C列アラートを変更行と祖先チェーンへ反映
 
 ### 進捗率入力
 
@@ -72,7 +78,7 @@ InazumaGantt v3 の実行構成と責務分担をまとめた開発者向けメ�
 
 ### 日付入力
 
-1. `Worksheet_Change` が K-L 列の変更を検知
+1. `Worksheet_Change` が予定・実績日付列を検知
 2. `ValidateDateInput` が日付形式と開始終了の前後関係を確認
 3. 土日祝の場合のみ確認ダイアログを表示
 
@@ -81,6 +87,14 @@ InazumaGantt v3 の実行構成と責務分担をまとめた開発者向けメ�
 1. `RefreshInazumaGantt` が対象シートを解決
 2. 日付ヘッダー、罫線、土日祝色を再構築
 3. `DrawGanttBars` が予定バー、進捗バー、実績バー、今日線、イナズマ線を描画
+
+### WBS退避 / 復元
+
+1. `CreateWbsBackupSheet` は `A:O` を一時シートへ値・書式・入力規則・列幅・行高込みでコピー
+2. コピー完了後に一時シートを `WBS_Backup_v3` / `WBS_Backup_Lite` へ差し替え
+3. `RestoreWbsFromBackupSheet` は本 WBS の `A:O` をロールバック用一時シートへ退避
+4. バックアップの `A:O` を本 WBS へ戻し、`ReconcileDeferredTaskState` で通常モードの整合状態へ戻す
+5. 途中失敗時はロールバック用一時シートから復元前状態へ戻す
 
 ## 保守メモ
 
