@@ -330,24 +330,337 @@ Public Sub RecalculateTaskRowAndAncestors(ByVal ws As Worksheet, ByVal targetRow
     Loop
 End Sub
 
-Public Sub RefreshAllParentTasks(ByVal ws As Worksheet)
-    Dim workingWs As Worksheet
-    Dim lastRow As Long
+Private Function GetMaxAffectedRow(ByVal affectedRows As Object, ByVal defaultMaxRow As Long) As Long
+    Dim rowKey As Variant
+    Dim targetRow As Long
+
+    GetMaxAffectedRow = defaultMaxRow
+    If affectedRows Is Nothing Then Exit Function
+
+    For Each rowKey In affectedRows.Keys
+        targetRow = CLng(rowKey)
+        If targetRow > GetMaxAffectedRow Then GetMaxAffectedRow = targetRow
+    Next rowKey
+End Function
+
+Private Function BuildParentRowMap(ByVal ws As Worksheet, ByVal maxRow As Long) As Object
+    Const MAX_TRACKED_LEVEL As Long = 32
+
+    Dim parentRows As Object
+    Dim levelStack(1 To MAX_TRACKED_LEVEL) As Long
     Dim r As Long
     Dim rowLevel As Long
+    Dim levelIndex As Long
+
+    Set parentRows = CreateObject("Scripting.Dictionary")
+    If ws Is Nothing Then
+        Set BuildParentRowMap = parentRows
+        Exit Function
+    End If
+
+    For r = InazumaGantt_v3.ROW_DATA_START To maxRow
+        rowLevel = GetHierarchyLevel(ws, r)
+        If rowLevel > 0 Then
+            If rowLevel <= MAX_TRACKED_LEVEL Then
+                For levelIndex = rowLevel - 1 To 1 Step -1
+                    If levelStack(levelIndex) > 0 Then
+                        parentRows(CStr(r)) = levelStack(levelIndex)
+                        Exit For
+                    End If
+                Next levelIndex
+
+                If HasTaskName(ws, r) Then
+                    levelStack(rowLevel) = r
+                Else
+                    levelStack(rowLevel) = 0
+                End If
+
+                For levelIndex = rowLevel + 1 To MAX_TRACKED_LEVEL
+                    levelStack(levelIndex) = 0
+                Next levelIndex
+            Else
+                parentRows(CStr(r)) = FindParentTaskRow(ws, r)
+            End If
+        End If
+    Next r
+
+    Set BuildParentRowMap = parentRows
+End Function
+
+Private Sub AddRowAndAncestorKeys(ByVal targetRow As Long, ByVal parentRows As Object, ByVal rowKeys As Object)
+    Dim currentRow As Long
+    Dim currentKey As String
+
+    If parentRows Is Nothing Then Exit Sub
+    If rowKeys Is Nothing Then Exit Sub
+    If targetRow < InazumaGantt_v3.ROW_DATA_START Then Exit Sub
+
+    rowKeys(CStr(targetRow)) = True
+    currentRow = targetRow
+
+    Do
+        currentKey = CStr(currentRow)
+        If Not parentRows.Exists(currentKey) Then Exit Do
+        currentRow = CLng(parentRows(currentKey))
+        If currentRow < InazumaGantt_v3.ROW_DATA_START Then Exit Do
+        rowKeys(CStr(currentRow)) = True
+    Loop
+End Sub
+
+Public Sub RecalculateTaskRowsAndAncestors(ByVal ws As Worksheet, ByVal affectedRows As Object)
+    Dim workingWs As Worksheet
+    Dim rowKeys As Object
+    Dim parentRows As Object
+    Dim rowKey As Variant
+    Dim r As Long
+    Dim lastRow As Long
+    Dim maxRow As Long
+    Dim currentLevel As Long
+    Dim referenceDate As Date
+
+    Set workingWs = GetRollupWorksheet(ws, "親タスク再計算")
+    If workingWs Is Nothing Then Exit Sub
+    If affectedRows Is Nothing Then Exit Sub
+    If affectedRows.Count = 0 Then Exit Sub
+
+    lastRow = InazumaGantt_v3.GetLastDataRow(workingWs)
+    maxRow = GetMaxAffectedRow(affectedRows, lastRow)
+    referenceDate = Date
+    Set rowKeys = CreateObject("Scripting.Dictionary")
+    Set parentRows = BuildParentRowMap(workingWs, maxRow)
+
+    For Each rowKey In affectedRows.Keys
+        AddRowAndAncestorKeys CLng(rowKey), parentRows, rowKeys
+    Next rowKey
+
+    For r = lastRow To InazumaGantt_v3.ROW_DATA_START Step -1
+        If rowKeys.Exists(CStr(r)) Then
+            currentLevel = GetHierarchyLevel(workingWs, r)
+            If currentLevel > 0 Then
+                If HasChildTaskRows(workingWs, r, FindSubtreeEndRow(workingWs, r, lastRow), currentLevel) Then
+                    RecalculateParentRow workingWs, r, referenceDate
+                End If
+            End If
+        End If
+    Next r
+End Sub
+
+Private Function DataText(ByVal cellValue As Variant) As String
+    If IsError(cellValue) Or IsEmpty(cellValue) Then Exit Function
+    DataText = Trim$(CStr(cellValue))
+End Function
+
+Private Function HasTaskContentInData(ByRef data As Variant, ByVal rowIndex As Long) As Boolean
+    Dim colIndex As Long
+    Dim textValue As String
+
+    If DataText(data(rowIndex, 6)) <> "" Then
+        HasTaskContentInData = True
+        Exit Function
+    End If
+    If DataText(data(rowIndex, 5)) <> "" Then
+        HasTaskContentInData = True
+        Exit Function
+    End If
+    If DataText(data(rowIndex, 4)) <> "" Then
+        HasTaskContentInData = True
+        Exit Function
+    End If
+
+    textValue = DataText(data(rowIndex, 3))
+    If textValue <> "" And Not InazumaGantt_v3.IsAlertMarkerText(textValue) And _
+       Not InazumaGantt_v3.IsAuxiliaryPlaceholderText(textValue) Then
+        HasTaskContentInData = True
+        Exit Function
+    End If
+
+    For colIndex = 7 To UBound(data, 2)
+        If DataText(data(rowIndex, colIndex)) <> "" Then
+            HasTaskContentInData = True
+            Exit Function
+        End If
+    Next colIndex
+End Function
+
+Public Sub RefreshAllParentTasks(ByVal ws As Worksheet)
+    Const MAX_TRACKED_LEVEL As Long = 32
+
+    Dim workingWs As Worksheet
+    Dim lastRow As Long
+    Dim rowCount As Long
+    Dim colCount As Long
+    Dim data As Variant
+    Dim i As Long
+    Dim levelIndex As Long
+    Dim parentIndex As Long
+    Dim referenceDate As Date
+    Dim levels() As Long
+    Dim parentRows() As Long
+    Dim levelStack(1 To MAX_TRACKED_LEVEL) As Long
+    Dim hasTask() As Boolean
+    Dim hasChild() As Boolean
+    Dim leafCount() As Long
+    Dim progressSum() As Double
+    Dim weightedProgress() As Double
+    Dim totalHours() As Double
+    Dim hasHours() As Boolean
+    Dim leafHoursExists() As Boolean
+    Dim allComplete() As Boolean
+    Dim anyInProgress() As Boolean
+    Dim anyOverdueIncomplete() As Boolean
+    Dim allFutureOnly() As Boolean
+    Dim planStart() As Variant
+    Dim planEnd() As Variant
+    Dim actualStart() As Variant
+    Dim actualEnd() As Variant
+    Dim rowProgress As Double
+    Dim progressValue As Double
+    Dim hoursValue As Double
+    Dim rowStatus As String
+    Dim isComplete As Boolean
 
     Set workingWs = GetRollupWorksheet(ws, "親タスク再計算")
     If workingWs Is Nothing Then Exit Sub
 
     lastRow = InazumaGantt_v3.GetLastDataRow(workingWs)
-    For r = lastRow To InazumaGantt_v3.ROW_DATA_START Step -1
-        rowLevel = GetHierarchyLevel(workingWs, r)
-        If rowLevel > 0 And HasTaskName(workingWs, r) Then
-            If HasChildTaskRows(workingWs, r, FindSubtreeEndRow(workingWs, r, lastRow), rowLevel) Then
-                RecalculateParentRow workingWs, r, Date
+    If lastRow < InazumaGantt_v3.ROW_DATA_START Then Exit Sub
+
+    data = workingWs.Range("A" & InazumaGantt_v3.ROW_DATA_START & ":" & InazumaGantt_v3.COL_DATA_END & lastRow).Value2
+    rowCount = UBound(data, 1)
+    colCount = UBound(data, 2)
+    referenceDate = Date
+
+    ReDim levels(1 To rowCount)
+    ReDim parentRows(1 To rowCount)
+    ReDim hasTask(1 To rowCount)
+    ReDim hasChild(1 To rowCount)
+    ReDim leafCount(1 To rowCount)
+    ReDim progressSum(1 To rowCount)
+    ReDim weightedProgress(1 To rowCount)
+    ReDim totalHours(1 To rowCount)
+    ReDim hasHours(1 To rowCount)
+    ReDim leafHoursExists(1 To rowCount)
+    ReDim allComplete(1 To rowCount)
+    ReDim anyInProgress(1 To rowCount)
+    ReDim anyOverdueIncomplete(1 To rowCount)
+    ReDim allFutureOnly(1 To rowCount)
+    ReDim planStart(1 To rowCount)
+    ReDim planEnd(1 To rowCount)
+    ReDim actualStart(1 To rowCount)
+    ReDim actualEnd(1 To rowCount)
+
+    For i = 1 To rowCount
+        allComplete(i) = True
+        allFutureOnly(i) = True
+        If IsNumeric(data(i, 1)) Then levels(i) = CLng(data(i, 1))
+        hasTask(i) = HasTaskContentInData(data, i)
+
+        If levels(i) > 0 Then
+            If levels(i) <= MAX_TRACKED_LEVEL Then
+                For levelIndex = levels(i) - 1 To 1 Step -1
+                    If levelStack(levelIndex) > 0 Then
+                        parentRows(i) = levelStack(levelIndex)
+                        If hasTask(i) Then hasChild(parentRows(i)) = True
+                        Exit For
+                    End If
+                Next levelIndex
+
+                levelStack(levels(i)) = i
+                For levelIndex = levels(i) + 1 To MAX_TRACKED_LEVEL
+                    levelStack(levelIndex) = 0
+                Next levelIndex
             End If
         End If
-    Next r
+    Next i
+
+    For i = rowCount To 1 Step -1
+        If Not hasTask(i) Or levels(i) <= 0 Then GoTo ContinueRow
+
+        If hasChild(i) Then
+            If leafCount(i) = 0 Then GoTo ContinueRow
+
+            If hasHours(i) And totalHours(i) > 0 Then
+                progressValue = weightedProgress(i) / totalHours(i)
+            Else
+                progressValue = progressSum(i) / leafCount(i)
+            End If
+
+            If allComplete(i) Then progressValue = 1
+            If progressValue < 0 Then progressValue = 0
+            If progressValue > 1 Then progressValue = 1
+
+            If levels(i) = 2 And Not leafHoursExists(i) Then
+                If TryParseDevelopmentHoursLocal(data(i, 11), hoursValue) Then
+                    totalHours(i) = hoursValue
+                    weightedProgress(i) = progressValue * hoursValue
+                    hasHours(i) = True
+                End If
+            End If
+
+            workingWs.Cells(i + InazumaGantt_v3.ROW_DATA_START - 1, InazumaGantt_v3.COL_STATUS).Value = _
+                DetermineParentStatus(allComplete(i), anyInProgress(i), anyOverdueIncomplete(i), allFutureOnly(i))
+            workingWs.Cells(i + InazumaGantt_v3.ROW_DATA_START - 1, InazumaGantt_v3.COL_PROGRESS).Value = progressValue
+            workingWs.Cells(i + InazumaGantt_v3.ROW_DATA_START - 1, InazumaGantt_v3.COL_DEV_LT).Value = totalHours(i)
+            workingWs.Cells(i + InazumaGantt_v3.ROW_DATA_START - 1, InazumaGantt_v3.COL_DEV_LT).NumberFormat = InazumaGantt_v3.DEV_HOURS_NUMBER_FORMAT
+            SetDateCell workingWs.Cells(i + InazumaGantt_v3.ROW_DATA_START - 1, InazumaGantt_v3.COL_START_PLAN), planStart(i)
+            SetDateCell workingWs.Cells(i + InazumaGantt_v3.ROW_DATA_START - 1, InazumaGantt_v3.COL_END_PLAN), planEnd(i)
+            If colCount >= 15 Then
+                SetDateCell workingWs.Cells(i + InazumaGantt_v3.ROW_DATA_START - 1, 14), actualStart(i)
+                SetDateCell workingWs.Cells(i + InazumaGantt_v3.ROW_DATA_START - 1, 15), actualEnd(i)
+            End If
+        Else
+            leafCount(i) = 1
+            rowProgress = InazumaGantt_v3.NormalizeProgressValue(data(i, 9), 0)
+            progressSum(i) = rowProgress
+
+            If TryParseDevelopmentHoursLocal(data(i, 11), hoursValue) Then
+                totalHours(i) = hoursValue
+                weightedProgress(i) = rowProgress * hoursValue
+                hasHours(i) = True
+                leafHoursExists(i) = True
+            End If
+
+            If IsDate(data(i, 12)) Then planStart(i) = CDate(data(i, 12))
+            If IsDate(data(i, 13)) Then planEnd(i) = CDate(data(i, 13))
+            If colCount >= 15 Then
+                If IsDate(data(i, 14)) Then actualStart(i) = CDate(data(i, 14))
+                If IsDate(data(i, 15)) Then actualEnd(i) = CDate(data(i, 15))
+            End If
+
+            rowStatus = DataText(data(i, 8))
+            isComplete = (rowStatus = "完了" Or rowProgress >= 1)
+            allComplete(i) = isComplete
+            If Not isComplete Then
+                If rowStatus = "進行中" Or rowProgress > 0 Then anyInProgress(i) = True
+                If IsDate(data(i, 13)) Then
+                    If CDate(data(i, 13)) < referenceDate Then anyOverdueIncomplete(i) = True
+                End If
+                allFutureOnly(i) = (IsDate(data(i, 12)) And CDate(data(i, 12)) > referenceDate)
+            End If
+        End If
+
+        parentIndex = parentRows(i)
+        If parentIndex > 0 And leafCount(i) > 0 Then
+            leafCount(parentIndex) = leafCount(parentIndex) + leafCount(i)
+            progressSum(parentIndex) = progressSum(parentIndex) + progressSum(i)
+            If hasHours(i) Then
+                totalHours(parentIndex) = totalHours(parentIndex) + totalHours(i)
+                weightedProgress(parentIndex) = weightedProgress(parentIndex) + weightedProgress(i)
+                hasHours(parentIndex) = True
+            End If
+            leafHoursExists(parentIndex) = leafHoursExists(parentIndex) Or leafHoursExists(i)
+            allComplete(parentIndex) = allComplete(parentIndex) And allComplete(i)
+            anyInProgress(parentIndex) = anyInProgress(parentIndex) Or anyInProgress(i)
+            anyOverdueIncomplete(parentIndex) = anyOverdueIncomplete(parentIndex) Or anyOverdueIncomplete(i)
+            allFutureOnly(parentIndex) = allFutureOnly(parentIndex) And allFutureOnly(i)
+            UpdateMinDate planStart(parentIndex), planStart(i)
+            UpdateMaxDate planEnd(parentIndex), planEnd(i)
+            UpdateMinDate actualStart(parentIndex), actualStart(i)
+            UpdateMaxDate actualEnd(parentIndex), actualEnd(i)
+        End If
+
+ContinueRow:
+    Next i
 End Sub
 
 Private Function IsThisWeek(ByVal targetDate As Date, ByVal referenceDate As Date) As Boolean
@@ -465,6 +778,38 @@ Public Sub RefreshTaskAlertMarkersForRowAndAncestors(ByVal ws As Worksheet, ByVa
         ApplyAlertMarkerState workingWs, currentRow, referenceDate
         currentRow = FindParentTaskRow(workingWs, currentRow)
     Loop
+End Sub
+
+Public Sub RefreshTaskAlertMarkersForRowsAndAncestors(ByVal ws As Worksheet, ByVal affectedRows As Object)
+    Dim workingWs As Worksheet
+    Dim rowKeys As Object
+    Dim parentRows As Object
+    Dim rowKey As Variant
+    Dim r As Long
+    Dim lastRow As Long
+    Dim maxRow As Long
+    Dim referenceDate As Date
+
+    Set workingWs = GetRollupWorksheet(ws, "タスク強調表示")
+    If workingWs Is Nothing Then Exit Sub
+    If affectedRows Is Nothing Then Exit Sub
+    If affectedRows.Count = 0 Then Exit Sub
+
+    lastRow = InazumaGantt_v3.GetLastDataRow(workingWs)
+    maxRow = GetMaxAffectedRow(affectedRows, lastRow)
+    referenceDate = Date
+    Set rowKeys = CreateObject("Scripting.Dictionary")
+    Set parentRows = BuildParentRowMap(workingWs, maxRow)
+
+    For Each rowKey In affectedRows.Keys
+        AddRowAndAncestorKeys CLng(rowKey), parentRows, rowKeys
+    Next rowKey
+
+    For r = InazumaGantt_v3.ROW_DATA_START To lastRow
+        If rowKeys.Exists(CStr(r)) Then
+            ApplyAlertMarkerState workingWs, r, referenceDate
+        End If
+    Next r
 End Sub
 
 Public Sub RefreshAllDerivedTaskData(ByVal ws As Worksheet)

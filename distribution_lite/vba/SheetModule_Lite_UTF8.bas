@@ -26,13 +26,13 @@ Private isHandlingWorksheetChange As Boolean
 
 Private Sub Worksheet_BeforeDoubleClick(ByVal Target As Range, Cancel As Boolean)
     ' タスク行のダブルクリック処理
-    ' B列: 完了処理
+    ' B列または状況列: 完了処理
     On Error GoTo ErrorHandler
 
     If Target.Row < InazumaGantt_v3.ROW_DATA_START Then Exit Sub
 
-    ' B列(2): 完了処理
-    If Target.Column <> 2 Then Exit Sub
+    ' B列(2)または状況列: 完了処理
+    If Target.Column <> 2 And Target.Column <> Me.Columns(InazumaGantt_v3.COL_STATUS).Column Then Exit Sub
     If InazumaGantt_v3.IsBulkEditModeEnabledAfterRuntimeRepair() Then Exit Sub
 
     ' 設定マスタから機能有効を確認
@@ -108,6 +108,8 @@ Private Sub Worksheet_Change(ByVal Target As Range)
     Dim appStateCaptured As Boolean
     Dim taskChangeRange As Range
     Dim requireFullRenumber As Boolean
+    Dim weekendPlanCells As Collection
+    Dim weekendWarningLines As Collection
 
     If isHandlingWorksheetChange Then Exit Sub
     If Target Is Nothing Then Exit Sub
@@ -117,6 +119,8 @@ Private Sub Worksheet_Change(ByVal Target As Range)
     prevScreenUpdating = Application.ScreenUpdating
     appStateCaptured = True
     Set affectedRows = CreateObject("Scripting.Dictionary")
+    Set weekendPlanCells = New Collection
+    Set weekendWarningLines = New Collection
 
     isHandlingWorksheetChange = True
     bulkEditMode = InazumaGantt_v3.IsBulkEditModeEnabledAfterRuntimeRepair()
@@ -207,17 +211,22 @@ Private Sub Worksheet_Change(ByVal Target As Range)
                             warningMsg = "日曜日"
                         End If
 
-                        If MsgBox(Format(inputDate, "yy/mm/dd") & " は " & warningMsg & " です。" & vbCrLf & _
-                                  "この日付を入力しますか？", vbYesNo + vbQuestion, "確認") = vbNo Then
-                            Application.EnableEvents = False
-                            planDateCell.ClearContents
-                            Application.EnableEvents = True
-                        End If
+                        weekendPlanCells.Add planDateCell
+                        weekendWarningLines.Add planDateCell.Address(False, False) & ": " & _
+                                                Format(inputDate, "yy/mm/dd") & " (" & warningMsg & ")"
                     End If
                 End If
                 CollectAffectedRow affectedRows, planDateCell.Row
             End If
         Next planDateCell
+    End If
+
+    If weekendPlanCells.Count > 0 Then
+        If Not ConfirmWeekendPlanDates(weekendWarningLines, prevCalc, prevEvents, prevScreenUpdating) Then
+            For Each planDateCell In weekendPlanCells
+                planDateCell.ClearContents
+            Next planDateCell
+        End If
     End If
 
     RefreshAffectedRowDisplayState affectedRows
@@ -256,7 +265,7 @@ Private Function CheckHoliday(ByVal targetDate As Date) As Boolean
     CheckHoliday = False
     If wsSettings Is Nothing Then Exit Function
 
-    ' 祝日マスタハ設定マスタのA13から
+    ' 祝日マスタは設定マスタのA16から
     Dim lastRow As Long
     lastRow = wsSettings.Cells(wsSettings.Rows.Count, "A").End(xlUp).Row
     If lastRow < InazumaGantt_v3.HOLIDAY_DATA_START_ROW Then Exit Function
@@ -270,6 +279,40 @@ Private Function CheckHoliday(ByVal targetDate As Date) As Boolean
             End If
         End If
     Next r
+End Function
+
+Private Function ConfirmWeekendPlanDates(ByVal warningLines As Collection, _
+                                         ByVal prevCalc As XlCalculation, _
+                                         ByVal prevEvents As Boolean, _
+                                         ByVal prevScreenUpdating As Boolean) As Boolean
+    Dim messageText As String
+    Dim i As Long
+    Dim displayCount As Long
+
+    displayCount = warningLines.Count
+    If displayCount > 10 Then displayCount = 10
+
+    If warningLines.Count = 1 Then
+        messageText = warningLines(1) & " です。" & vbCrLf & _
+                      "この日付を入力しますか？"
+    Else
+        messageText = "以下の日付に土日祝日が含まれます。" & vbCrLf
+        For i = 1 To displayCount
+            messageText = messageText & warningLines(i) & vbCrLf
+        Next i
+        If warningLines.Count > displayCount Then
+            messageText = messageText & "...他 " & (warningLines.Count - displayCount) & " 件" & vbCrLf
+        End If
+        messageText = messageText & vbCrLf & "これらの日付を入力しますか？"
+    End If
+
+    Application.EnableEvents = prevEvents
+    Application.Calculation = prevCalc
+    Application.ScreenUpdating = prevScreenUpdating
+    ConfirmWeekendPlanDates = (MsgBox(messageText, vbYesNo + vbQuestion, "確認") = vbYes)
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
+    Application.EnableEvents = False
 End Function
 
 Private Sub UpdateStatusByProgress(ByVal targetRow As Long)
@@ -394,12 +437,11 @@ Private Sub RefreshTaskStructureForRange(ByVal changedRange As Range, ByVal requ
 End Sub
 
 Private Sub ApplyRollupAndAlerts(ByVal affectedRows As Object)
-    Dim rowKey As Variant
+    If affectedRows Is Nothing Then Exit Sub
+    If affectedRows.Count = 0 Then Exit Sub
 
-    For Each rowKey In affectedRows.Keys
-        WBSParentRollup.RecalculateTaskRowAndAncestors Me, CLng(rowKey)
-        WBSParentRollup.RefreshTaskAlertMarkersForRowAndAncestors Me, CLng(rowKey)
-    Next rowKey
+    WBSParentRollup.RecalculateTaskRowsAndAncestors Me, affectedRows
+    WBSParentRollup.RefreshTaskAlertMarkersForRowsAndAncestors Me, affectedRows
 End Sub
 
 Private Sub RefreshAffectedRowDisplayState(ByVal affectedRows As Object)

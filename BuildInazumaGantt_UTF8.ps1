@@ -39,7 +39,69 @@ function Invoke-WorkbookMacroOrThrow($excelApp, $workbook, [string]$macroName) {
     }
 }
 
-function Invoke-CoreSmokeMacros($excelApp, $workbook) {
+function Invoke-WorksheetChangeSmoke($excelApp, $workbook, [string]$sheetName) {
+    $worksheet = Get-WorksheetOrThrow $workbook $sheetName
+    $startRow = 900
+    $endRow = $startRow + 2
+    $prevEvents = $excelApp.EnableEvents
+    $prevScreenUpdating = $excelApp.ScreenUpdating
+    $prevAlerts = $excelApp.DisplayAlerts
+
+    try {
+        $excelApp.ScreenUpdating = $false
+        $excelApp.DisplayAlerts = $false
+        $excelApp.EnableEvents = $false
+        $worksheet.Range("A${startRow}:O${endRow}").ClearContents() | Out-Null
+
+        $taskValues = New-Object 'object[,]' 3, 4
+        $taskValues[0, 0] = "Smoke Parent"
+        $taskValues[1, 1] = "Smoke Child A"
+        $taskValues[2, 1] = "Smoke Child B"
+
+        $rollupValues = New-Object 'object[,]' 3, 4
+        $rollupValues[1, 1] = 1
+        $rollupValues[1, 3] = 2
+        $rollupValues[2, 1] = 0
+        $rollupValues[2, 3] = 2
+
+        $dateValues = New-Object 'object[,]' 3, 2
+        $dateValues[1, 0] = "35/01/08"
+        $dateValues[1, 1] = "35/01/09"
+        $dateValues[2, 0] = "35/01/10"
+        $dateValues[2, 1] = "35/01/11"
+
+        $excelApp.EnableEvents = $true
+        $worksheet.Range("C${startRow}:F${endRow}").Value2 = $taskValues
+        $worksheet.Range("H${startRow}:K${endRow}").Value2 = $rollupValues
+        $worksheet.Range("L${startRow}:M${endRow}").Value2 = $dateValues
+
+        $parentProgress = [double]$worksheet.Range("I${startRow}").Value2
+        $parentHours = [double]$worksheet.Range("K${startRow}").Value2
+        $parentStart = $worksheet.Range("L${startRow}").Value2
+        $parentEnd = $worksheet.Range("M${startRow}").Value2
+        if ([math]::Abs($parentProgress - 0.5) -gt 0.001 -or [math]::Abs($parentHours - 4) -gt 0.001 -or $null -eq $parentStart -or $null -eq $parentEnd) {
+            throw ("Worksheet_Change smoke test failed: parent progress={0}, hours={1}, start={2}, end={3}" -f $parentProgress, $parentHours, $parentStart, $parentEnd)
+        }
+    }
+    catch {
+        throw ("Worksheet_Change smoke test failed: {0}" -f $_.Exception.Message)
+    }
+    finally {
+        try {
+            $excelApp.EnableEvents = $false
+            $worksheet.Range("A${startRow}:O${endRow}").ClearContents() | Out-Null
+        }
+        catch {
+        }
+        $excelApp.EnableEvents = $prevEvents
+        $excelApp.ScreenUpdating = $prevScreenUpdating
+        $excelApp.DisplayAlerts = $prevAlerts
+    }
+}
+
+function Invoke-CoreSmokeMacros($excelApp, $workbook, [string]$mainSheetName) {
+    Invoke-WorkbookMacroOrThrow $excelApp $workbook "RefreshInazumaGantt"
+    Invoke-WorksheetChangeSmoke $excelApp $workbook $mainSheetName
     Invoke-WorkbookMacroOrThrow $excelApp $workbook "RefreshInazumaGantt"
     Invoke-WorkbookMacroOrThrow $excelApp $workbook "CreateWbsBackupSheetSilent"
     Invoke-WorkbookMacroOrThrow $excelApp $workbook "ToggleBulkEditMode"
@@ -81,6 +143,11 @@ function Close-WorkbookSafely([ref]$workbookRef, [bool]$saveChanges = $false) {
         catch {
         }
         finally {
+            try {
+                [System.Runtime.Interopservices.Marshal]::ReleaseComObject($workbookRef.Value) | Out-Null
+            }
+            catch {
+            }
             $workbookRef.Value = $null
         }
     }
@@ -100,6 +167,8 @@ function Close-ExcelSafely([ref]$excelRef) {
             catch {
             }
             $excelRef.Value = $null
+            [GC]::Collect()
+            [GC]::WaitForPendingFinalizers()
             [GC]::Collect()
             [GC]::WaitForPendingFinalizers()
         }
@@ -258,7 +327,7 @@ try {
     Inject-WorksheetModuleFromUtf8Source $wb $mainSheet.Name (Join-Path $vbaDir "SheetModule_UTF8.bas")
 
     Write-Host "Running in-memory smoke tests..."
-    Invoke-CoreSmokeMacros $excel $wb
+    Invoke-CoreSmokeMacros $excel $wb "InazumaGantt_v3"
     Remove-WorksheetIfExists $excel $wb "WBS_Backup_v3" "InazumaGantt_v3"
 
     Write-Host "Saving to $outputFile..."
@@ -272,7 +341,7 @@ try {
     $wb = $excel.Workbooks.Open($outputFile)
 
     Write-Host "Running post-save smoke tests..."
-    Invoke-CoreSmokeMacros $excel $wb
+    Invoke-CoreSmokeMacros $excel $wb "InazumaGantt_v3"
     Remove-WorksheetIfExists $excel $wb "WBS_Backup_v3" "InazumaGantt_v3"
 
     $deleteSheets = @()
@@ -306,6 +375,7 @@ catch {
     throw
 }
 finally {
+    Remove-Variable -Name @("candidate", "usedRange", "mainSheet", "component", "codeModule", "targetSheet") -ErrorAction SilentlyContinue
     Close-WorkbookSafely ([ref]$wb) $false
     Close-ExcelSafely ([ref]$excel)
 }

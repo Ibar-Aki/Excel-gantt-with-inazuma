@@ -317,8 +317,8 @@ $workbookPayload = [ordered]@{
     contentBase64 = [Convert]::ToBase64String([System.IO.File]::ReadAllBytes($latestFile.FullName))
 }
 
-$payloadJson = $workbookPayload | ConvertTo-Json -Depth 4
-[System.IO.File]::WriteAllText($workbookPayloadPath, $payloadJson, $utf8NoBom)
+$payloadJson = ($workbookPayload | ConvertTo-Json -Depth 4) -replace "`r`n", "`n"
+[System.IO.File]::WriteAllText($workbookPayloadPath, $payloadJson + "`n", $utf8NoBom)
 
 foreach ($fileName in $activeVbaFiles) {
     Copy-Item -LiteralPath (Join-Path (Join-Path $scriptDir "vba") $fileName) -Destination (Join-Path $vbaDir $fileName) -Force
@@ -331,6 +331,8 @@ foreach ($fileName in $scriptFiles) {
 foreach ($fileName in $docFiles) {
     Copy-Item -LiteralPath (Join-Path (Join-Path $scriptDir "docs") $fileName) -Destination (Join-Path $docsDir $fileName) -Force
 }
+
+$vbaModuleLines = $activeVbaFiles | ForEach-Object { "vba\" + $_ }
 
 $bundleLines = @(
     "# InazumaGantt Lite distribution package",
@@ -357,8 +359,8 @@ $bundleLines = @(
     "scripts\BuildInazumaGantt_Lite_UTF8.ps1",
     "scripts\FixEncoding.ps1",
     "",
-    "[VBA modules]",
-    ($activeVbaFiles | ForEach-Object { "vba\" + $_ }),
+    "[VBA modules]"
+) + $vbaModuleLines + @(
     "",
     "[Workbook payload]",
     "excel\WorkbookPayload.json",
@@ -377,7 +379,8 @@ $bundleLines = @(
     "4. Use scripts\Run_CreateDistributionPackage_Lite.bat to rebuild this distribution folder."
 )
 
-[System.IO.File]::WriteAllLines($bundleTextPath, $bundleLines, $utf8NoBom)
+$bundleText = [string]::Join("`n", $bundleLines)
+[System.IO.File]::WriteAllText($bundleTextPath, $bundleText + "`n", $utf8NoBom)
 
 if (-not (Test-Path -LiteralPath $converterRoot)) {
     throw "Converter root not found: $converterRoot"

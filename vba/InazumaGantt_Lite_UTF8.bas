@@ -34,7 +34,7 @@ Public Const DATA_ROWS_DEFAULT As Long = 1000  ' 初期入力範囲の行数
 Public Const GUIDE_SHEET_NAME As String = "InazumaGantt_説明"
 Public Const MAIN_SHEET_NAME As String = "InazumaGantt_Lite"
 Public Const SETTINGS_SHEET_NAME As String = "設定マスタ"  ' v3
-Public Const HOLIDAY_DATA_START_ROW As Long = 13  ' 設定マスタ内の祝日データ開始行
+Public Const HOLIDAY_DATA_START_ROW As Long = 16  ' 設定マスタ内の祝日データ開始行
 Public Const GUIDE_LEGEND_START_CELL As String = "E1"
 Public Const CELL_PROJECT_START As String = "L2"
 Public Const CELL_DISPLAY_WEEK As String = "L3"
@@ -679,8 +679,10 @@ Sub SetupInazumaGantt(Optional ByVal silentMode As Boolean = False, Optional ByV
     ' P2修正: 元の設定を保存
     Dim prevCalc As XlCalculation
     Dim prevEvents As Boolean
+    Dim prevScreenUpdating As Boolean
     prevCalc = Application.Calculation
     prevEvents = Application.EnableEvents
+    prevScreenUpdating = Application.ScreenUpdating
 
     Application.ScreenUpdating = False
     Application.Calculation = xlCalculationManual
@@ -760,7 +762,8 @@ Sub SetupInazumaGantt(Optional ByVal silentMode As Boolean = False, Optional ByV
             ws.Range(ws.Cells(1, 1), ws.Cells(rollbackEndRow, rollbackEndCol)).Clear
         End If
         Application.Calculation = prevCalc
-        Application.ScreenUpdating = True
+        Application.EnableEvents = prevEvents
+        Application.ScreenUpdating = prevScreenUpdating
         MsgBox "セットアップがキャンセルされました。", vbInformation, "キャンセル"
         Exit Sub
     End If
@@ -821,7 +824,8 @@ Sub SetupInazumaGantt(Optional ByVal silentMode As Boolean = False, Optional ByV
     CreateControlButtons ws, True
 
     Application.Calculation = prevCalc  ' P2修正: 元設定に復元
-    Application.ScreenUpdating = True
+    Application.EnableEvents = prevEvents
+    Application.ScreenUpdating = prevScreenUpdating
 
     If Application.DisplayAlerts Then
         MsgBox "セットアップ完了！" & vbCrLf & "データを入力後、RefreshInazumaGantt を実行してください。", vbInformation, "イナズマガント"
@@ -830,7 +834,8 @@ Sub SetupInazumaGantt(Optional ByVal silentMode As Boolean = False, Optional ByV
 
 ErrorHandler:
     Application.Calculation = prevCalc  ' P2修正: 元設定に復元
-    Application.ScreenUpdating = True
+    Application.EnableEvents = prevEvents
+    Application.ScreenUpdating = prevScreenUpdating
     MsgBox "エラーが発生しました: " & Err.Description, vbCritical, "エラー"
 End Sub
 
@@ -939,7 +944,7 @@ Private Sub EnsureGuideSheet()
 
     ' ダブルクリック完了
     content(11, 1) = "■ ダブルクリックでタスク完了"
-    content(12, 1) = "No.列(B列) をダブルクリックすると、そのタスクが完了になります。"
+    content(12, 1) = "No.列(B列) または状況列(H列) をダブルクリックすると、そのタスクが完了になります。"
     content(13, 1) = ""
     content(14, 1) = "  ・ 状況 → 「完了」"
     content(15, 1) = "  ・ 進捗率 → 100%"
@@ -1167,8 +1172,10 @@ Sub DrawGanttBars(Optional ByVal skipRuntimeStateRepair As Boolean = False)
     ' P2修正: 元の設定を保存
     Dim prevCalc As XlCalculation
     Dim prevEvents As Boolean
+    Dim prevScreenUpdating As Boolean
     prevCalc = Application.Calculation
     prevEvents = Application.EnableEvents
+    prevScreenUpdating = Application.ScreenUpdating
 
     Application.ScreenUpdating = False
     Application.Calculation = xlCalculationManual
@@ -1188,7 +1195,8 @@ Sub DrawGanttBars(Optional ByVal skipRuntimeStateRepair As Boolean = False)
         ganttStartDate = Date
     End If
 
-    DeleteExistingGanttShapes ws
+    Dim touchedShapes As Object
+    Set touchedShapes = CreateObject("Scripting.Dictionary")
 
     ' 各行のバーを描画
     Dim r As Long
@@ -1229,13 +1237,9 @@ Sub DrawGanttBars(Optional ByVal skipRuntimeStateRepair As Boolean = False)
                     cellWidth = ws.Cells(r, endCol).Left + ws.Cells(r, endCol).Width - cellLeft
 
                     ' 予定バー（薄い灰色 + 黒枠線）
-                    Set shp = ws.Shapes.AddShape(msoShapeRectangle, cellLeft, cellTop, cellWidth, barHeight)
-                    shp.Name = "Bar_Plan_" & r
-                    shp.Fill.ForeColor.RGB = COLOR_PLAN
-                    shp.Line.Visible = msoTrue
-                    shp.Line.ForeColor.RGB = RGB(0, 0, 0)  ' 黒枠線
-                    shp.Line.Weight = 1
-                    shp.Placement = xlMoveAndSize
+                    Set shp = UpsertGanttRectangle(ws, touchedShapes, "Bar_Plan_" & r, _
+                                                    cellLeft, cellTop, cellWidth, barHeight, _
+                                                    COLOR_PLAN, True, RGB(0, 0, 0), 1)
 
                     ' 進捗バー（紺色 + 黒枠線）
                     If progress > 0 Then
@@ -1247,13 +1251,9 @@ Sub DrawGanttBars(Optional ByVal skipRuntimeStateRepair As Boolean = False)
                             If progressWidth < ws.Cells(r, startCol).Width Then progressWidth = ws.Cells(r, startCol).Width
                             If progress >= 1 Then progressWidth = cellWidth
 
-                            Set shp = ws.Shapes.AddShape(msoShapeRectangle, cellLeft, cellTop, progressWidth, barHeight)
-                            shp.Name = "Bar_Progress_" & r
-                            shp.Fill.ForeColor.RGB = COLOR_PROGRESS
-                            shp.Line.Visible = msoTrue
-                            shp.Line.ForeColor.RGB = RGB(0, 0, 0)  ' 黒枠線
-                            shp.Line.Weight = 1
-                            shp.Placement = xlMoveAndSize
+                            Set shp = UpsertGanttRectangle(ws, touchedShapes, "Bar_Progress_" & r, _
+                                                            cellLeft, cellTop, progressWidth, barHeight, _
+                                                            COLOR_PROGRESS, True, RGB(0, 0, 0), 1)
                         End If
                     End If
 
@@ -1328,11 +1328,9 @@ Sub DrawGanttBars(Optional ByVal skipRuntimeStateRepair As Boolean = False)
         todayTop = ws.Cells(ROW_DATA_START, todayCol).Top
         todayBottom = ws.Cells(lastRow, todayCol).Top + ws.Cells(lastRow, todayCol).Height
 
-        Set shp = ws.Shapes.AddLine(todayLeft, todayTop, todayLeft, todayBottom)
-        shp.Name = "Today_Line"
-        shp.Line.ForeColor.RGB = COLOR_TODAY
-        shp.Line.Weight = TODAY_LINE_WEIGHT
-        shp.Placement = xlMoveAndSize
+        Set shp = UpsertGanttLine(ws, touchedShapes, "Today_Line", _
+                                  todayLeft, todayTop, todayLeft, todayBottom, _
+                                  COLOR_TODAY, TODAY_LINE_WEIGHT)
     End If
 
     ' イナズマ線を描画（複数ポイントがある場合）
@@ -1345,21 +1343,26 @@ Sub DrawGanttBars(Optional ByVal skipRuntimeStateRepair As Boolean = False)
             freeformBuilder.AddNodes msoSegmentLine, msoEditingAuto, inazumaPoints(p, 1), inazumaPoints(p, 2)
         Next p
 
+        DeleteShapeIfExists ws, "Inazuma_Line"
         Set shp = freeformBuilder.ConvertToShape
         shp.Name = "Inazuma_Line"
         shp.Line.ForeColor.RGB = COLOR_INAZUMA
         shp.Line.Weight = 2
         shp.Fill.Visible = msoFalse
         shp.Placement = xlMoveAndSize
+        touchedShapes(shp.Name) = True
     End If
 
+    DeleteUntouchedGanttShapes ws, touchedShapes
     Application.Calculation = prevCalc  ' P2修正: 元設定に復元
-    Application.ScreenUpdating = True
+    Application.EnableEvents = prevEvents
+    Application.ScreenUpdating = prevScreenUpdating
     Exit Sub
 
 ErrorHandler:
     Application.Calculation = prevCalc  ' P2修正: 元設定に復元
-    Application.ScreenUpdating = True
+    Application.EnableEvents = prevEvents
+    Application.ScreenUpdating = prevScreenUpdating
     MsgBox "DrawGanttBars エラー: " & Err.Description, vbCritical, "エラー"
 End Sub
 
@@ -1424,6 +1427,104 @@ Private Sub DeleteExistingGanttShapes(ByVal ws As Worksheet)
     Next shapeIndex
 End Sub
 
+Private Function IsManagedGanttShapeName(ByVal shapeName As String) As Boolean
+    IsManagedGanttShapeName = (Left$(shapeName, 4) = "Bar_" Or _
+                               Left$(shapeName, 6) = "Today_" Or _
+                               Left$(shapeName, 8) = "Inazuma_")
+End Function
+
+Private Sub DeleteShapeIfExists(ByVal ws As Worksheet, ByVal shapeName As String)
+    On Error Resume Next
+    ws.Shapes(shapeName).Delete
+    On Error GoTo 0
+End Sub
+
+Private Function GetShapeIfExists(ByVal ws As Worksheet, ByVal shapeName As String) As Shape
+    On Error Resume Next
+    Set GetShapeIfExists = ws.Shapes(shapeName)
+    On Error GoTo 0
+End Function
+
+Private Function UpsertGanttRectangle(ByVal ws As Worksheet, ByVal touchedShapes As Object, _
+                                      ByVal shapeName As String, ByVal leftPos As Double, _
+                                      ByVal topPos As Double, ByVal shapeWidth As Double, _
+                                      ByVal shapeHeight As Double, ByVal fillColor As Long, _
+                                      ByVal showLine As Boolean, ByVal lineColor As Long, _
+                                      ByVal lineWeight As Double) As Shape
+    Dim shp As Shape
+
+    Set shp = GetShapeIfExists(ws, shapeName)
+    If shp Is Nothing Then
+        Set shp = ws.Shapes.AddShape(msoShapeRectangle, leftPos, topPos, shapeWidth, shapeHeight)
+        shp.Name = shapeName
+    Else
+        With shp
+            .Left = leftPos
+            .Top = topPos
+            .Width = shapeWidth
+            .Height = shapeHeight
+        End With
+    End If
+
+    With shp
+        .Fill.ForeColor.RGB = fillColor
+        .Line.Visible = IIf(showLine, msoTrue, msoFalse)
+        If showLine Then
+            .Line.ForeColor.RGB = lineColor
+            .Line.Weight = lineWeight
+        End If
+        .Placement = xlMoveAndSize
+    End With
+
+    touchedShapes(shapeName) = True
+    Set UpsertGanttRectangle = shp
+End Function
+
+Private Function UpsertGanttLine(ByVal ws As Worksheet, ByVal touchedShapes As Object, _
+                                 ByVal shapeName As String, ByVal beginX As Double, _
+                                 ByVal beginY As Double, ByVal endX As Double, _
+                                 ByVal endY As Double, ByVal lineColor As Long, _
+                                 ByVal lineWeight As Double) As Shape
+    Dim shp As Shape
+
+    Set shp = GetShapeIfExists(ws, shapeName)
+    If shp Is Nothing Then
+        Set shp = ws.Shapes.AddLine(beginX, beginY, endX, endY)
+        shp.Name = shapeName
+    Else
+        With shp
+            .Left = beginX
+            .Top = beginY
+            .Width = endX - beginX
+            .Height = endY - beginY
+        End With
+    End If
+
+    With shp
+        .Line.ForeColor.RGB = lineColor
+        .Line.Weight = lineWeight
+        .Placement = xlMoveAndSize
+        .ZOrder msoBringToFront
+    End With
+
+    touchedShapes(shapeName) = True
+    Set UpsertGanttLine = shp
+End Function
+
+Private Sub DeleteUntouchedGanttShapes(ByVal ws As Worksheet, ByVal touchedShapes As Object)
+    Dim shapeIndex As Long
+    Dim shapeName As String
+
+    For shapeIndex = ws.Shapes.Count To 1 Step -1
+        shapeName = ws.Shapes(shapeIndex).Name
+        If IsManagedGanttShapeName(shapeName) Then
+            If touchedShapes Is Nothing Or Not touchedShapes.Exists(shapeName) Then
+                ws.Shapes(shapeIndex).Delete
+            End If
+        End If
+    Next shapeIndex
+End Sub
+
 Private Function GetCenteredBarTop(ByVal ws As Worksheet, ByVal targetRow As Long, ByVal targetCol As Long, _
                                    ByVal barHeight As Double) As Double
     GetCenteredBarTop = ws.Cells(targetRow, targetCol).Top + (ws.Cells(targetRow, targetCol).Height - barHeight) / 2
@@ -1431,7 +1532,7 @@ End Function
 
 
 ' ==========================================
-'  祝日列の色塗り（設定マスタ B13:B28）
+'  祝日列の色塗り（設定マスタ A16 以降）
 ' ==========================================
 Private Sub ApplyHolidayColors(ByVal ws As Worksheet, ByVal lastRow As Long)
     Dim wsSettings As Worksheet
@@ -1845,38 +1946,6 @@ Private Sub CreateControlButtons(ByVal ws As Worksheet, Optional ByVal skipRunti
         .OnAction = "ToggleBulkEditMode"
     End With
 
-    ' WBS退避ボタン
-    btnLeft = btnLeft + btnWidth + 10
-    Dim btnBackup As Shape
-    Set btnBackup = ws.Shapes.AddShape(msoShapeRoundedRectangle, btnLeft, btnTop, btnWidth, btnHeight)
-    With btnBackup
-        .Name = "Btn_WbsBackup"
-        .Fill.ForeColor.RGB = RGB(96, 73, 122)
-        .Line.Visible = msoFalse
-        .TextFrame2.TextRange.Characters.Text = "WBS退避"
-        .TextFrame2.TextRange.Font.Fill.ForeColor.RGB = RGB(255, 255, 255)
-        .TextFrame2.TextRange.Font.Size = 10
-        .TextFrame2.TextRange.ParagraphFormat.Alignment = msoAlignCenter
-        .TextFrame2.VerticalAnchor = msoAnchorMiddle
-        .OnAction = "CreateWbsBackupSheet"
-    End With
-
-    ' バックアップ復元ボタン
-    btnLeft = btnLeft + btnWidth + 10
-    Dim btnRestore As Shape
-    Set btnRestore = ws.Shapes.AddShape(msoShapeRoundedRectangle, btnLeft, btnTop, btnWidth + 20, btnHeight)
-    With btnRestore
-        .Name = "Btn_WbsRestore"
-        .Fill.ForeColor.RGB = RGB(112, 48, 160)
-        .Line.Visible = msoFalse
-        .TextFrame2.TextRange.Characters.Text = "バックアップ復元"
-        .TextFrame2.TextRange.Font.Fill.ForeColor.RGB = RGB(255, 255, 255)
-        .TextFrame2.TextRange.Font.Size = 9
-        .TextFrame2.TextRange.ParagraphFormat.Alignment = msoAlignCenter
-        .TextFrame2.VerticalAnchor = msoAnchorMiddle
-        .OnAction = "RestoreWbsFromBackupSheet"
-    End With
-
     UpdateBulkEditModeIndicator ws, repairNote
 
     ' 日付シフトボタン (v3追加)
@@ -2278,19 +2347,114 @@ Private Function GetSettingsWorksheet() As Worksheet
     On Error GoTo 0
 End Function
 
+Private Sub AddSettingsCommandButton(ByVal wsSettings As Worksheet, ByVal shapeName As String, _
+                                     ByVal caption As String, ByVal macroName As String, _
+                                     ByVal leftPos As Double, ByVal topPos As Double, _
+                                     ByVal buttonWidth As Double, ByVal buttonHeight As Double, _
+                                     ByVal fillColor As Long)
+    Dim btn As Shape
+
+    Set btn = wsSettings.Shapes.AddShape(msoShapeRoundedRectangle, leftPos, topPos, buttonWidth, buttonHeight)
+    With btn
+        .Name = shapeName
+        .Fill.ForeColor.RGB = fillColor
+        .Line.Visible = msoFalse
+        .TextFrame2.TextRange.Characters.Text = caption
+        .TextFrame2.TextRange.Font.Fill.ForeColor.RGB = RGB(255, 255, 255)
+        .TextFrame2.TextRange.Font.Size = 10
+        .TextFrame2.TextRange.ParagraphFormat.Alignment = msoAlignCenter
+        .TextFrame2.VerticalAnchor = msoAnchorMiddle
+        .OnAction = macroName
+    End With
+End Sub
+
+Private Sub EnsureSettingsCommandButtons(ByVal wsSettings As Worksheet)
+    Dim shp As Shape
+    Dim leftPos As Double
+    Dim topPos As Double
+    Dim buttonWidth As Double
+    Dim buttonHeight As Double
+
+    If wsSettings Is Nothing Then Exit Sub
+
+    On Error Resume Next
+    For Each shp In wsSettings.Shapes
+        If Left$(shp.Name, 13) = "Btn_Settings_" Then shp.Delete
+    Next shp
+    On Error GoTo 0
+
+    wsSettings.Range("E3").Value = "WBS操作"
+    wsSettings.Range("E3").Font.Bold = True
+    wsSettings.Range("E4:H4").ClearContents
+    wsSettings.Range("E4").Value = "退避・復元・サマリ作成はここから実行します。"
+    wsSettings.Range("E4:H4").Merge
+    wsSettings.Range("E4:H4").WrapText = True
+
+    leftPos = wsSettings.Range("E5").Left
+    topPos = wsSettings.Range("E5").Top
+    buttonWidth = 110
+    buttonHeight = 24
+
+    AddSettingsCommandButton wsSettings, "Btn_Settings_WbsBackup", "WBS退避", "CreateWbsBackupSheet", _
+                             leftPos, topPos, buttonWidth, buttonHeight, RGB(96, 73, 122)
+    AddSettingsCommandButton wsSettings, "Btn_Settings_WbsRestore", "バックアップ復元", "RestoreWbsFromBackupSheet", _
+                             leftPos + buttonWidth + 8, topPos, buttonWidth + 20, buttonHeight, RGB(112, 48, 160)
+    AddSettingsCommandButton wsSettings, "Btn_Settings_WbsSummary", "WBSサマリ作成", "WBSRoadmapReport.CreateRoadmapOverview", _
+                             leftPos + buttonWidth * 2 + 36, topPos, buttonWidth + 15, buttonHeight, RGB(84, 130, 53)
+
+    wsSettings.Columns("E:H").ColumnWidth = 14
+End Sub
+
+Private Sub NormalizeHolidayMasterRows(ByVal wsSettings As Worksheet)
+    Dim holidayDates As Object
+    Dim r As Long
+    Dim writeRow As Long
+    Dim dateKey As String
+    Dim cellValue As Variant
+    Dim key As Variant
+
+    If wsSettings Is Nothing Then Exit Sub
+
+    Set holidayDates = CreateObject("Scripting.Dictionary")
+    For r = 13 To 45
+        cellValue = wsSettings.Cells(r, "A").Value
+        If IsDate(cellValue) Then
+            dateKey = Format$(CDate(cellValue), "yyyy-mm-dd")
+            If Not holidayDates.Exists(dateKey) Then holidayDates.Add dateKey, CDate(cellValue)
+        End If
+    Next r
+
+    wsSettings.Range("A13:A45").ClearContents
+    writeRow = HOLIDAY_DATA_START_ROW
+    For Each key In holidayDates.Keys
+        wsSettings.Cells(writeRow, "A").Value = holidayDates(key)
+        writeRow = writeRow + 1
+        If writeRow > 45 Then Exit For
+    Next key
+End Sub
+
 Private Sub EnsureBulkEditSettingSection(ByVal wsSettings As Worksheet)
+    Dim bulkModeValue As String
+
     If wsSettings Is Nothing Then Exit Sub
 
     wsSettings.Range("A9").Value = "高速入力モード"
-    If Trim$(CStr(wsSettings.Range("B9").Value)) = "" Then
-        wsSettings.Range("B9").Value = False
-    Else
-        wsSettings.Range("B9").Value = CBool(wsSettings.Range("B9").Value)
-    End If
-    wsSettings.Range("C9").Value = "← TRUE: LV/No は即時更新し、親集計・色分け・ガントを一時保留"
-    wsSettings.Range("A10").Value = "挙動"
-    wsSettings.Range("C10").Value = "← LV/No は即時更新。親集計・色分け・ガントは OFF 復帰時または手動更新で反映"
+    bulkModeValue = UCase$(Trim$(CStr(wsSettings.Range("B9").Value)))
+    wsSettings.Range("B9").Value = (bulkModeValue = "TRUE" Or bulkModeValue = "1" Or bulkModeValue = "ON")
+    wsSettings.Range("C9").Value = "TRUE: 大量貼り付け中だけ、親集計・色分け・ガント更新を止めます。通常作業では FALSE のまま使います。"
+    wsSettings.Range("A10").Value = "更新の戻し方"
+    wsSettings.Range("B10").Value = "FALSE/ガント更新"
+    wsSettings.Range("C10").Value = "B9 を FALSE に戻すか、メインシートの「ガント更新」を押すと、保留した更新をまとめて反映します。"
     wsSettings.Range("B9:B10").HorizontalAlignment = xlCenter
+    wsSettings.Range("A9:C10").WrapText = True
+    wsSettings.Range("A9:A10").Font.Bold = True
+    wsSettings.Range("A9:C10").Interior.Color = RGB(255, 242, 204)
+    wsSettings.Range("A9:C10").VerticalAlignment = xlCenter
+    wsSettings.Rows("9:10").RowHeight = 36
+    With wsSettings.Range("B9").Validation
+        .Delete
+        .Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, Formula1:="TRUE,FALSE"
+    End With
 
     wsSettings.Range("A11").Value = "WBSサマリ表示階層"
     If Trim$(CStr(wsSettings.Range("B11").Value)) = "" Then wsSettings.Range("B11").Value = "LV1のみ"
@@ -2316,6 +2480,11 @@ Sub EnsureSettingsSheet()
         Set wsSettings = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
         wsSettings.Name = SETTINGS_SHEET_NAME
     End If
+
+    On Error Resume Next
+    wsSettings.Range("E4:H4").UnMerge
+    On Error GoTo 0
+    NormalizeHolidayMasterRows wsSettings
 
     ' === タイトル (A1) ===
     wsSettings.Range("A1").Value = "設定マスタ"
@@ -2343,8 +2512,8 @@ Sub EnsureSettingsSheet()
     wsSettings.Range("C7").Value = "← TRUE: タスクを濃い灰色に変更"
 
     wsSettings.Columns("A").ColumnWidth = 18
-    wsSettings.Columns("B").ColumnWidth = 8
-    wsSettings.Columns("C").ColumnWidth = 45
+    wsSettings.Columns("B").ColumnWidth = 16
+    wsSettings.Columns("C").ColumnWidth = 70
     wsSettings.Range("B4:B7").HorizontalAlignment = xlCenter
 
     ' ダブルクリック設定エリアの罫線 (A4:C7)
@@ -2355,30 +2524,31 @@ Sub EnsureSettingsSheet()
     End With
 
     EnsureBulkEditSettingSection wsSettings
+    EnsureSettingsCommandButtons wsSettings
 
-    ' === 祝日マスタセクション (A12, A13-A27, B12-B18) ===
-    wsSettings.Range("A12").Value = "祝日マスタ"
-    wsSettings.Range("A12").Font.Bold = True
-    wsSettings.Range("A12").Interior.Color = RGB(48, 84, 150)
-    wsSettings.Range("A12").Font.Color = RGB(255, 255, 255)
+    ' === 祝日マスタセクション (A15, A16-A45) ===
+    wsSettings.Range("A15").Value = "祝日マスタ"
+    wsSettings.Range("A15").Font.Bold = True
+    wsSettings.Range("A15").Interior.Color = RGB(48, 84, 150)
+    wsSettings.Range("A15").Font.Color = RGB(255, 255, 255)
 
-    wsSettings.Range("B12").Value = "【祝日マスタの使い方】"
-    wsSettings.Range("B12").Font.Bold = True
+    wsSettings.Range("B15").Value = "【祝日マスタの使い方】"
+    wsSettings.Range("B15").Font.Bold = True
 
-    ' 祝日入力エリア（A13:A27）
-    wsSettings.Range("A13:A27").NumberFormat = "yy/mm/dd"
-    With wsSettings.Range("A13:A27").Borders
+    ' 祝日入力エリア（A16:A45）
+    wsSettings.Range("A16:A45").NumberFormat = "yy/mm/dd"
+    With wsSettings.Range("A16:A45").Borders
         .LineStyle = xlContinuous
         .Weight = xlThin
         .ColorIndex = 48
     End With
 
     ' 説明テキスト（B列）
-    wsSettings.Range("B13").Value = "A列に祝日の日付を入力してください。"
-    wsSettings.Range("B14").Value = "入力した日付はガントチャート上で濃い灰色で表示されます。"
-    wsSettings.Range("B16").Value = "例: 26/01/01, 26/01/13, 26/02/11 ..."
-    wsSettings.Range("B16").Font.Color = RGB(128, 128, 128)
-    wsSettings.Range("B18").Value = "※ ガント更新後に反映されます。"
+    wsSettings.Range("B16").Value = "A16 以下に祝日の日付を入力してください。"
+    wsSettings.Range("B17").Value = "入力した日付はガントチャート上で濃い灰色で表示されます。"
+    wsSettings.Range("B19").Value = "例: 26/01/01, 26/01/13, 26/02/11 ..."
+    wsSettings.Range("B19").Font.Color = RGB(128, 128, 128)
+    wsSettings.Range("B21").Value = "※ ガント更新後に反映されます。"
 
     ' 目盛線オフ
     If ThisWorkbook.Windows.Count > 0 Then
@@ -2662,7 +2832,7 @@ Sub ShiftDates()
     If Not wsSettings Is Nothing Then
         Dim lastHolidayRow As Long
         lastHolidayRow = wsSettings.Cells(wsSettings.Rows.Count, "A").End(xlUp).Row
-        ' 設定マスタは13行目から祝日データ
+        ' 設定マスタは16行目から祝日データ
         If lastHolidayRow >= HOLIDAY_DATA_START_ROW Then
             Set holidays = wsSettings.Range("A" & HOLIDAY_DATA_START_ROW & ":A" & lastHolidayRow)
         End If

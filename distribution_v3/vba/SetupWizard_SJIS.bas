@@ -72,6 +72,8 @@ Sub RunSetupWizard()
     Dim result As VbMsgBoxResult
     Dim mainSheet As Worksheet
     Dim hasShowcaseSample As Boolean
+    Dim prevScreenUpdating As Boolean
+    Dim appStateCaptured As Boolean
 
     ' ステップ1: 開始確認
     result = MsgBox("InazumaGantt セットアップウィザードへようこそ！" & vbCrLf & vbCrLf & _
@@ -125,6 +127,8 @@ Sub RunSetupWizard()
     End If
     mainSheet.Activate
 
+    prevScreenUpdating = Application.ScreenUpdating
+    appStateCaptured = True
     Application.ScreenUpdating = False
 
 ' v3: 設定マスタシートを作成
@@ -146,7 +150,7 @@ Sub RunSetupWizard()
         WBSSampleShowcase.FinalizeShowcasePresentation True, roadmapReferenceDate
     End If
 
-    Application.ScreenUpdating = True
+    Application.ScreenUpdating = prevScreenUpdating
 
     ' ステップ5: 完了
     MsgBox "セットアップウィザードが完了しました！" & vbCrLf & vbCrLf & _
@@ -161,6 +165,11 @@ Sub RunSetupWizard()
     Exit Sub
 
 ErrorHandler:
+    If appStateCaptured Then
+        Application.ScreenUpdating = prevScreenUpdating
+    Else
+        Application.ScreenUpdating = True
+    End If
     MsgBox "セットアップ中にエラーが発生しました: " & Err.Description, vbCritical, "エラー"
 End Sub
 
