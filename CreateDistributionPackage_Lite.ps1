@@ -273,7 +273,8 @@ $scriptFiles = @(
 )
 
 $docFiles = @(
-    "RestoreGuide_Lite.md"
+    "RestoreGuide_Lite.md",
+    "高速入力_状況_進捗率仕様レポート.md"
 )
 
 $fixEncodingScript = Join-Path $scriptDir "FixEncoding.ps1"
@@ -333,6 +334,7 @@ foreach ($fileName in $docFiles) {
 }
 
 $vbaModuleLines = $activeVbaFiles | ForEach-Object { "vba\" + $_ }
+$docLines = $docFiles | ForEach-Object { "docs\" + $_ }
 
 $bundleLines = @(
     "# InazumaGantt Lite distribution package",
@@ -365,8 +367,8 @@ $bundleLines = @(
     "[Workbook payload]",
     "excel\WorkbookPayload.json",
     "",
-    "[Documents]",
-    "docs\RestoreGuide_Lite.md",
+    "[Documents]"
+) + $docLines + @(
     "",
     "[VBA note]",
     "Use *_UTF8.bas files for editing and manual copy/paste into the VBA editor.",

@@ -301,6 +301,12 @@ Private Function ConfirmWeekendPlanDates(ByVal warningLines As Collection, _
     displayCount = warningLines.Count
     If displayCount > 10 Then displayCount = 10
 
+    If InazumaGantt_v3.IsAutomationModeEnabled() Then
+        InazumaGantt_v3.LogAutomationEvent "WeekendPlanDateConfirmed", "automationMode=True; count=" & CStr(warningLines.Count), Me.Name
+        ConfirmWeekendPlanDates = True
+        Exit Function
+    End If
+
     If warningLines.Count = 1 Then
         messageText = warningLines(1) & " です。" & vbCrLf & _
                       "この日付を入力しますか？"

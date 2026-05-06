@@ -9,6 +9,7 @@ Private Const ROADMAP_COMPLETE_COLOR As Long = 5287936
 Private Const ROADMAP_PLAN_COLOR As Long = 10921638
 Private Const ROADMAP_CHILD_ROW_FILL As Long = 16448250
 Private Const ROADMAP_CELL_FONT As String = "MS Gothic"
+Private Const ROADMAP_EMPTY_SLOT_COLOR As Long = 16777215
 
 Private Function RequireMainWorksheet(ByVal operationName As String) As Worksheet
     On Error Resume Next
@@ -348,7 +349,7 @@ Private Function MonthStartDate(ByVal targetDate As Date) As Date
 End Function
 
 Private Function GetRoadmapEmptySlot() As String
-    GetRoadmapEmptySlot = ChrW$(&H3000)
+    GetRoadmapEmptySlot = "□"
 End Function
 
 Private Function ResolveRoadmapStartDate(ByVal metrics As Variant) As Variant
@@ -423,6 +424,7 @@ Private Sub SetRoadmapMonthCell(ByVal targetCell As Range, ByVal planStart As Va
     Dim secondHalfStart As Date
     Dim slotText(1 To 2) As String
     Dim slotColor(1 To 2) As Long
+    Dim slotHasSchedule(1 To 2) As Boolean
     Dim slotStart(1 To 2) As Date
     Dim slotEnd(1 To 2) As Date
     Dim i As Long
@@ -444,12 +446,14 @@ Private Sub SetRoadmapMonthCell(ByVal targetCell As Range, ByVal planStart As Va
 
     For i = 1 To 2
         slotText(i) = GetRoadmapEmptySlot()
-        slotColor(i) = 0
+        slotColor(i) = ROADMAP_EMPTY_SLOT_COLOR
+        slotHasSchedule(i) = False
 
         If IsDate(planStart) And IsDate(planEnd) Then
             If SlotOverlaps(slotStart(i), slotEnd(i), CDate(planStart), CDate(planEnd)) Then
                 slotText(i) = "□"
                 slotColor(i) = ROADMAP_PLAN_COLOR
+                slotHasSchedule(i) = True
             End If
         End If
 
@@ -457,18 +461,24 @@ Private Sub SetRoadmapMonthCell(ByVal targetCell As Range, ByVal planStart As Va
             If SlotOverlaps(slotStart(i), slotEnd(i), CDate(planStart), CDate(progressEnd)) Then
                 slotText(i) = "■"
                 slotColor(i) = progressColor
+                slotHasSchedule(i) = True
             End If
         End If
 
     Next i
 
-    targetCell.Value = slotText(1) & slotText(2)
     targetCell.NumberFormat = "@"
     targetCell.HorizontalAlignment = xlCenter
     targetCell.Font.Name = ROADMAP_CELL_FONT
     targetCell.Font.Color = RGB(0, 0, 0)
-    targetCell.Characters(1, 1).Font.Color = slotColor(1)
-    targetCell.Characters(2, 1).Font.Color = slotColor(2)
+
+    If Not slotHasSchedule(1) And Not slotHasSchedule(2) Then
+        targetCell.ClearContents
+    Else
+        targetCell.Value = slotText(1) & slotText(2)
+        targetCell.Characters(1, 1).Font.Color = slotColor(1)
+        targetCell.Characters(2, 1).Font.Color = slotColor(2)
+    End If
 End Sub
 
 Private Sub ApplyRoadmapTableStyle(ByVal ws As Worksheet, ByVal lastCol As Long, ByVal lastRow As Long)
@@ -626,7 +636,7 @@ Public Sub CreateRoadmapOverviewSheet(Optional ByVal referenceDate As Variant)
     wsRoadmap.Range("A1").Value = ROADMAP_SHEET_NAME
     wsRoadmap.Range("A2").Value = "生成日時: " & Format$(Now, "yy/mm/dd hh:mm")
     wsRoadmap.Range("A3").Value = "凡例:"
-    wsRoadmap.Range("B3").Value = "■　進捗済み, □　残予定, 　■ 後半予定"
+    wsRoadmap.Range("B3").Value = "■ 進捗済み, □ 残予定, 白□ 予定なし（同月内に予定がある半月のみ表示）"
     If displayDepth >= 2 Then wsRoadmap.Range("D3").Value = "LV2行は左端のアウトラインで展開できます。"
     wsRoadmap.Range("A5:G5").Value = Array("No.", "WBS項目", "進捗率", "総LT", "残LT", "完了日", "判定")
 

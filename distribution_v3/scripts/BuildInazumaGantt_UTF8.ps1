@@ -82,6 +82,32 @@ function Invoke-WorksheetChangeSmoke($excelApp, $workbook, [string]$sheetName) {
         if ([math]::Abs($parentProgress - 0.5) -gt 0.001 -or [math]::Abs($parentHours - 4) -gt 0.001 -or $null -eq $parentStart -or $null -eq $parentEnd) {
             throw ("Worksheet_Change smoke test failed: parent progress={0}, hours={1}, start={2}, end={3}" -f $parentProgress, $parentHours, $parentStart, $parentEnd)
         }
+
+        $progressRow = $startRow + 1
+        $statusRow = $startRow + 2
+
+        $worksheet.Range("I${progressRow}").Value2 = 70
+        if (-not $excelApp.EnableEvents) {
+            throw "Worksheet_Change smoke test failed: EnableEvents was not restored after progress edit"
+        }
+        $progressStatus = [string]$worksheet.Range("H${progressRow}").Value2
+        $progressRate = [double]$worksheet.Range("I${progressRow}").Value2
+        if ($progressStatus -ne "進行中" -or [math]::Abs($progressRate - 0.7) -gt 0.001) {
+            throw ("Worksheet_Change smoke test failed: progress edit status={0}, rate={1}" -f $progressStatus, $progressRate)
+        }
+
+        $excelApp.EnableEvents = $false
+        $worksheet.Range("H${statusRow}:I${statusRow}").ClearContents() | Out-Null
+        $excelApp.EnableEvents = $true
+        $worksheet.Range("H${statusRow}").Value2 = "進行中"
+        if (-not $excelApp.EnableEvents) {
+            throw "Worksheet_Change smoke test failed: EnableEvents was not restored after status edit"
+        }
+        $manualStatus = [string]$worksheet.Range("H${statusRow}").Value2
+        $manualProgress = [double]$worksheet.Range("I${statusRow}").Value2
+        if ($manualStatus -ne "進行中" -or [math]::Abs($manualProgress - 0.5) -gt 0.001) {
+            throw ("Worksheet_Change smoke test failed: status edit status={0}, progress={1}" -f $manualStatus, $manualProgress)
+        }
     }
     catch {
         throw ("Worksheet_Change smoke test failed: {0}" -f $_.Exception.Message)
@@ -99,13 +125,29 @@ function Invoke-WorksheetChangeSmoke($excelApp, $workbook, [string]$sheetName) {
     }
 }
 
+function Invoke-BulkEditToggleSmoke($excelApp, $workbook, [string]$mainSheetName) {
+    $worksheet = Get-WorksheetOrThrow $workbook $mainSheetName
+    $settings = Get-WorksheetOrThrow $workbook "設定マスタ"
+
+    $worksheet.Activate() | Out-Null
+    $excelApp.EnableEvents = $true
+    Invoke-WorkbookMacroOrThrow $excelApp $workbook "ToggleBulkEditMode"
+    if (-not [bool]$settings.Range("B9").Value2 -or $excelApp.EnableEvents) {
+        throw ("Bulk edit ON smoke test failed: setting={0}, EnableEvents={1}" -f $settings.Range("B9").Value2, $excelApp.EnableEvents)
+    }
+
+    Invoke-WorkbookMacroOrThrow $excelApp $workbook "ToggleBulkEditMode"
+    if ([bool]$settings.Range("B9").Value2 -or -not $excelApp.EnableEvents) {
+        throw ("Bulk edit OFF smoke test failed: setting={0}, EnableEvents={1}" -f $settings.Range("B9").Value2, $excelApp.EnableEvents)
+    }
+}
+
 function Invoke-CoreSmokeMacros($excelApp, $workbook, [string]$mainSheetName) {
     Invoke-WorkbookMacroOrThrow $excelApp $workbook "RefreshInazumaGantt"
     Invoke-WorksheetChangeSmoke $excelApp $workbook $mainSheetName
     Invoke-WorkbookMacroOrThrow $excelApp $workbook "RefreshInazumaGantt"
     Invoke-WorkbookMacroOrThrow $excelApp $workbook "CreateWbsBackupSheetSilent"
-    Invoke-WorkbookMacroOrThrow $excelApp $workbook "ToggleBulkEditMode"
-    Invoke-WorkbookMacroOrThrow $excelApp $workbook "ToggleBulkEditMode"
+    Invoke-BulkEditToggleSmoke $excelApp $workbook $mainSheetName
     Invoke-WorkbookMacroOrThrow $excelApp $workbook "RestoreWbsFromBackupSheetSilent"
 }
 

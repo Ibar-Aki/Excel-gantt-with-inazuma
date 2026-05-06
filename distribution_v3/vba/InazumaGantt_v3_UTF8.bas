@@ -74,7 +74,10 @@ Public Const AUXILIARY_TASK_PLACEHOLDER As String = "（補助情報のみ）"
 Private Const HIDDEN_VALUE_NUMBER_FORMAT As String = ";;;"
 Public Const SETTINGS_ROW_BULK_EDIT_MODE As Long = 9
 Public Const SETTINGS_ROW_WBS_SUMMARY_DEPTH As Long = 11
+Public Const SETTINGS_ROW_AUTOMATION_MODE As Long = 12
 Private Const BULK_EDIT_STATUS_RANGE As String = "A3:J3"
+Private Const LOG_SHEET_NAME As String = "_InazumaGantt_Log"
+Private Const LOG_MAX_ROWS As Long = 2000
 
 Private Function GetMainWorksheet() As Worksheet
     On Error Resume Next
@@ -434,6 +437,27 @@ Private Sub ReconcileDeferredTaskState(ByVal ws As Worksheet)
     DrawGanttBars True
 End Sub
 
+Private Function BuildLiveTaskLevelFormulaR1C1() As String
+    BuildLiveTaskLevelFormulaR1C1 = "=IF(LEN(TRIM(RC[5]))>0,4,IF(LEN(TRIM(RC[4]))>0,3,IF(LEN(TRIM(RC[3]))>0,2,IF(AND(LEN(TRIM(RC[2]))>0,TRIM(RC[2])<>""（補助情報のみ）"",TRIM(RC[2])<>""! （補助情報のみ）"",TRIM(RC[2])<>""!! （補助情報のみ）"",TRIM(RC[2])<>""!"",TRIM(RC[2])<>""!!""),1,""""))))"
+End Function
+
+Private Sub PrepareLiveTaskLevelHintsForBulkEdit(ByVal ws As Worksheet)
+    Dim r As Long
+    Dim lastSupportedRow As Long
+
+    If ws Is Nothing Then Exit Sub
+
+    lastSupportedRow = ROW_DATA_START + DATA_ROWS_DEFAULT - 1
+    For r = ROW_DATA_START To lastSupportedRow
+        If Trim$(CStr(ws.Cells(r, COL_HIERARCHY).Value)) = "" Then
+            If Not HasPrimaryTaskContentInRow(ws, r) Then
+                ws.Cells(r, COL_HIERARCHY).FormulaR1C1 = BuildLiveTaskLevelFormulaR1C1()
+                ws.Cells(r, COL_HIERARCHY).NumberFormat = "General"
+            End If
+        End If
+    Next r
+End Sub
+
 Public Sub CancelDeferredBulkEditReconcile()
 End Sub
 
@@ -478,9 +502,9 @@ Private Function TryParseProgressValue(ByVal progressValue As Variant, ByRef nor
     If Not IsNumeric(textValue) Then Exit Function
 
     normalizedValue = CDbl(textValue)
+    If normalizedValue < 0 Then Exit Function
     If normalizedValue > 1 Then normalizedValue = normalizedValue / 100
-    If normalizedValue < 0 Then normalizedValue = 0
-    If normalizedValue > 1 Then normalizedValue = 1
+    If normalizedValue < 0 Or normalizedValue > 1 Then Exit Function
 
     TryParseProgressValue = True
 End Function
@@ -583,19 +607,13 @@ Public Sub SyncTaskStatusAndProgressRow(ByVal ws As Worksheet, ByVal targetRow A
         Case STATUS_COMPLETED
             progressRate = 1
         Case STATUS_NOT_STARTED
-            If progressText = "" Or progressRate <= 0 Then
-                progressRate = 0
-            ElseIf progressRate >= 1 Then
-                statusText = STATUS_COMPLETED
-                progressRate = 1
-            Else
-                statusText = STATUS_IN_PROGRESS
+            progressRate = 0
+        Case STATUS_IN_PROGRESS
+            If progressText = "" Or progressRate <= 0 Or progressRate >= 1 Then
+                progressRate = 0.5
             End If
         Case STATUS_ON_HOLD
-            If progressRate >= 1 Then
-                statusText = STATUS_COMPLETED
-                progressRate = 1
-            ElseIf progressText = "" Then
+            If progressText = "" Then
                 progressRate = 0
             End If
         Case Else
@@ -866,8 +884,11 @@ Private Sub ApplyDataValidationAndFormats(ByVal ws As Worksheet, ByVal lastRow A
         .NumberFormat = "0%"
         With .Validation
             .Delete
-            .Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, Formula1:="0%,10%,20%,30%,40%,50%,60%,70%,80%,90%,100%"
-            .InCellDropdown = True
+            .Add Type:=xlValidateDecimal, AlertStyle:=xlValidAlertStop, Operator:=xlBetween, Formula1:="0", Formula2:="100"
+            .ShowInput = False
+            .ErrorTitle = "進捗率の入力エラー"
+            .ErrorMessage = "0 から 100 までの数値、または 0% から 100% の割合で入力してください。"
+            .InCellDropdown = False
         End With
     End With
 
@@ -875,6 +896,9 @@ Private Sub ApplyDataValidationAndFormats(ByVal ws As Worksheet, ByVal lastRow A
     With ws.Range(COL_STATUS & ROW_DATA_START & ":" & COL_STATUS & lastRow).Validation
         .Delete
         .Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, Formula1:="未着手,進行中,完了,保留"
+        .ShowInput = False
+        .ErrorTitle = "状況の入力エラー"
+        .ErrorMessage = "未着手、進行中、完了、保留のいずれかを入力してください。"
         .InCellDropdown = True
     End With
 
@@ -1436,7 +1460,9 @@ Sub DrawGanttBars(Optional ByVal skipRuntimeStateRepair As Boolean = False)
         touchedShapes(shp.Name) = True
     End If
 
-    DeleteUntouchedGanttShapes ws, touchedShapes
+    Dim deletedShapeCount As Long
+    deletedShapeCount = DeleteUntouchedGanttShapes(ws, touchedShapes)
+    LogGanttRefresh ws, ROW_DATA_START, lastRow, touchedShapes.Count, deletedShapeCount
     Application.Calculation = prevCalc  ' P2修正: 元設定に復元
     Application.EnableEvents = prevEvents
     Application.ScreenUpdating = prevScreenUpdating
@@ -1594,19 +1620,22 @@ Private Function UpsertGanttLine(ByVal ws As Worksheet, ByVal touchedShapes As O
     Set UpsertGanttLine = shp
 End Function
 
-Private Sub DeleteUntouchedGanttShapes(ByVal ws As Worksheet, ByVal touchedShapes As Object)
+Private Function DeleteUntouchedGanttShapes(ByVal ws As Worksheet, ByVal touchedShapes As Object) As Long
     Dim shapeIndex As Long
     Dim shapeName As String
+    Dim deletedCount As Long
 
     For shapeIndex = ws.Shapes.Count To 1 Step -1
         shapeName = ws.Shapes(shapeIndex).Name
         If IsManagedGanttShapeName(shapeName) Then
             If touchedShapes Is Nothing Or Not touchedShapes.Exists(shapeName) Then
                 ws.Shapes(shapeIndex).Delete
+                deletedCount = deletedCount + 1
             End If
         End If
     Next shapeIndex
-End Sub
+    DeleteUntouchedGanttShapes = deletedCount
+End Function
 
 Private Function GetStackedBarTop(ByVal ws As Worksheet, ByVal targetRow As Long, ByVal targetCol As Long, _
                                   ByVal upperBarHeight As Double, ByVal lowerBarHeight As Double, _
@@ -2088,35 +2117,37 @@ Public Sub ToggleBulkEditMode()
 
     Dim ws As Worksheet
     Dim prevCalc As XlCalculation
+    Dim prevScreenUpdating As Boolean
     Dim targetEnabled As Boolean
 
     Set ws = RequireMainWorksheet("一括編集モード切替")
     If ws Is Nothing Then Exit Sub
-    Call RepairBulkEditRuntimeState(ws)
 
     prevCalc = Application.Calculation
+    prevScreenUpdating = Application.ScreenUpdating
     targetEnabled = Not IsBulkEditModeEnabled()
 
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
+    Application.EnableEvents = False
     SetBulkEditMode targetEnabled
     CancelDeferredBulkEditReconcile
     CreateControlButtons ws, True
 
     If targetEnabled Then
-        Application.EnableEvents = False
+        PrepareLiveTaskLevelHintsForBulkEdit ws
+        Application.Calculation = prevCalc
+        Application.ScreenUpdating = prevScreenUpdating
         Application.StatusBar = "高速入力モードを ON にしました。Ctrl+Z を優先するため自動更新を停止しています"
-        UpdateBulkEditModeIndicator ws, "Ctrl+Z を優先するため、自動更新を停止しました。"
+        UpdateBulkEditModeIndicator ws, "Ctrl+Z を優先しつつ、TASK入力時のLV表示だけ有効にしました。"
         Exit Sub
     End If
-
-    Application.ScreenUpdating = False
-    Application.Calculation = xlCalculationManual
-    Application.EnableEvents = False
 
     ReconcileDeferredTaskState ws
 
     Application.EnableEvents = True
     Application.Calculation = prevCalc
-    Application.ScreenUpdating = True
+    Application.ScreenUpdating = prevScreenUpdating
     CreateControlButtons ws, True
     Application.StatusBar = "高速入力モードを OFF にし、全体を再整合しました"
     UpdateBulkEditModeIndicator ws, "再整合済み。"
@@ -2131,7 +2162,7 @@ ErrorHandler:
         Application.EnableEvents = False
     End If
     Application.Calculation = prevCalc
-    Application.ScreenUpdating = True
+    Application.ScreenUpdating = prevScreenUpdating
     If Not ws Is Nothing Then CreateControlButtons ws, True
     MsgBox "高速入力モード切替エラー: " & Err.Description, vbCritical, "エラー"
 End Sub
@@ -2449,6 +2480,61 @@ Private Function GetSettingsWorksheet() As Worksheet
     On Error GoTo 0
 End Function
 
+Private Function GetOrCreateLogWorksheet() As Worksheet
+    Dim wsLog As Worksheet
+
+    On Error Resume Next
+    Set wsLog = ThisWorkbook.Worksheets(LOG_SHEET_NAME)
+    On Error GoTo 0
+
+    If wsLog Is Nothing Then
+        Set wsLog = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
+        wsLog.Name = LOG_SHEET_NAME
+        wsLog.Range("A1:F1").Value = Array("timestamp", "event", "sheet", "target", "details", "user")
+        wsLog.Rows(1).Font.Bold = True
+        wsLog.Columns("A:F").ColumnWidth = 18
+    End If
+
+    On Error Resume Next
+    wsLog.Visible = xlSheetVeryHidden
+    On Error GoTo 0
+    Set GetOrCreateLogWorksheet = wsLog
+End Function
+
+Public Sub LogAutomationEvent(ByVal eventName As String, Optional ByVal details As String = "", Optional ByVal targetAddress As String = "")
+    On Error Resume Next
+
+    Dim wsLog As Worksheet
+    Dim nextRow As Long
+
+    Set wsLog = GetOrCreateLogWorksheet()
+    If wsLog Is Nothing Then Exit Sub
+
+    nextRow = wsLog.Cells(wsLog.Rows.Count, "A").End(xlUp).Row + 1
+    If nextRow > LOG_MAX_ROWS Then
+        wsLog.Rows("2:" & (nextRow - LOG_MAX_ROWS + 1)).Delete
+        nextRow = wsLog.Cells(wsLog.Rows.Count, "A").End(xlUp).Row + 1
+    End If
+
+    wsLog.Cells(nextRow, "A").Value = Now
+    wsLog.Cells(nextRow, "A").NumberFormat = "yyyy-mm-dd hh:mm:ss"
+    wsLog.Cells(nextRow, "B").Value = eventName
+    If Not ActiveSheet Is Nothing Then wsLog.Cells(nextRow, "C").Value = ActiveSheet.Name
+    wsLog.Cells(nextRow, "D").Value = targetAddress
+    wsLog.Cells(nextRow, "E").Value = details
+    wsLog.Cells(nextRow, "F").Value = Application.UserName
+End Sub
+
+Private Sub LogGanttRefresh(ByVal ws As Worksheet, ByVal startRow As Long, ByVal endRow As Long, _
+                            ByVal touchedCount As Long, ByVal deletedCount As Long)
+    Dim details As String
+
+    details = "rows=" & startRow & ":" & endRow & _
+              ", touchedShapes=" & touchedCount & _
+              ", deletedShapes=" & deletedCount
+    LogAutomationEvent "GanttRefresh", details, ws.Name
+End Sub
+
 Private Sub AddSettingsCommandButton(ByVal wsSettings As Worksheet, ByVal shapeName As String, _
                                      ByVal caption As String, ByVal macroName As String, _
                                      ByVal leftPos As Double, ByVal topPos As Double, _
@@ -2567,7 +2653,21 @@ Private Sub EnsureBulkEditSettingSection(ByVal wsSettings As Worksheet)
         .Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, Formula1:="LV1のみ,LV2まで"
     End With
 
-    With wsSettings.Range("A9:C11").Borders
+    wsSettings.Range("A12").Value = "自動テストモード"
+    If Trim$(CStr(wsSettings.Range("B12").Value)) = "" Then wsSettings.Range("B12").Value = False
+    wsSettings.Range("C12").Value = "TRUE: 自動テスト中だけ確認メッセージをログ化します。通常利用では FALSE のまま使います。"
+    wsSettings.Range("B12").HorizontalAlignment = xlCenter
+    With wsSettings.Range("B12").Validation
+        .Delete
+        .Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, Formula1:="TRUE,FALSE"
+    End With
+
+    wsSettings.Range("A12:C12").WrapText = True
+    wsSettings.Range("A12").Font.Bold = True
+    wsSettings.Range("A12:C12").Interior.Color = RGB(226, 239, 218)
+    wsSettings.Rows("12:12").RowHeight = 36
+
+    With wsSettings.Range("A9:C12").Borders
         .LineStyle = xlContinuous
         .Weight = xlThin
         .ColorIndex = 48
@@ -2678,6 +2778,77 @@ Public Function IsBulkEditModeEnabled() As Boolean
 
     IsBulkEditModeEnabled = CBool(wsSettings.Cells(SETTINGS_ROW_BULK_EDIT_MODE, "B").Value)
 End Function
+
+Public Function IsAutomationModeEnabled() As Boolean
+    Dim wsSettings As Worksheet
+    Set wsSettings = GetSettingsWorksheet()
+
+    If wsSettings Is Nothing Then Exit Function
+    If Trim$(CStr(wsSettings.Cells(SETTINGS_ROW_AUTOMATION_MODE, "B").Value)) = "" Then Exit Function
+
+    IsAutomationModeEnabled = CBool(wsSettings.Cells(SETTINGS_ROW_AUTOMATION_MODE, "B").Value)
+End Function
+
+Public Sub SetAutomationMode(ByVal isEnabled As Boolean)
+    EnsureSettingsSheet
+    GetSettingsWorksheet().Cells(SETTINGS_ROW_AUTOMATION_MODE, "B").Value = isEnabled
+    LogAutomationEvent "AutomationMode", "enabled=" & CStr(isEnabled), SETTINGS_SHEET_NAME & "!B" & SETTINGS_ROW_AUTOMATION_MODE
+End Sub
+
+Public Function CheckInazumaRuntimeState(Optional ByVal writeLog As Boolean = True) As String
+    Dim ws As Worksheet
+    Dim wsSettings As Worksheet
+    Dim issues As Collection
+    Dim shp As Shape
+    Dim bulkEnabled As Boolean
+    Dim bulkButtonCount As Long
+    Dim indicatorText As String
+    Dim resultText As String
+    Dim issue As Variant
+
+    Set issues = New Collection
+    Set ws = GetMainWorksheet()
+    Set wsSettings = GetSettingsWorksheet()
+
+    If ws Is Nothing Then issues.Add "main sheet missing"
+    If wsSettings Is Nothing Then issues.Add "settings sheet missing"
+
+    If Not wsSettings Is Nothing Then
+        bulkEnabled = IsBulkEditModeEnabled()
+        If bulkEnabled And Application.EnableEvents Then issues.Add "bulk mode ON but events enabled"
+        If (Not bulkEnabled) And (Not Application.EnableEvents) Then issues.Add "bulk mode OFF but events disabled"
+    End If
+
+    If Not ws Is Nothing Then
+        For Each shp In ws.Shapes
+            If shp.Name = "Btn_BulkEdit" Then bulkButtonCount = bulkButtonCount + 1
+        Next shp
+        If bulkButtonCount <> 1 Then issues.Add "bulk button count=" & CStr(bulkButtonCount)
+
+        indicatorText = CStr(ws.Range("A3").Value)
+        If bulkEnabled Then
+            If InStr(1, indicatorText, "高速入力 ON", vbTextCompare) = 0 Then issues.Add "indicator not ON"
+        Else
+            If InStr(1, indicatorText, "高速入力 OFF", vbTextCompare) = 0 Then issues.Add "indicator not OFF"
+        End If
+    End If
+
+    If issues.Count = 0 Then
+        resultText = "OK"
+    Else
+        resultText = "NG"
+        For Each issue In issues
+            resultText = resultText & "; " & CStr(issue)
+        Next issue
+    End If
+
+    If writeLog Then LogAutomationEvent "RuntimeStateCheck", resultText, MAIN_SHEET_NAME
+    CheckInazumaRuntimeState = resultText
+End Function
+
+Public Sub ShowInazumaRuntimeState()
+    MsgBox CheckInazumaRuntimeState(True), vbInformation, "Inazuma runtime state"
+End Sub
 
 Public Function GetWbsSummaryDisplayDepth() As Long
     Dim wsSettings As Worksheet
@@ -3088,25 +3259,43 @@ End Sub
 Public Sub ValidateProgressInput(ByVal ws As Worksheet, ByVal Target As Range)
     On Error GoTo ErrorHandler
 
+    Dim prevEvents As Boolean
+    Dim appStateCaptured As Boolean
+
+    prevEvents = Application.EnableEvents
+    appStateCaptured = True
+
     If Target.Row < ROW_DATA_START Then Exit Sub
     If Target.Value = "" Then Exit Sub
 
     Dim normalizedRate As Double
     If Not TryParseProgressValue(Target.Value, normalizedRate) Then
-        MsgBox "進捗率は 0.7 / 70 / 70% の形式で入力してください。", vbExclamation, "入力エラー"
+        If IsAutomationModeEnabled() Then
+            LogAutomationEvent "InvalidProgressInput", "value=" & CStr(Target.Value), Target.Address(False, False)
+        Else
+            MsgBox "進捗率は 0.7 / 70 / 70% の形式で入力してください。", vbExclamation, "入力エラー"
+        End If
         Application.EnableEvents = False
         Target.ClearContents
-        Application.EnableEvents = True
+        Application.EnableEvents = prevEvents
         Exit Sub
     End If
 
     Application.EnableEvents = False
     Target.Value = normalizedRate
-    Application.EnableEvents = True
+    Application.EnableEvents = prevEvents
     Exit Sub
 
 ErrorHandler:
-    Application.EnableEvents = True
-    MsgBox "進捗率の検証中にエラーが発生しました: " & Err.Description, vbExclamation, "入力エラー"
+    If appStateCaptured Then
+        Application.EnableEvents = prevEvents
+    Else
+        Application.EnableEvents = True
+    End If
+    If IsAutomationModeEnabled() Then
+        LogAutomationEvent "ProgressValidationError", Err.Description, Target.Address(False, False)
+    Else
+        MsgBox "進捗率の検証中にエラーが発生しました: " & Err.Description, vbExclamation, "入力エラー"
+    End If
 End Sub
 
