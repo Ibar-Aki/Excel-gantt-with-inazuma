@@ -1,6 +1,6 @@
 # 機能詳細
 
-更新日: 2026-05-06
+更新日: 2026-05-07
 
 InazumaGantt v3 / Lite の現行仕様と主要マクロの一覧です。
 
@@ -74,6 +74,7 @@ InazumaGantt v3 / Lite の現行仕様と主要マクロの一覧です。
 | 開発LT集計 | K列で Shift + 右クリックすると配下末端タスク工数を集計 |
 | 一括編集モード | Ctrl+Z を優先する高速入力モード。ON 中は自動再計算 / 再描画を止め、OFF で一括再整合。切替時に `Application.EnableEvents` と設定状態を明示的に同期 |
 | WBS退避 / 復元 | 見出し付き `A:O` の値・書式・入力規則を最新 1 枚のコピーシートへ退避し、確認後に本体へ戻せる。退避は一時シート差し替え、復元はロールバック付き |
+| Lite版 WBS差分確認 | `WBS_Backup_Lite` と現状をタスクパス単位で比較し、追加 / 削除候補 / 変更を `WBS差分確認_Lite` に出力 |
 | 土日切替 | 土日列の表示幅を切り替え |
 | 日付シフト | 選択した日付を営業日単位で移動 |
 | PDF出力 | 当月末までのガントを PDF 保存 |
@@ -81,12 +82,14 @@ InazumaGantt v3 / Lite の現行仕様と主要マクロの一覧です。
 | 自動テストモード | 設定マスタ B12 で切り替え。通常は FALSE。TRUE 時は一部確認メッセージをログ化し、無人テストの停止を避ける |
 | 状態健全性チェック | `CheckInazumaRuntimeState` で高速入力設定、イベント状態、ボタン重複、A3 表示を確認 |
 | ガント更新ログ | `_InazumaGantt_Log` に対象行範囲、更新図形数、削除図形数を記録 |
+| ステータスバー通知 | Excel アプリ全体へ表示が漏れるため、ガント由来の左下ステータスバー文言は表示しない |
 
 ## 俯瞰・補助シート
 
 | シート | マクロ | 内容 |
 |--------|--------|------|
 | WBSサマリ | `CreateRoadmapOverviewSheet` | 月次に圧縮した全体計画と進捗を表示。月内の予定なし半月は白い `□`、予定が全くない月は空欄で表示。`LV2まで` では LV2 行を折りたたみ可能な詳細行として追加 |
+| WBS差分確認_Lite | `CreateWbsBackupDiffSheet` | Lite 版のみ。`WBS_Backup_Lite` と現状の値差分を差分種別、重要度、タスクパス、変更項目別に表示 |
 | Showcase Sample | `CreateShowcaseSampleWBS` | 約150行の構造化サンプルWBSとロードマップを生成 |
 
 ## 主要マクロ一覧
@@ -101,6 +104,7 @@ InazumaGantt v3 / Lite の現行仕様と主要マクロの一覧です。
 | 保守 | `CheckInazumaRuntimeState` | 高速入力・イベント・ボタン状態の整合チェック |
 | 補助 | `CreateWbsBackupSheet` | 見出し付き `A:O` の値・書式・入力規則を一時シート経由で最新バックアップシートへ退避 |
 | 補助 | `RestoreWbsFromBackupSheet` | 更新日時を確認してからバックアップシートの `A:O` をロールバック付きで復元し、通常モードへ戻す |
+| 補助 | `CreateWbsBackupDiffSheet` | Lite 版で `WBS_Backup_Lite` と現状の差分を `WBS差分確認_Lite` に出力 |
 | 書式 | `SetupHierarchyColors` | 階層色分けを再設定 |
 | 補助 | `ToggleWeekends` | 土日列の表示切り替え |
 | 補助 | `RenumberRows` | No. を再採番 |
@@ -113,5 +117,6 @@ InazumaGantt v3 / Lite の現行仕様と主要マクロの一覧です。
 
 - `CreateWbsBackupSheet` は既存バックアップを直接消さず、一時シートにコピーが完了してから `WBS_Backup_v3` / `WBS_Backup_Lite` へ差し替えます。
 - `RestoreWbsFromBackupSheet` は本 WBS を一時退避してから復元するため、貼り付けや再整合に失敗した場合は復元前の `A:O` へロールバックします。
+- `CreateWbsBackupDiffSheet` は Lite 版のみ読み取り中心で差分シートを作成します。現状 WBS の値は変更しません。
 - ビルド時 smoke test はバックアップ作成・復元マクロも実行しますが、保存前に `WBS_Backup_*` と一時シートを削除するため、配布ブックにビルド時バックアップは含まれません。
 - `Worksheet_Change` はアプリ状態を最初に退避し、エラー時も `EnableEvents` / `Calculation` / `ScreenUpdating` を取得済み状態へ戻します。

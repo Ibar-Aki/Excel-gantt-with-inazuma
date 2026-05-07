@@ -725,7 +725,7 @@ Public Sub CreateRoadmapOverviewSheet(Optional ByVal referenceDate As Variant)
     End If
 
     Application.ScreenUpdating = True
-    Application.StatusBar = "WBSサマリを更新しました。"
+    Application.StatusBar = False
     Exit Sub
 
 ErrorHandler:

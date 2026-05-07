@@ -45,6 +45,8 @@ Private Const BACKUP_OLD_SHEET_NAME As String = "_WBS_Backup_Lite_old"
 Private Const RESTORE_ROLLBACK_SHEET_NAME As String = "_WBS_Restore_Lite_rollback"
 Private Const BACKUP_META_LABEL_START As String = "Q1"
 Private Const BACKUP_META_VALUE_START As String = "R1"
+Private Const DIFF_SHEET_NAME As String = "WBS差分確認_Lite"
+Private Const DIFF_OLD_SHEET_NAME As String = "_WBS_Diff_Lite_old"
 
 ' 色設定
 Public Const COLOR_PLAN As Long = 16119285       ' RGB(245,245,245) 限りなく白に近い灰色
@@ -491,6 +493,7 @@ Private Function TryParseProgressValue(ByVal progressValue As Variant, ByRef nor
     Dim textValue As String
 
     If IsEmpty(progressValue) Then Exit Function
+    If IsError(progressValue) Then Exit Function
 
     textValue = Trim$(CStr(progressValue))
     If textValue = "" Then Exit Function
@@ -520,6 +523,7 @@ Private Function TryParseDevelopmentHours(ByVal hoursValue As Variant, ByRef nor
     Dim textValue As String
 
     If IsEmpty(hoursValue) Then Exit Function
+    If IsError(hoursValue) Then Exit Function
 
     textValue = Trim$(CStr(hoursValue))
     If textValue = "" Then Exit Function
@@ -1429,7 +1433,7 @@ Sub RefreshInazumaGantt()
     Application.EnableEvents = prevEvents
     Application.ScreenUpdating = True
 
-    Application.StatusBar = "イナズマガントを更新しました"
+    Application.StatusBar = False
     UpdateBulkEditModeIndicator ws, "最新状態へ更新しました。"
     Exit Sub
 
@@ -2106,7 +2110,7 @@ Private Sub CreateWbsBackupSheetCore(Optional ByVal skipNotification As Boolean 
     ReplaceBackupWorksheetWithStaged wsBackupStaging
 
     RestoreApplicationState prevCalc, prevEvents, prevScreenUpdating, stateCaptured
-    Application.StatusBar = "WBSバックアップを更新しました"
+    Application.StatusBar = False
 
     If (Not skipNotification) And Application.DisplayAlerts Then
         MsgBox "最新の WBS バックアップを '" & BACKUP_SHEET_NAME & "' に更新しました。", vbInformation, "WBS退避"
@@ -2187,7 +2191,7 @@ Private Sub RestoreWbsFromBackupSheetCore(Optional ByVal skipConfirmation As Boo
     Application.Calculation = prevCalc
     Application.ScreenUpdating = prevScreenUpdating
     If Not ws Is Nothing Then CreateControlButtons ws, True
-    Application.StatusBar = "バックアップから WBS を復元し、通常モードへ戻しました"
+    Application.StatusBar = False
 
     If (Not skipConfirmation) And Application.DisplayAlerts Then
         MsgBox "バックアップシートから WBS を復元しました。", vbInformation, "バックアップ復元"
@@ -2215,6 +2219,512 @@ End Sub
 
 Public Sub RestoreWbsFromBackupSheetSilent()
     RestoreWbsFromBackupSheetCore True
+End Sub
+
+Private Function GetDiffColumnLabel(ByVal columnIndex As Long) As String
+    Select Case columnIndex
+        Case 1: GetDiffColumnLabel = "LV"
+        Case 2: GetDiffColumnLabel = "No."
+        Case 3: GetDiffColumnLabel = "TASK(LV1)"
+        Case 4: GetDiffColumnLabel = "TASK(LV2)"
+        Case 5: GetDiffColumnLabel = "TASK(LV3)"
+        Case 6: GetDiffColumnLabel = "TASK(LV4)"
+        Case 7: GetDiffColumnLabel = "タスク詳細"
+        Case 8: GetDiffColumnLabel = "状況"
+        Case 9: GetDiffColumnLabel = "進捗率"
+        Case 10: GetDiffColumnLabel = "担当"
+        Case 11: GetDiffColumnLabel = "開発LT"
+        Case 12: GetDiffColumnLabel = "開始予定"
+        Case 13: GetDiffColumnLabel = "完了予定"
+        Case Else: GetDiffColumnLabel = "列" & CStr(columnIndex)
+    End Select
+End Function
+
+Private Function NormalizeDiffComparableValue(ByVal valueToCompare As Variant, ByVal columnIndex As Long) As String
+    Dim numericValue As Double
+    Dim textValue As String
+
+    If IsError(valueToCompare) Then
+        NormalizeDiffComparableValue = "#ERROR"
+        Exit Function
+    End If
+
+    textValue = Trim$(CStr(valueToCompare))
+    If textValue = "" Then
+        NormalizeDiffComparableValue = ""
+        Exit Function
+    End If
+
+    Select Case columnIndex
+        Case 9
+            If TryParseProgressValue(valueToCompare, numericValue) Then
+                NormalizeDiffComparableValue = Format$(numericValue, "0.0000")
+            Else
+                NormalizeDiffComparableValue = textValue
+            End If
+        Case 11
+            If TryParseDevelopmentHours(valueToCompare, numericValue) Then
+                NormalizeDiffComparableValue = Format$(numericValue, "0.0000")
+            Else
+                NormalizeDiffComparableValue = textValue
+            End If
+        Case 12, 13
+            If IsDate(valueToCompare) Then
+                NormalizeDiffComparableValue = Format$(CDate(valueToCompare), "yyyy-mm-dd")
+            Else
+                NormalizeDiffComparableValue = textValue
+            End If
+        Case Else
+            NormalizeDiffComparableValue = textValue
+    End Select
+End Function
+
+Private Function FormatDiffDisplayValue(ByVal valueToDisplay As Variant, ByVal columnIndex As Long) As String
+    Dim numericValue As Double
+    Dim textValue As String
+
+    If IsError(valueToDisplay) Then
+        FormatDiffDisplayValue = "#ERROR"
+        Exit Function
+    End If
+
+    textValue = Trim$(CStr(valueToDisplay))
+    If textValue = "" Then
+        FormatDiffDisplayValue = ""
+        Exit Function
+    End If
+
+    Select Case columnIndex
+        Case 9
+            If TryParseProgressValue(valueToDisplay, numericValue) Then
+                FormatDiffDisplayValue = Format$(numericValue, "0%")
+            Else
+                FormatDiffDisplayValue = textValue
+            End If
+        Case 11
+            If TryParseDevelopmentHours(valueToDisplay, numericValue) Then
+                FormatDiffDisplayValue = Format$(numericValue, "0.0") & "h"
+            Else
+                FormatDiffDisplayValue = textValue
+            End If
+        Case 12, 13
+            If IsDate(valueToDisplay) Then
+                FormatDiffDisplayValue = Format$(CDate(valueToDisplay), "yyyy/mm/dd")
+            Else
+                FormatDiffDisplayValue = textValue
+            End If
+        Case Else
+            FormatDiffDisplayValue = textValue
+    End Select
+End Function
+
+Private Function BuildDiffTaskPathFromStack(ByRef taskStack() As String) As String
+    Dim i As Long
+    Dim pathText As String
+
+    For i = LBound(taskStack) To UBound(taskStack)
+        If Trim$(taskStack(i)) <> "" Then
+            If pathText <> "" Then pathText = pathText & " > "
+            pathText = pathText & Trim$(taskStack(i))
+        End If
+    Next i
+
+    BuildDiffTaskPathFromStack = pathText
+End Function
+
+Private Function BuildDiffRowKey(ByVal baseKey As String, ByVal duplicateIndex As Long) As String
+    BuildDiffRowKey = CStr(Len(baseKey)) & ":" & baseKey & "#" & CStr(duplicateIndex)
+End Function
+
+Private Function BuildDiffRowSummary(ByVal ws As Worksheet, ByVal targetRow As Long) As String
+    Dim statusText As String
+    Dim progressText As String
+    Dim assigneeText As String
+    Dim startText As String
+    Dim endText As String
+
+    If ws Is Nothing Or targetRow < ROW_DATA_START Then Exit Function
+
+    statusText = FormatDiffDisplayValue(ws.Cells(targetRow, COL_STATUS).Value, 8)
+    progressText = FormatDiffDisplayValue(ws.Cells(targetRow, COL_PROGRESS).Value, 9)
+    assigneeText = FormatDiffDisplayValue(ws.Cells(targetRow, COL_ASSIGNEE).Value, 10)
+    startText = FormatDiffDisplayValue(ws.Cells(targetRow, COL_START_PLAN).Value, 12)
+    endText = FormatDiffDisplayValue(ws.Cells(targetRow, COL_END_PLAN).Value, 13)
+
+    BuildDiffRowSummary = "担当=" & assigneeText & ", 状況=" & statusText & ", 進捗=" & progressText & _
+                          ", 予定=" & startText & "～" & endText
+End Function
+
+Private Sub CollectWbsDiffRowKeys(ByVal ws As Worksheet, ByVal lastRow As Long, _
+                                  ByVal rowsByKey As Object, ByVal pathsByKey As Object)
+    Dim taskStack(1 To 4) As String
+    Dim duplicateCounts As Object
+    Dim r As Long
+    Dim i As Long
+    Dim levelValue As Variant
+    Dim taskLevel As Long
+    Dim taskLabel As String
+    Dim taskPath As String
+    Dim baseKey As String
+    Dim uniqueKey As String
+    Dim duplicateIndex As Long
+
+    Set duplicateCounts = CreateObject("Scripting.Dictionary")
+    If ws Is Nothing Then Exit Sub
+    If lastRow < ROW_DATA_START Then lastRow = ROW_DATA_START
+
+    For r = ROW_DATA_START To lastRow
+        levelValue = ws.Cells(r, COL_HIERARCHY).Value
+        taskLabel = Trim$(GetVisibleTaskLabelForRow(ws, r))
+
+        If IsNumeric(levelValue) And taskLabel <> "" Then
+            taskLevel = CLng(levelValue)
+            If taskLevel >= 1 And taskLevel <= 4 Then
+                taskStack(taskLevel) = taskLabel
+                For i = taskLevel + 1 To 4
+                    taskStack(i) = ""
+                Next i
+            End If
+        End If
+
+        If HasTaskContentInRow(ws, r) Then
+            taskPath = BuildDiffTaskPathFromStack(taskStack)
+            If taskPath = "" Then taskPath = "(row " & CStr(r) & ")"
+
+            baseKey = taskPath
+            If duplicateCounts.Exists(baseKey) Then
+                duplicateCounts(baseKey) = CLng(duplicateCounts(baseKey)) + 1
+            Else
+                duplicateCounts.Add baseKey, 1
+            End If
+
+            duplicateIndex = CLng(duplicateCounts(baseKey))
+            uniqueKey = BuildDiffRowKey(baseKey, duplicateIndex)
+
+            rowsByKey.Add uniqueKey, r
+            pathsByKey.Add uniqueKey, taskPath
+        End If
+    Next r
+End Sub
+
+Private Function GetDiffSeverity(ByVal diffType As String, ByVal columnIndex As Long, _
+                                 ByVal backupValue As Variant, ByVal currentValue As Variant, _
+                                 ByRef memoText As String) As String
+    Dim backupText As String
+    Dim currentText As String
+    Dim backupNumber As Double
+    Dim currentNumber As Double
+    Dim backupDate As Date
+    Dim currentDate As Date
+
+    memoText = ""
+    If IsError(backupValue) Then
+        backupText = "#ERROR"
+    Else
+        backupText = Trim$(CStr(backupValue))
+    End If
+    If IsError(currentValue) Then
+        currentText = "#ERROR"
+    Else
+        currentText = Trim$(CStr(currentValue))
+    End If
+
+    If diffType = "追加" Then
+        memoText = "現状にのみ存在します。"
+        GetDiffSeverity = "中"
+        Exit Function
+    ElseIf diffType = "削除候補" Then
+        memoText = "バックアップにのみ存在します。現状から削除された可能性があります。"
+        GetDiffSeverity = "高"
+        Exit Function
+    End If
+
+    If IsError(backupValue) Or IsError(currentValue) Then
+        memoText = GetDiffColumnLabel(columnIndex) & "に Excel エラー値が含まれています。"
+        GetDiffSeverity = "中"
+        Exit Function
+    End If
+
+    Select Case columnIndex
+        Case 8
+            If backupText = STATUS_COMPLETED And currentText <> STATUS_COMPLETED Then
+                memoText = "完了から未完了状態へ戻っています。"
+                GetDiffSeverity = "高"
+            Else
+                memoText = "状況が変更されています。"
+                GetDiffSeverity = "中"
+            End If
+        Case 9
+            If TryParseProgressValue(backupValue, backupNumber) And TryParseProgressValue(currentValue, currentNumber) Then
+                If currentNumber < backupNumber Then
+                    memoText = "進捗率が下がっています。"
+                    If backupNumber >= 1 Then
+                        GetDiffSeverity = "高"
+                    Else
+                        GetDiffSeverity = "中"
+                    End If
+                Else
+                    memoText = "進捗率が上がっています。"
+                    GetDiffSeverity = "低"
+                End If
+            Else
+                memoText = "進捗率の表記が変更されています。"
+                GetDiffSeverity = "中"
+            End If
+        Case 11
+            If TryParseDevelopmentHours(backupValue, backupNumber) And TryParseDevelopmentHours(currentValue, currentNumber) Then
+                If currentNumber > backupNumber Then
+                    memoText = "開発LTが増加しています。"
+                    GetDiffSeverity = "高"
+                Else
+                    memoText = "開発LTが減少しています。"
+                    GetDiffSeverity = "低"
+                End If
+            Else
+                memoText = "開発LTの表記が変更されています。"
+                GetDiffSeverity = "中"
+            End If
+        Case 12, 13
+            If IsDate(backupValue) And IsDate(currentValue) Then
+                backupDate = CDate(backupValue)
+                currentDate = CDate(currentValue)
+                If currentDate > backupDate Then
+                    If columnIndex = 13 Then
+                        memoText = "完了予定が後ろ倒しされています。"
+                        GetDiffSeverity = "高"
+                    Else
+                        memoText = "開始予定が後ろ倒しされています。"
+                        GetDiffSeverity = "中"
+                    End If
+                Else
+                    memoText = GetDiffColumnLabel(columnIndex) & "が前倒しされています。"
+                    GetDiffSeverity = "低"
+                End If
+            Else
+                memoText = GetDiffColumnLabel(columnIndex) & "が変更されています。"
+                GetDiffSeverity = "中"
+            End If
+        Case 1, 3, 4, 5, 6
+            memoText = "階層またはタスク名が変更されています。"
+            GetDiffSeverity = "中"
+        Case 2
+            memoText = "No. が変更されています。再採番や行移動の可能性があります。"
+            GetDiffSeverity = "低"
+        Case Else
+            memoText = GetDiffColumnLabel(columnIndex) & "が変更されています。"
+            GetDiffSeverity = "中"
+    End Select
+End Function
+
+Private Function PrepareWbsDiffWorksheet() As Worksheet
+    Dim wsExisting As Worksheet
+
+    DeleteWorksheetIfExists DIFF_OLD_SHEET_NAME, MAIN_SHEET_NAME
+    Set wsExisting = GetWorksheetByName(DIFF_SHEET_NAME)
+    If Not wsExisting Is Nothing Then wsExisting.Name = DIFF_OLD_SHEET_NAME
+
+    Set PrepareWbsDiffWorksheet = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
+    PrepareWbsDiffWorksheet.Name = DIFF_SHEET_NAME
+End Function
+
+Private Sub WriteWbsDiffHeaders(ByVal wsDiff As Worksheet, ByVal wsBackup As Worksheet)
+    If wsDiff Is Nothing Then Exit Sub
+
+    With wsDiff
+        .Range("A1").Value = "WBS差分確認 Lite"
+        .Range("A1").Font.Bold = True
+        .Range("A1").Font.Size = 14
+        .Range("A2").Value = "比較元バックアップ"
+        .Range("B2").Value = BACKUP_SHEET_NAME
+        .Range("C2").Value = "バックアップ更新日時"
+        .Range("D2").Value = GetBackupTimestampLabel(wsBackup)
+        .Range("A3").Value = "比較日時"
+        .Range("B3").Value = Now
+        .Range("B3").NumberFormatLocal = "yyyy/mm/dd hh:mm:ss"
+        .Range("A5:I5").Value = Array("差分種別", "重要度", "現在行", "バックアップ行", "タスクパス", "変更項目", "バックアップ値", "現在値", "判定メモ")
+        .Range("A5:I5").Font.Bold = True
+        .Range("A5:I5").Interior.Color = COLOR_HEADER_BG
+        .Range("A5:I5").Font.Color = RGB(255, 255, 255)
+    End With
+End Sub
+
+Private Sub WriteWbsDiffRow(ByVal wsDiff As Worksheet, ByRef outputRow As Long, _
+                            ByVal diffType As String, ByVal severity As String, _
+                            ByVal currentRow As Variant, ByVal backupRow As Variant, _
+                            ByVal taskPath As String, ByVal changedItem As String, _
+                            ByVal backupValue As String, ByVal currentValue As String, _
+                            ByVal memoText As String)
+    With wsDiff
+        .Cells(outputRow, "A").Value = diffType
+        .Cells(outputRow, "B").Value = severity
+        .Cells(outputRow, "C").Value = currentRow
+        .Cells(outputRow, "D").Value = backupRow
+        .Cells(outputRow, "E").Value = taskPath
+        .Cells(outputRow, "F").Value = changedItem
+        .Cells(outputRow, "G").Value = backupValue
+        .Cells(outputRow, "H").Value = currentValue
+        .Cells(outputRow, "I").Value = memoText
+    End With
+    outputRow = outputRow + 1
+End Sub
+
+Private Sub FormatWbsDiffWorksheet(ByVal wsDiff As Worksheet, ByVal lastOutputRow As Long)
+    Dim r As Long
+
+    If wsDiff Is Nothing Then Exit Sub
+    If lastOutputRow < 6 Then lastOutputRow = 6
+
+    With wsDiff
+        .Columns("A:I").EntireColumn.AutoFit
+        .Columns("E:I").ColumnWidth = 28
+        .Columns("E:I").WrapText = True
+        .Range("A5:I" & lastOutputRow).Borders.LineStyle = xlContinuous
+        .Range("A5:I" & lastOutputRow).AutoFilter
+        On Error Resume Next
+        .Activate
+        .Range("A6").Select
+        If Not ActiveWindow Is Nothing Then ActiveWindow.FreezePanes = True
+        On Error GoTo 0
+
+        For r = 6 To lastOutputRow
+            Select Case CStr(.Cells(r, "B").Value)
+                Case "高"
+                    .Range("A" & r & ":I" & r).Interior.Color = COLOR_ERROR
+                Case "中"
+                    .Range("A" & r & ":I" & r).Interior.Color = COLOR_WARN
+                Case "低"
+                    .Range("A" & r & ":I" & r).Interior.Color = RGB(226, 239, 218)
+            End Select
+        Next r
+    End With
+End Sub
+
+Private Sub CreateWbsBackupDiffSheetCore(Optional ByVal skipNotification As Boolean = False)
+    On Error GoTo ErrorHandler
+
+    Dim ws As Worksheet
+    Dim wsBackup As Worksheet
+    Dim wsDiff As Worksheet
+    Dim currentRows As Object
+    Dim currentPaths As Object
+    Dim backupRows As Object
+    Dim backupPaths As Object
+    Dim key As Variant
+    Dim currentRow As Long
+    Dim backupRow As Long
+    Dim currentLastRow As Long
+    Dim backupLastRow As Long
+    Dim outputRow As Long
+    Dim colIndex As Long
+    Dim currentComparable As String
+    Dim backupComparable As String
+    Dim severity As String
+    Dim memoText As String
+    Dim addedCount As Long
+    Dim deletedCount As Long
+    Dim changedCount As Long
+    Dim prevCalc As XlCalculation
+    Dim prevEvents As Boolean
+    Dim prevScreenUpdating As Boolean
+    Dim stateCaptured As Boolean
+    Dim errDescription As String
+
+    CaptureApplicationState prevCalc, prevEvents, prevScreenUpdating, stateCaptured
+    Set ws = RequireMainWorksheet("WBS差分確認")
+    If ws Is Nothing Then Exit Sub
+    Call RepairBulkEditRuntimeState(ws)
+    prevEvents = Application.EnableEvents
+
+    Set wsBackup = GetBackupWorksheet()
+    If wsBackup Is Nothing Then
+        MsgBox "バックアップシート '" & BACKUP_SHEET_NAME & "' が見つかりません。先に WBS退避を実行してください。", vbExclamation, "WBS差分確認"
+        Exit Sub
+    End If
+
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
+    Application.EnableEvents = False
+
+    currentLastRow = GetLastDataRow(ws)
+    If currentLastRow < ROW_DATA_START Then currentLastRow = ROW_DATA_START
+    backupLastRow = GetLastDataRow(wsBackup)
+    If backupLastRow < ROW_DATA_START Then backupLastRow = ROW_DATA_START
+
+    Set currentRows = CreateObject("Scripting.Dictionary")
+    Set currentPaths = CreateObject("Scripting.Dictionary")
+    Set backupRows = CreateObject("Scripting.Dictionary")
+    Set backupPaths = CreateObject("Scripting.Dictionary")
+
+    CollectWbsDiffRowKeys ws, currentLastRow, currentRows, currentPaths
+    CollectWbsDiffRowKeys wsBackup, backupLastRow, backupRows, backupPaths
+
+    Set wsDiff = PrepareWbsDiffWorksheet()
+    WriteWbsDiffHeaders wsDiff, wsBackup
+    outputRow = 6
+
+    For Each key In currentRows.Keys
+        currentRow = CLng(currentRows(key))
+        If Not backupRows.Exists(CStr(key)) Then
+            addedCount = addedCount + 1
+            memoText = ""
+            severity = GetDiffSeverity("追加", 0, "", "", memoText)
+            WriteWbsDiffRow wsDiff, outputRow, "追加", severity, currentRow, "", CStr(currentPaths(key)), _
+                            "行全体", "", BuildDiffRowSummary(ws, currentRow), memoText
+        Else
+            backupRow = CLng(backupRows(key))
+            For colIndex = 1 To ws.Columns(COL_DATA_END).Column
+                currentComparable = NormalizeDiffComparableValue(ws.Cells(currentRow, colIndex).Value, colIndex)
+                backupComparable = NormalizeDiffComparableValue(wsBackup.Cells(backupRow, colIndex).Value, colIndex)
+                If currentComparable <> backupComparable Then
+                    changedCount = changedCount + 1
+                    memoText = ""
+                    severity = GetDiffSeverity("変更", colIndex, wsBackup.Cells(backupRow, colIndex).Value, ws.Cells(currentRow, colIndex).Value, memoText)
+                    WriteWbsDiffRow wsDiff, outputRow, "変更", severity, currentRow, backupRow, CStr(currentPaths(key)), _
+                                    GetDiffColumnLabel(colIndex), _
+                                    FormatDiffDisplayValue(wsBackup.Cells(backupRow, colIndex).Value, colIndex), _
+                                    FormatDiffDisplayValue(ws.Cells(currentRow, colIndex).Value, colIndex), memoText
+                End If
+            Next colIndex
+        End If
+    Next key
+
+    For Each key In backupRows.Keys
+        If Not currentRows.Exists(CStr(key)) Then
+            deletedCount = deletedCount + 1
+            backupRow = CLng(backupRows(key))
+            memoText = ""
+            severity = GetDiffSeverity("削除候補", 0, "", "", memoText)
+            WriteWbsDiffRow wsDiff, outputRow, "削除候補", severity, "", backupRow, CStr(backupPaths(key)), _
+                            "行全体", BuildDiffRowSummary(wsBackup, backupRow), "", memoText
+        End If
+    Next key
+
+    If outputRow = 6 Then
+        WriteWbsDiffRow wsDiff, outputRow, "差分なし", "低", "", "", "", "", "", "", "バックアップと現状の値差分はありません。"
+    End If
+
+    FormatWbsDiffWorksheet wsDiff, outputRow - 1
+
+    RestoreApplicationState prevCalc, prevEvents, prevScreenUpdating, stateCaptured
+    Application.StatusBar = False
+    If (Not skipNotification) And Application.DisplayAlerts Then
+        MsgBox "WBS差分確認を作成しました。" & vbCrLf & _
+               "追加: " & addedCount & " / 削除候補: " & deletedCount & " / 変更項目: " & changedCount, vbInformation, "WBS差分確認"
+    End If
+    Exit Sub
+
+ErrorHandler:
+    errDescription = Err.Description
+    RestoreApplicationState prevCalc, prevEvents, prevScreenUpdating, stateCaptured
+    MsgBox "WBS差分確認エラー: " & errDescription, vbCritical, "エラー"
+End Sub
+
+Public Sub CreateWbsBackupDiffSheet()
+    CreateWbsBackupDiffSheetCore False
+End Sub
+
+Public Sub CreateWbsBackupDiffSheetSilent()
+    CreateWbsBackupDiffSheetCore True
 End Sub
 
 
@@ -2327,7 +2837,7 @@ Public Sub ToggleBulkEditMode()
         PrepareLiveTaskLevelHintsForBulkEdit ws
         Application.Calculation = prevCalc
         Application.ScreenUpdating = prevScreenUpdating
-        Application.StatusBar = "高速入力モードを ON にしました。Ctrl+Z を優先するため自動更新を停止しています"
+        Application.StatusBar = False
         UpdateBulkEditModeIndicator ws, "Ctrl+Z を優先しつつ、TASK入力時のLV表示だけ有効にしました。"
         Exit Sub
     End If
@@ -2338,7 +2848,7 @@ Public Sub ToggleBulkEditMode()
     Application.Calculation = prevCalc
     Application.ScreenUpdating = prevScreenUpdating
     CreateControlButtons ws, True
-    Application.StatusBar = "高速入力モードを OFF にし、全体を再整合しました"
+    Application.StatusBar = False
     UpdateBulkEditModeIndicator ws, "再整合済み。"
     Exit Sub
 
@@ -2472,7 +2982,7 @@ Private Sub EnsureSettingsCommandButtons(ByVal wsSettings As Worksheet)
     wsSettings.Range("E3").Value = "WBS操作"
     wsSettings.Range("E3").Font.Bold = True
     wsSettings.Range("E4:H4").ClearContents
-    wsSettings.Range("E4").Value = "退避・復元・サマリ作成はここから実行します。"
+    wsSettings.Range("E4").Value = "退避・復元・差分確認・サマリ作成はここから実行します。"
     wsSettings.Range("E4:H4").Merge
     wsSettings.Range("E4:H4").WrapText = True
 
@@ -2487,7 +2997,8 @@ Private Sub EnsureSettingsCommandButtons(ByVal wsSettings As Worksheet)
                              leftPos + buttonWidth + 8, topPos, buttonWidth + 20, buttonHeight, RGB(112, 48, 160)
     AddSettingsCommandButton wsSettings, "Btn_Settings_WbsSummary", "WBSサマリ作成", "WBSRoadmapReport.CreateRoadmapOverview", _
                              leftPos + buttonWidth * 2 + 36, topPos, buttonWidth + 15, buttonHeight, RGB(84, 130, 53)
-
+    AddSettingsCommandButton wsSettings, "Btn_Settings_WbsDiff", "WBS差分確認", "CreateWbsBackupDiffSheet", _
+                             leftPos, topPos + buttonHeight + 8, buttonWidth + 15, buttonHeight, RGB(68, 114, 196)
     wsSettings.Columns("E:H").ColumnWidth = 14
 End Sub
 

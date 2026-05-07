@@ -135,7 +135,7 @@ Private Sub Worksheet_Change(ByVal Target As Range)
     bulkEditMode = InazumaGantt_v3.IsBulkEditModeEnabledAfterRuntimeRepair()
     prevEvents = Application.EnableEvents
     If bulkEditMode Then
-        Application.StatusBar = "‚‘¬“ü—Í’†: Ctrl+Z ‚ğ—Dæ‚µA©“®XV‚ğ’â~‚µ‚Ä‚¢‚Ü‚·"
+        Application.StatusBar = False
         isHandlingWorksheetChange = False
         Exit Sub
     End If

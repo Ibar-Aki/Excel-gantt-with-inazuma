@@ -135,7 +135,7 @@ Private Sub Worksheet_Change(ByVal Target As Range)
     bulkEditMode = InazumaGantt_v3.IsBulkEditModeEnabledAfterRuntimeRepair()
     prevEvents = Application.EnableEvents
     If bulkEditMode Then
-        Application.StatusBar = "高速入力中: Ctrl+Z を優先し、自動更新を停止しています"
+        Application.StatusBar = False
         isHandlingWorksheetChange = False
         Exit Sub
     End If

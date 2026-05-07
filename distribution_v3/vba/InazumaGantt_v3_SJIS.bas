@@ -1512,7 +1512,7 @@ Sub RefreshInazumaGantt()
     Application.EnableEvents = prevEvents
     Application.ScreenUpdating = True
 
-    Application.StatusBar = "イナズマガントを更新しました"
+    Application.StatusBar = False
     UpdateBulkEditModeIndicator ws, "最新状態へ更新しました。"
     Exit Sub
 
@@ -2138,7 +2138,7 @@ Public Sub ToggleBulkEditMode()
         PrepareLiveTaskLevelHintsForBulkEdit ws
         Application.Calculation = prevCalc
         Application.ScreenUpdating = prevScreenUpdating
-        Application.StatusBar = "高速入力モードを ON にしました。Ctrl+Z を優先するため自動更新を停止しています"
+        Application.StatusBar = False
         UpdateBulkEditModeIndicator ws, "Ctrl+Z を優先しつつ、TASK入力時のLV表示だけ有効にしました。"
         Exit Sub
     End If
@@ -2149,7 +2149,7 @@ Public Sub ToggleBulkEditMode()
     Application.Calculation = prevCalc
     Application.ScreenUpdating = prevScreenUpdating
     CreateControlButtons ws, True
-    Application.StatusBar = "高速入力モードを OFF にし、全体を再整合しました"
+    Application.StatusBar = False
     UpdateBulkEditModeIndicator ws, "再整合済み。"
     Exit Sub
 
@@ -2263,7 +2263,7 @@ Private Sub CreateWbsBackupSheetCore(Optional ByVal skipNotification As Boolean 
     ReplaceBackupWorksheetWithStaged wsBackupStaging
 
     RestoreApplicationState prevCalc, prevEvents, prevScreenUpdating, stateCaptured
-    Application.StatusBar = "WBSバックアップを更新しました"
+    Application.StatusBar = False
 
     If (Not skipNotification) And Application.DisplayAlerts Then
         MsgBox "最新の WBS バックアップを '" & BACKUP_SHEET_NAME & "' に更新しました。", vbInformation, "WBS退避"
@@ -2344,7 +2344,7 @@ Private Sub RestoreWbsFromBackupSheetCore(Optional ByVal skipConfirmation As Boo
     Application.Calculation = prevCalc
     Application.ScreenUpdating = prevScreenUpdating
     If Not ws Is Nothing Then CreateControlButtons ws, True
-    Application.StatusBar = "バックアップから WBS を復元し、通常モードへ戻しました"
+    Application.StatusBar = False
 
     If (Not skipConfirmation) And Application.DisplayAlerts Then
         MsgBox "バックアップシートから WBS を復元しました。", vbInformation, "バックアップ復元"
