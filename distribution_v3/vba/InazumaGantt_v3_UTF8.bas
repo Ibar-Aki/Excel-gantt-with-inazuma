@@ -46,6 +46,7 @@ Private Const BACKUP_SHEET_NAME As String = "WBS_Backup_v3"
 Private Const BACKUP_TEMP_SHEET_NAME As String = "_WBS_Backup_v3_tmp"
 Private Const BACKUP_OLD_SHEET_NAME As String = "_WBS_Backup_v3_old"
 Private Const RESTORE_ROLLBACK_SHEET_NAME As String = "_WBS_Restore_v3_rollback"
+Private Const WEEKLY_WORK_SHEET_NAME As String = "今週作業"
 Private Const BACKUP_META_LABEL_START As String = "Q1"
 Private Const BACKUP_META_VALUE_START As String = "R1"
 
@@ -412,6 +413,7 @@ Private Sub ReconcileDeferredTaskState(ByVal ws As Worksheet)
 
     If ws Is Nothing Then Exit Sub
 
+    ClearLiveTaskLevelHintFormulas ws
     lastRow = GetLastDataRow(ws)
     If lastRow < ROW_DATA_START Then lastRow = ROW_DATA_START
 
@@ -456,6 +458,17 @@ Private Sub PrepareLiveTaskLevelHintsForBulkEdit(ByVal ws As Worksheet)
             End If
         End If
     Next r
+End Sub
+
+Private Sub ClearLiveTaskLevelHintFormulas(ByVal ws As Worksheet)
+    Dim lastSupportedRow As Long
+    Dim levelRange As Range
+
+    If ws Is Nothing Then Exit Sub
+
+    lastSupportedRow = ROW_DATA_START + DATA_ROWS_DEFAULT - 1
+    Set levelRange = ws.Range(COL_HIERARCHY & ROW_DATA_START & ":" & COL_HIERARCHY & lastSupportedRow)
+    levelRange.Value = levelRange.Value
 End Sub
 
 Public Sub CancelDeferredBulkEditReconcile()
@@ -517,6 +530,30 @@ Public Function NormalizeProgressValue(ByVal progressValue As Variant, Optional 
     Else
         NormalizeProgressValue = fallback
     End If
+End Function
+
+Public Function TryGetDateValue(ByVal rawValue As Variant, ByRef parsedDate As Date) As Boolean
+    Dim textValue As String
+    Dim serialValue As Double
+
+    If IsEmpty(rawValue) Or IsNull(rawValue) Then Exit Function
+
+    textValue = Trim$(CStr(rawValue))
+    If textValue = "" Then Exit Function
+
+    If IsDate(rawValue) Then
+        parsedDate = CDate(rawValue)
+        TryGetDateValue = True
+        Exit Function
+    End If
+
+    If Not IsNumeric(rawValue) Then Exit Function
+
+    serialValue = CDbl(rawValue)
+    If serialValue <= 0 Or serialValue >= 2958466 Then Exit Function
+
+    parsedDate = CDate(DateSerial(1899, 12, 30) + serialValue)
+    TryGetDateValue = True
 End Function
 
 Private Function TryParseDevelopmentHours(ByVal hoursValue As Variant, ByRef normalizedHours As Double) As Boolean
@@ -1841,6 +1878,11 @@ Public Sub RefreshTaskLabelPresentation(ByVal ws As Worksheet, ByVal targetRow A
         taskCell.Font.Bold = True
         taskCell.Font.Color = WBSParentRollup.ALERT_COLOR_RED
         taskCell.HorizontalAlignment = xlCenter
+    ElseIf ExtractAlertMarkerText(textValue) <> "" Then
+        taskCell.Font.Italic = False
+        taskCell.Font.Bold = True
+        taskCell.Font.Color = WBSParentRollup.ALERT_COLOR_RED
+        taskCell.HorizontalAlignment = xlLeft
     Else
         ClearTaskLabelPresentation taskCell
     End If
@@ -2110,6 +2152,22 @@ Private Sub CreateControlButtons(ByVal ws As Worksheet, Optional ByVal skipRunti
         .TextFrame2.VerticalAnchor = msoAnchorMiddle
         .OnAction = "ExportToPDF"
     End With
+
+    ' 今週作業ビュー作成ボタン
+    btnLeft = btnLeft + btnWidth + 10
+    Dim btnWeeklyWork As Shape
+    Set btnWeeklyWork = ws.Shapes.AddShape(msoShapeRoundedRectangle, btnLeft, btnTop, btnWidth, btnHeight)
+    With btnWeeklyWork
+        .Name = "Btn_WeeklyWork"
+        .Fill.ForeColor.RGB = RGB(112, 173, 71)
+        .Line.Visible = msoFalse
+        .TextFrame2.TextRange.Characters.Text = "今週作業"
+        .TextFrame2.TextRange.Font.Fill.ForeColor.RGB = RGB(255, 255, 255)
+        .TextFrame2.TextRange.Font.Size = 10
+        .TextFrame2.TextRange.ParagraphFormat.Alignment = msoAlignCenter
+        .TextFrame2.VerticalAnchor = msoAnchorMiddle
+        .OnAction = "CreateWeeklyWorkSheet"
+    End With
 End Sub
 
 Public Sub ToggleBulkEditMode()
@@ -2230,6 +2288,263 @@ End Sub
 ' ==========================================
 Sub ResetFormatting()
     RefreshInazumaGantt
+End Sub
+
+Private Function ResolveWeeklyWorkReferenceDate(Optional ByVal referenceDate As Variant) As Date
+    Dim parsedDate As Date
+
+    If IsMissing(referenceDate) Or Not TryGetDateValue(referenceDate, parsedDate) Then
+        ResolveWeeklyWorkReferenceDate = Date
+    Else
+        ResolveWeeklyWorkReferenceDate = parsedDate
+    End If
+End Function
+
+Private Function StripAlertMarkerPrefixForDisplay(ByVal textValue As String) As String
+    textValue = Trim$(textValue)
+
+    If textValue = WBSParentRollup.ALERT_MARK_DELAY Then
+        StripAlertMarkerPrefixForDisplay = ""
+    ElseIf Left$(textValue, Len(WBSParentRollup.ALERT_MARK_DELAY & " ")) = WBSParentRollup.ALERT_MARK_DELAY & " " Then
+        StripAlertMarkerPrefixForDisplay = Trim$(Mid$(textValue, Len(WBSParentRollup.ALERT_MARK_DELAY & " ") + 1))
+    ElseIf textValue = WBSParentRollup.ALERT_MARK_TODAY Then
+        StripAlertMarkerPrefixForDisplay = ""
+    ElseIf Left$(textValue, Len(WBSParentRollup.ALERT_MARK_TODAY & " ")) = WBSParentRollup.ALERT_MARK_TODAY & " " Then
+        StripAlertMarkerPrefixForDisplay = Trim$(Mid$(textValue, Len(WBSParentRollup.ALERT_MARK_TODAY & " ") + 1))
+    Else
+        StripAlertMarkerPrefixForDisplay = textValue
+    End If
+End Function
+
+Private Function PlanRangeIntersectsReferenceWeek(ByVal startPlan As Variant, ByVal endPlan As Variant, ByVal referenceDate As Date) As Boolean
+    Dim weekStart As Date
+    Dim weekEnd As Date
+    Dim planStartDate As Date
+    Dim planEndDate As Date
+    Dim hasStart As Boolean
+    Dim hasEnd As Boolean
+
+    hasStart = TryGetDateValue(startPlan, planStartDate)
+    hasEnd = TryGetDateValue(endPlan, planEndDate)
+    If Not hasStart And Not hasEnd Then Exit Function
+
+    If hasStart And hasEnd Then
+        weekStart = referenceDate - (Weekday(referenceDate, vbMonday) - 1)
+        weekEnd = weekStart + 6
+        PlanRangeIntersectsReferenceWeek = (planStartDate <= weekEnd And planEndDate >= weekStart)
+    ElseIf hasStart Then
+        weekStart = referenceDate - (Weekday(referenceDate, vbMonday) - 1)
+        weekEnd = weekStart + 6
+        PlanRangeIntersectsReferenceWeek = (planStartDate >= weekStart And planStartDate <= weekEnd)
+    Else
+        weekStart = referenceDate - (Weekday(referenceDate, vbMonday) - 1)
+        weekEnd = weekStart + 6
+        PlanRangeIntersectsReferenceWeek = (planEndDate >= weekStart And planEndDate <= weekEnd)
+    End If
+End Function
+
+Private Function GetWeeklyWorkCategory(ByVal ws As Worksheet, ByVal targetRow As Long, ByVal referenceDate As Date) As String
+    Dim statusText As String
+    Dim progressValue As Double
+    Dim startPlan As Variant
+    Dim endPlan As Variant
+    Dim alertMarker As String
+    Dim endPlanDate As Date
+
+    If ws Is Nothing Then Exit Function
+    If Not HasTaskContentInRow(ws, targetRow) Then Exit Function
+
+    statusText = Trim$(CStr(ws.Cells(targetRow, COL_STATUS).Value))
+    progressValue = NormalizeProgressValue(ws.Cells(targetRow, COL_PROGRESS).Value, 0)
+    If statusText = STATUS_COMPLETED Or progressValue >= 1 Then Exit Function
+
+    If statusText = STATUS_IN_PROGRESS Or progressValue > 0 Then
+        GetWeeklyWorkCategory = "進行中"
+        Exit Function
+    End If
+
+    startPlan = ws.Cells(targetRow, COL_START_PLAN).Value
+    endPlan = ws.Cells(targetRow, COL_END_PLAN).Value
+    alertMarker = ExtractAlertMarkerText(CStr(ws.Cells(targetRow, COL_TASK).Value))
+
+    If alertMarker = WBSParentRollup.ALERT_MARK_DELAY Or _
+       (TryGetDateValue(endPlan, endPlanDate) And endPlanDate < referenceDate) Then
+        GetWeeklyWorkCategory = "未着手かつ遅延"
+    ElseIf alertMarker = WBSParentRollup.ALERT_MARK_TODAY Or _
+           PlanRangeIntersectsReferenceWeek(startPlan, endPlan, referenceDate) Then
+        If statusText = "" Or statusText = STATUS_NOT_STARTED Or statusText = "予定前" Then
+            GetWeeklyWorkCategory = "今週するはずの未着手"
+        End If
+    End If
+End Function
+
+Private Function BuildWeeklyWorkTaskPath(ByRef levelLabels() As String, ByVal currentLevel As Long) As String
+    Dim levelIndex As Long
+    Dim pathText As String
+
+    For levelIndex = 1 To currentLevel
+        If Trim$(levelLabels(levelIndex)) <> "" Then
+            If pathText <> "" Then pathText = pathText & " > "
+            pathText = pathText & levelLabels(levelIndex)
+        End If
+    Next levelIndex
+
+    BuildWeeklyWorkTaskPath = pathText
+End Function
+
+Private Sub WriteWeeklyWorkRowsForCategory(ByVal wsMain As Worksheet, ByVal wsWeekly As Worksheet, _
+                                           ByVal categoryName As String, ByVal referenceDate As Date, _
+                                           ByRef outputRow As Long)
+    Const MAX_WEEKLY_LEVEL As Long = 32
+
+    Dim levelLabels() As String
+    Dim lastRow As Long
+    Dim r As Long
+    Dim clearLevel As Long
+    Dim taskLevel As Long
+    Dim taskLabel As String
+    Dim categoryText As String
+    Dim alertMarker As String
+
+    ReDim levelLabels(1 To MAX_WEEKLY_LEVEL)
+    lastRow = GetLastDataRow(wsMain)
+    For r = ROW_DATA_START To lastRow
+        taskLevel = 0
+        If IsNumeric(wsMain.Cells(r, COL_HIERARCHY).Value) Then taskLevel = CLng(wsMain.Cells(r, COL_HIERARCHY).Value)
+        taskLabel = StripAlertMarkerPrefixForDisplay(GetVisibleTaskLabelForRow(wsMain, r))
+
+        If taskLevel > 0 And taskLevel <= MAX_WEEKLY_LEVEL And taskLabel <> "" Then
+            levelLabels(taskLevel) = taskLabel
+            For clearLevel = taskLevel + 1 To MAX_WEEKLY_LEVEL
+                levelLabels(clearLevel) = ""
+            Next clearLevel
+        End If
+
+        categoryText = GetWeeklyWorkCategory(wsMain, r, referenceDate)
+        If categoryText = categoryName Then
+            alertMarker = ExtractAlertMarkerText(CStr(wsMain.Cells(r, COL_TASK).Value))
+            wsWeekly.Cells(outputRow, "A").Value = categoryText
+            wsWeekly.Cells(outputRow, "B").Value = r
+            wsWeekly.Cells(outputRow, "C").Value = wsMain.Cells(r, COL_NO).Value
+            wsWeekly.Cells(outputRow, "D").Value = taskLevel
+            wsWeekly.Cells(outputRow, "E").Value = BuildWeeklyWorkTaskPath(levelLabels, taskLevel)
+            wsWeekly.Cells(outputRow, "F").Value = taskLabel
+            wsWeekly.Cells(outputRow, "G").Value = wsMain.Cells(r, COL_ASSIGNEE).Value
+            wsWeekly.Cells(outputRow, "H").Value = wsMain.Cells(r, COL_STATUS).Value
+            wsWeekly.Cells(outputRow, "I").Value = NormalizeProgressValue(wsMain.Cells(r, COL_PROGRESS).Value, 0)
+            wsWeekly.Cells(outputRow, "J").Value = wsMain.Cells(r, COL_START_PLAN).Value
+            wsWeekly.Cells(outputRow, "K").Value = wsMain.Cells(r, COL_END_PLAN).Value
+            wsWeekly.Cells(outputRow, "L").Value = alertMarker
+            outputRow = outputRow + 1
+        End If
+    Next r
+End Sub
+
+Private Sub FormatWeeklyWorkSheet(ByVal wsWeekly As Worksheet, ByVal lastOutputRow As Long, ByVal referenceDate As Date)
+    Dim weekStart As Date
+    Dim weekEnd As Date
+
+    weekStart = referenceDate - (Weekday(referenceDate, vbMonday) - 1)
+    weekEnd = weekStart + 6
+
+    With wsWeekly
+        .Range("A1").Value = "今週作業"
+        .Range("A2").Value = "対象週"
+        .Range("B2").Value = Format$(weekStart, "yyyy/mm/dd") & " - " & Format$(weekEnd, "yyyy/mm/dd")
+        .Range("A3").Value = "作成日時"
+        .Range("B3").Value = Now
+        .Range("A5:L5").Value = Array("分類", "元行", "No.", "LV", "WBSパス", "タスク", "担当", "状況", "進捗率", "開始予定", "完了予定", "警告")
+        .Range("A1:L1").Merge
+        .Range("A1").Font.Size = 16
+        .Range("A1").Font.Bold = True
+        .Range("A5:L5").Font.Bold = True
+        .Range("A5:L5").Interior.Color = COLOR_HEADER_BG
+        .Range("A5:L5").Font.Color = RGB(255, 255, 255)
+        .Columns("I").NumberFormat = "0%"
+        .Columns("J:K").NumberFormat = "yy/mm/dd"
+        If lastOutputRow >= 6 Then
+            .Range("A5:L" & lastOutputRow).AutoFilter
+            .Range("A6:L" & lastOutputRow).Borders.LineStyle = xlContinuous
+        Else
+            .Range("A6").Value = "該当する作業はありません。"
+        End If
+        .Columns("A:L").AutoFit
+        .Columns("E").ColumnWidth = 42
+        .Columns("F").ColumnWidth = 28
+        .Columns("E:F").WrapText = True
+    End With
+End Sub
+
+Public Sub CreateWeeklyWorkSheet(Optional ByVal referenceDate As Variant)
+    On Error GoTo ErrorHandler
+
+    Dim ws As Worksheet
+    Dim wsWeekly As Worksheet
+    Dim referenceDateValue As Date
+    Dim outputRow As Long
+    Dim lastRow As Long
+    Dim prevCalc As XlCalculation
+    Dim prevEvents As Boolean
+    Dim prevScreenUpdating As Boolean
+    Dim prevAlerts As Boolean
+    Dim errNumber As Long
+    Dim errDescription As String
+
+    Set ws = RequireMainWorksheet("今週作業")
+    If ws Is Nothing Then Exit Sub
+    prevCalc = Application.Calculation
+    prevEvents = Application.EnableEvents
+    prevScreenUpdating = Application.ScreenUpdating
+    prevAlerts = Application.DisplayAlerts
+    Call RepairBulkEditRuntimeState(ws)
+
+    referenceDateValue = ResolveWeeklyWorkReferenceDate(referenceDate)
+
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
+    Application.EnableEvents = False
+    Application.DisplayAlerts = False
+
+    SetBulkEditMode False
+    ClearLiveTaskLevelHintFormulas ws
+    lastRow = GetLastDataRow(ws)
+    If lastRow < ROW_DATA_START Then lastRow = ROW_DATA_START
+    NormalizeTaskStatusAndProgressRange ws, ROW_DATA_START, lastRow
+    AutoDetectTaskLevelsInRange ws, ROW_DATA_START, lastRow
+    RenumberRowsForWorksheet ws
+    WBSParentRollup.RefreshTaskAlertMarkers ws
+    DeleteWorksheetIfExists WEEKLY_WORK_SHEET_NAME, MAIN_SHEET_NAME
+    Set wsWeekly = ThisWorkbook.Worksheets.Add(After:=ws)
+    wsWeekly.Name = WEEKLY_WORK_SHEET_NAME
+
+    outputRow = 6
+    WriteWeeklyWorkRowsForCategory ws, wsWeekly, "進行中", referenceDateValue, outputRow
+    WriteWeeklyWorkRowsForCategory ws, wsWeekly, "未着手かつ遅延", referenceDateValue, outputRow
+    WriteWeeklyWorkRowsForCategory ws, wsWeekly, "今週するはずの未着手", referenceDateValue, outputRow
+    FormatWeeklyWorkSheet wsWeekly, outputRow - 1, referenceDateValue
+
+    Application.DisplayAlerts = prevAlerts
+    Application.EnableEvents = True
+    Application.Calculation = prevCalc
+    Application.ScreenUpdating = prevScreenUpdating
+
+    If Application.DisplayAlerts And Not IsAutomationModeEnabled() Then
+        MsgBox "今週作業シートを作成しました。", vbInformation, "今週作業"
+    End If
+    Exit Sub
+
+ErrorHandler:
+    errNumber = Err.Number
+    errDescription = Err.Description
+    Application.DisplayAlerts = prevAlerts
+    Application.EnableEvents = True
+    Application.Calculation = prevCalc
+    Application.ScreenUpdating = prevScreenUpdating
+    If prevAlerts Then
+        MsgBox "今週作業シート作成エラー: " & errDescription, vbCritical, "今週作業"
+    Else
+        Err.Raise errNumber, "CreateWeeklyWorkSheet", errDescription
+    End If
 End Sub
 
 Private Sub CreateWbsBackupSheetCore(Optional ByVal skipNotification As Boolean = False)
@@ -2573,10 +2888,10 @@ Private Sub EnsureSettingsCommandButtons(ByVal wsSettings As Worksheet)
 
     wsSettings.Range("E3").Value = "WBS操作"
     wsSettings.Range("E3").Font.Bold = True
-    wsSettings.Range("E4:H4").ClearContents
-    wsSettings.Range("E4").Value = "退避・復元・サマリ作成はここから実行します。"
-    wsSettings.Range("E4:H4").Merge
-    wsSettings.Range("E4:H4").WrapText = True
+    wsSettings.Range("E4:I4").ClearContents
+    wsSettings.Range("E4").Value = "退避・復元・サマリ作成・今週作業確認はここから実行します。"
+    wsSettings.Range("E4:I4").Merge
+    wsSettings.Range("E4:I4").WrapText = True
 
     leftPos = wsSettings.Range("E5").Left
     topPos = wsSettings.Range("E5").Top
@@ -2589,8 +2904,10 @@ Private Sub EnsureSettingsCommandButtons(ByVal wsSettings As Worksheet)
                              leftPos + buttonWidth + 8, topPos, buttonWidth + 20, buttonHeight, RGB(112, 48, 160)
     AddSettingsCommandButton wsSettings, "Btn_Settings_WbsSummary", "WBSサマリ作成", "WBSRoadmapReport.CreateRoadmapOverview", _
                              leftPos + buttonWidth * 2 + 36, topPos, buttonWidth + 15, buttonHeight, RGB(84, 130, 53)
+    AddSettingsCommandButton wsSettings, "Btn_Settings_WeeklyWork", "今週作業", "CreateWeeklyWorkSheet", _
+                             leftPos, topPos + buttonHeight + 6, buttonWidth, buttonHeight, RGB(112, 173, 71)
 
-    wsSettings.Columns("E:H").ColumnWidth = 14
+    wsSettings.Columns("E:I").ColumnWidth = 14
 End Sub
 
 Private Sub NormalizeHolidayMasterRows(ByVal wsSettings As Worksheet)

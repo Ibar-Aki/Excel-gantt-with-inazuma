@@ -665,15 +665,96 @@ Private Function IsThisWeek(ByVal targetDate As Date, ByVal referenceDate As Dat
     IsThisWeek = (targetDate >= weekStart And targetDate <= weekEnd)
 End Function
 
-Private Function DetermineAlertMarker(ByVal ws As Worksheet, ByVal targetRow As Long, ByVal referenceDate As Date) As String
+Private Function PlanRangeIntersectsThisWeek(ByVal startPlan As Variant, ByVal endPlan As Variant, ByVal referenceDate As Date) As Boolean
+    Dim weekStart As Date
+    Dim weekEnd As Date
+    Dim planStartDate As Date
+    Dim planEndDate As Date
+    Dim hasStart As Boolean
+    Dim hasEnd As Boolean
+
+    hasStart = InazumaGantt_v3.TryGetDateValue(startPlan, planStartDate)
+    hasEnd = InazumaGantt_v3.TryGetDateValue(endPlan, planEndDate)
+    If Not hasStart And Not hasEnd Then Exit Function
+
+    If hasStart And hasEnd Then
+        weekStart = referenceDate - (Weekday(referenceDate, vbMonday) - 1)
+        weekEnd = weekStart + 6
+        PlanRangeIntersectsThisWeek = (planStartDate <= weekEnd And planEndDate >= weekStart)
+    ElseIf hasStart Then
+        PlanRangeIntersectsThisWeek = IsThisWeek(planStartDate, referenceDate)
+    Else
+        PlanRangeIntersectsThisWeek = IsThisWeek(planEndDate, referenceDate)
+    End If
+End Function
+
+Private Function GetAlertSeverity(ByVal markerText As String) As Long
+    markerText = Trim$(markerText)
+    Select Case markerText
+        Case ALERT_MARK_DELAY
+            GetAlertSeverity = 2
+        Case ALERT_MARK_TODAY
+            GetAlertSeverity = 1
+        Case Else
+            GetAlertSeverity = 0
+    End Select
+End Function
+
+Private Function StrongerAlertMarker(ByVal currentMarker As String, ByVal candidateMarker As String) As String
+    If GetAlertSeverity(candidateMarker) > GetAlertSeverity(currentMarker) Then
+        StrongerAlertMarker = candidateMarker
+    Else
+        StrongerAlertMarker = currentMarker
+    End If
+End Function
+
+Private Function RemoveAlertMarkerPrefix(ByVal textValue As String) As String
+    textValue = Trim$(textValue)
+
+    If textValue = ALERT_MARK_DELAY Then
+        RemoveAlertMarkerPrefix = ""
+    ElseIf Left$(textValue, Len(ALERT_MARK_DELAY & " ")) = ALERT_MARK_DELAY & " " Then
+        RemoveAlertMarkerPrefix = Trim$(Mid$(textValue, Len(ALERT_MARK_DELAY & " ") + 1))
+    ElseIf textValue = ALERT_MARK_TODAY Then
+        RemoveAlertMarkerPrefix = ""
+    ElseIf Left$(textValue, Len(ALERT_MARK_TODAY & " ")) = ALERT_MARK_TODAY & " " Then
+        RemoveAlertMarkerPrefix = Trim$(Mid$(textValue, Len(ALERT_MARK_TODAY & " ") + 1))
+    Else
+        RemoveAlertMarkerPrefix = textValue
+    End If
+End Function
+
+Private Function BuildMarkedPrimaryTaskText(ByVal currentValue As String, ByVal markerText As String) As String
+    Dim baseText As String
+
+    baseText = RemoveAlertMarkerPrefix(currentValue)
+    markerText = Trim$(markerText)
+
+    If markerText <> "" And baseText <> "" Then
+        BuildMarkedPrimaryTaskText = markerText & " " & baseText
+    Else
+        BuildMarkedPrimaryTaskText = baseText
+    End If
+End Function
+
+Private Function HasPrimaryTaskTextInMarkerCell(ByVal ws As Worksheet, ByVal targetRow As Long) As Boolean
+    Dim textValue As String
+
+    textValue = Trim$(CStr(ws.Cells(targetRow, "C").Value))
+    HasPrimaryTaskTextInMarkerCell = (textValue <> "" And Not IsMarkerOnlyText(textValue) And _
+                                      Not InazumaGantt_v3.IsAuxiliaryPlaceholderText(textValue))
+End Function
+
+Private Function DetermineSelfAlertMarker(ByVal ws As Worksheet, ByVal targetRow As Long, ByVal referenceDate As Date) As String
     Dim rowLevel As Long
     Dim statusText As String
     Dim progressValue As Double
     Dim startPlan As Variant
     Dim endPlan As Variant
+    Dim endPlanDate As Date
 
     rowLevel = GetHierarchyLevel(ws, targetRow)
-    If rowLevel <= 1 Then Exit Function
+    If rowLevel <= 0 Then Exit Function
     If Not InazumaGantt_v3.HasTaskContentInRow(ws, targetRow) Then Exit Function
 
     statusText = Trim$(CStr(ws.Cells(targetRow, InazumaGantt_v3.COL_STATUS).Value))
@@ -683,27 +764,47 @@ Private Function DetermineAlertMarker(ByVal ws As Worksheet, ByVal targetRow As 
     startPlan = ws.Cells(targetRow, InazumaGantt_v3.COL_START_PLAN).Value
     endPlan = ws.Cells(targetRow, InazumaGantt_v3.COL_END_PLAN).Value
 
-    If IsDate(endPlan) Then
-        If CDate(endPlan) < referenceDate Then
-            DetermineAlertMarker = ALERT_MARK_DELAY
-            Exit Function
-        End If
-        If CDate(endPlan) = referenceDate Then
-            DetermineAlertMarker = ALERT_MARK_TODAY
+    If InazumaGantt_v3.TryGetDateValue(endPlan, endPlanDate) Then
+        If endPlanDate < referenceDate Then
+            DetermineSelfAlertMarker = ALERT_MARK_DELAY
             Exit Function
         End If
     End If
 
-    If IsDate(startPlan) Then
-        If CDate(startPlan) = referenceDate Then
-            DetermineAlertMarker = ALERT_MARK_TODAY
-        End If
+    If PlanRangeIntersectsThisWeek(startPlan, endPlan, referenceDate) Then
+        DetermineSelfAlertMarker = ALERT_MARK_TODAY
     End If
 End Function
 
-Private Sub ApplyAlertMarkerState(ByVal ws As Worksheet, ByVal targetRow As Long, ByVal referenceDate As Date)
+Private Function DetermineDescendantAlertMarker(ByVal ws As Worksheet, ByVal targetRow As Long, ByVal referenceDate As Date) As String
+    Dim targetLevel As Long
+    Dim lastRow As Long
+    Dim r As Long
     Dim rowLevel As Long
     Dim markerText As String
+
+    targetLevel = GetHierarchyLevel(ws, targetRow)
+    If targetLevel <= 0 Then Exit Function
+
+    lastRow = InazumaGantt_v3.GetLastDataRow(ws)
+    For r = targetRow + 1 To lastRow
+        rowLevel = GetHierarchyLevel(ws, r)
+        If rowLevel > 0 Then
+            If rowLevel <= targetLevel Then Exit For
+            markerText = DetermineSelfAlertMarker(ws, r, referenceDate)
+            DetermineDescendantAlertMarker = StrongerAlertMarker(DetermineDescendantAlertMarker, markerText)
+            If DetermineDescendantAlertMarker = ALERT_MARK_DELAY Then Exit For
+        End If
+    Next r
+End Function
+
+Private Function DetermineAlertMarker(ByVal ws As Worksheet, ByVal targetRow As Long, ByVal referenceDate As Date) As String
+    DetermineAlertMarker = StrongerAlertMarker(DetermineSelfAlertMarker(ws, targetRow, referenceDate), _
+                                               DetermineDescendantAlertMarker(ws, targetRow, referenceDate))
+End Function
+
+Private Sub ApplyResolvedAlertMarkerState(ByVal ws As Worksheet, ByVal targetRow As Long, ByVal markerText As String)
+    Dim rowLevel As Long
     Dim markerCell As Range
     Dim currentValue As String
     Dim nextValue As String
@@ -714,7 +815,7 @@ Private Sub ApplyAlertMarkerState(ByVal ws As Worksheet, ByVal targetRow As Long
     Set markerCell = ws.Cells(targetRow, "C")
     currentValue = Trim$(CStr(markerCell.Value))
 
-    If rowLevel <= 1 Then
+    If rowLevel <= 0 Then
         If IsMarkerOnlyText(currentValue) Then
             markerCell.ClearContents
         End If
@@ -722,8 +823,9 @@ Private Sub ApplyAlertMarkerState(ByVal ws As Worksheet, ByVal targetRow As Long
         Exit Sub
     End If
 
-    markerText = DetermineAlertMarker(ws, targetRow, referenceDate)
-    If InazumaGantt_v3.HasPrimaryTaskContentInRow(ws, targetRow) Then
+    If HasPrimaryTaskTextInMarkerCell(ws, targetRow) Then
+        nextValue = BuildMarkedPrimaryTaskText(currentValue, markerText)
+    ElseIf InazumaGantt_v3.HasPrimaryTaskContentInRow(ws, targetRow) Then
         nextValue = markerText
     ElseIf InazumaGantt_v3.HasTaskContentInRow(ws, targetRow) Then
         nextValue = InazumaGantt_v3.BuildAuxiliaryDisplayText(markerText)
@@ -736,20 +838,71 @@ Private Sub ApplyAlertMarkerState(ByVal ws As Worksheet, ByVal targetRow As Long
     InazumaGantt_v3.RefreshTaskLabelPresentation ws, targetRow
 End Sub
 
+Private Sub ApplyAlertMarkerState(ByVal ws As Worksheet, ByVal targetRow As Long, ByVal referenceDate As Date)
+    ApplyResolvedAlertMarkerState ws, targetRow, DetermineAlertMarker(ws, targetRow, referenceDate)
+End Sub
+
 Public Sub RefreshTaskAlertMarkers(ByVal ws As Worksheet)
+    Const MAX_TRACKED_LEVEL As Long = 32
+
     Dim workingWs As Worksheet
     Dim lastRow As Long
+    Dim rowCount As Long
     Dim r As Long
+    Dim rowIndex As Long
+    Dim levelIndex As Long
+    Dim parentIndex As Long
     Dim referenceDate As Date
+    Dim levels() As Long
+    Dim parentRows() As Long
+    Dim resolvedMarkers() As String
+    Dim levelStack(1 To MAX_TRACKED_LEVEL) As Long
 
     Set workingWs = GetRollupWorksheet(ws, "タスク強調表示")
     If workingWs Is Nothing Then Exit Sub
 
     lastRow = InazumaGantt_v3.GetLastDataRow(workingWs)
+    If lastRow < InazumaGantt_v3.ROW_DATA_START Then Exit Sub
+
+    rowCount = lastRow - InazumaGantt_v3.ROW_DATA_START + 1
+    ReDim levels(1 To rowCount)
+    ReDim parentRows(1 To rowCount)
+    ReDim resolvedMarkers(1 To rowCount)
     referenceDate = Date
 
     For r = InazumaGantt_v3.ROW_DATA_START To lastRow
-        ApplyAlertMarkerState workingWs, r, referenceDate
+        rowIndex = r - InazumaGantt_v3.ROW_DATA_START + 1
+        If IsNumeric(workingWs.Cells(r, InazumaGantt_v3.COL_HIERARCHY).Value) Then
+            levels(rowIndex) = CLng(workingWs.Cells(r, InazumaGantt_v3.COL_HIERARCHY).Value)
+        End If
+
+        If levels(rowIndex) > 0 And levels(rowIndex) <= MAX_TRACKED_LEVEL Then
+            For levelIndex = levels(rowIndex) - 1 To 1 Step -1
+                If levelStack(levelIndex) > 0 Then
+                    parentRows(rowIndex) = levelStack(levelIndex)
+                    Exit For
+                End If
+            Next levelIndex
+
+            levelStack(levels(rowIndex)) = rowIndex
+            For levelIndex = levels(rowIndex) + 1 To MAX_TRACKED_LEVEL
+                levelStack(levelIndex) = 0
+            Next levelIndex
+        End If
+
+        resolvedMarkers(rowIndex) = DetermineSelfAlertMarker(workingWs, r, referenceDate)
+    Next r
+
+    For rowIndex = rowCount To 1 Step -1
+        parentIndex = parentRows(rowIndex)
+        If parentIndex > 0 Then
+            resolvedMarkers(parentIndex) = StrongerAlertMarker(resolvedMarkers(parentIndex), resolvedMarkers(rowIndex))
+        End If
+    Next rowIndex
+
+    For r = InazumaGantt_v3.ROW_DATA_START To lastRow
+        rowIndex = r - InazumaGantt_v3.ROW_DATA_START + 1
+        ApplyResolvedAlertMarkerState workingWs, r, resolvedMarkers(rowIndex)
     Next r
 End Sub
 

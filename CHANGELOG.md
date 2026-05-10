@@ -1,11 +1,23 @@
 # Changelog
 
-更新日: 2026-04-24
+更新日: 2026-05-10
 
 All notable changes to InazumaGantt will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [3.2.5] - 2026-05-10
+
+### Added
+
+- **下位注意マークの上位伝播**: 下位タスクの `!!` / `!` を上位タスクへ伝播し、混在時は `!!` を優先
+- **今週作業シート**: `CreateWeeklyWorkSheet` / `今週作業` ボタンで `進行中`、`未着手かつ遅延`、`今週するはずの未着手` をカテゴリ順に抽出
+
+### Fixed
+
+- **Excelシリアル日付対応**: COM 実行や貼り付けで予定日が内部数値として入った場合も、警告表示と今週作業分類で日付として扱うよう修正
+- **自動テスト時の通知停止**: 自動テストモードでは `今週作業` 作成完了ダイアログを出さず、Excel COM 実行が停止しないよう修正
 
 ## [3.2.2] - 2026-04-24
 
