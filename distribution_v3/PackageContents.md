@@ -1,14 +1,14 @@
 # InazumaGantt v3 distribution package
 
-Created at: 2026-05-10 16:12:20 JST
+Created at: 2026-05-11 00:42:12 JST
 Author: Codex (GPT-5)
 
-Generated at: 2026-05-10 16:12:20 +09:00
+Generated at: 2026-05-11 00:42:12 +09:00
 Package root: .
 Converter root: set at runtime
 
 [Workbook]
-excel\InazumaGantt_v3_20260510_1611.xlsm
+excel\InazumaGantt_v3_20260511_0040.xlsm
 
 [One-click launchers]
 scripts\Run_OneClick_CreateLatestWorkbook.bat
@@ -47,8 +47,8 @@ docs\FEATURES.md
 docs\利用者ガイド.md
 docs\新規機能一覧.md
 docs\高速入力_状況_進捗率_受入テストケース集.md
-docs\警告伝播_今週作業_受入テスト結果_20260510.md
 docs\高速入力_状況_進捗率仕様レポート.md
+docs\親タスク予定日_仕様レポート.md
 
 [VBA note]
 Use *_UTF8.bas files for editing and manual copy/paste into the VBA editor.
@@ -56,6 +56,6 @@ Refresh *_SJIS.bas with scripts\\FixEncoding.ps1, then use them only for Excel V
 
 [Usage]
 1. Double-click scripts\Run_OneClick_CreateLatestWorkbook.bat to generate the latest workbook.
-2. Open excel\InazumaGantt_v3_20260510_1611.xlsm to review the generated sample workbook.
+2. Open excel\InazumaGantt_v3_20260511_0040.xlsm to review the generated sample workbook.
 3. If you restore from the converter bundle, run scripts\Run_RestoreWorkbookFromPayload.bat to recreate the xlsm from WorkbookPayload.json.
 4. Use scripts\Run_CreateDistributionPackage.bat to rebuild this distribution folder.

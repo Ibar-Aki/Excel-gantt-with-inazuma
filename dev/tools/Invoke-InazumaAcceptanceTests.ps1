@@ -228,7 +228,7 @@ function Get-ManagedShapeCounts {
 function Test-ButtonLayout {
     param($Worksheet, [string]$Edition)
 
-    $expectedNames = @("Btn_Refresh", "Btn_ToggleWeekend", "Btn_BulkEdit", "Btn_ShiftDates", "Btn_ExportPDF", "Btn_WeeklyWork")
+    $expectedNames = @("Btn_Refresh", "Btn_ToggleWeekend", "Btn_BulkEdit", "Btn_ShiftDates", "Btn_ExportPDF")
     foreach ($name in $expectedNames) {
         Assert-True ((Count-ShapesByName $Worksheet $name) -eq 1) "${Edition}: $name count is not 1"
         $shape = Find-Shape $Worksheet $name
@@ -731,86 +731,79 @@ function Invoke-WorkbookAcceptance {
             Assert-True ((Get-CellText $worksheet "C973") -like "! *") "${Edition}: LV1 parent did not inherit ! prefix"
         }
 
-        Invoke-TestCase "TC-20" $Edition "今週作業シートのカテゴリ順抽出" {
+        Invoke-TestCase "TC-20" $Edition "親予定日の自動入力と手入力保持" {
             Set-BulkEditState $Excel $workbook $settings $false
-            Clear-TestRows $Excel $worksheet 975 980
-            $today = (Get-Date).Date
-            $daysSinceMonday = (([int]$today.DayOfWeek + 6) % 7)
-            $weekStart = $today.AddDays(-$daysSinceMonday)
-            $nextWeekStart = $weekStart.AddDays(7)
+            Clear-TestRows $Excel $worksheet 976 980
+            $base = [datetime]"2026-06-01"
             $previousEvents = $Excel.EnableEvents
             try {
                 $Excel.EnableEvents = $false
-                Set-CellValue $worksheet "C975" "Weekly View Parent"
-                Set-CellValue $worksheet "D976" "Weekly In Progress"
-                Set-CellValue $worksheet "H976" "進行中"
-                Set-CellValue $worksheet "I976" 0.4
-                Set-CellValue $worksheet "L976" ($today.AddDays(-2).ToOADate())
-                Set-CellValue $worksheet "M976" ($today.AddDays(2).ToOADate())
-
-                Set-CellValue $worksheet "D977" "Weekly Late Not Started"
-                Set-CellValue $worksheet "H977" "未着手"
-                Set-CellValue $worksheet "I977" 0
-                Set-CellValue $worksheet "L977" ($today.AddDays(-5).ToOADate())
-                Set-CellValue $worksheet "M977" ($today.AddDays(-1).ToOADate())
-
-                Set-CellValue $worksheet "D978" "Weekly This Week Not Started"
+                Set-CellValue $worksheet "C976" "Parent Date Rollup LV1"
+                Set-CellValue $worksheet "D977" "Parent Date Rollup LV2"
+                Set-CellValue $worksheet "E978" "Parent Date Child A"
+                Set-CellValue $worksheet "E979" "Parent Date Child B"
+                Set-CellValue $worksheet "L978" ($base.AddDays(2).ToOADate())
+                Set-CellValue $worksheet "M978" ($base.AddDays(5).ToOADate())
+                Set-CellValue $worksheet "L979" ($base.AddDays(4).ToOADate())
+                Set-CellValue $worksheet "M979" ($base.AddDays(8).ToOADate())
                 Set-CellValue $worksheet "H978" "未着手"
-                Set-CellValue $worksheet "I978" 0
-                Set-CellValue $worksheet "L978" ($today.ToOADate())
-                Set-CellValue $worksheet "M978" ($today.ToOADate())
-
-                Set-CellValue $worksheet "D979" "Weekly Next Week Not Started"
                 Set-CellValue $worksheet "H979" "未着手"
+                Set-CellValue $worksheet "I978" 0
                 Set-CellValue $worksheet "I979" 0
-                Set-CellValue $worksheet "L979" ($nextWeekStart.ToOADate())
-                Set-CellValue $worksheet "M979" ($nextWeekStart.AddDays(1).ToOADate())
-
-                Set-CellValue $worksheet "D980" "Weekly Completed"
-                Set-CellValue $worksheet "H980" "完了"
-                Set-CellValue $worksheet "I980" 1
-                Set-CellValue $worksheet "L980" ($today.AddDays(-5).ToOADate())
-                Set-CellValue $worksheet "M980" ($today.AddDays(-1).ToOADate())
             }
             finally {
                 $Excel.EnableEvents = $previousEvents
             }
 
-            Set-BulkEditState $Excel $workbook $settings $true
-            $Excel.Run(("'{0}'!CreateWeeklyWorkSheet" -f $workbook.Name), $today)
-            Assert-True ($Excel.EnableEvents) "${Edition}: EnableEvents was not restored after weekly sheet from bulk mode"
-            Assert-True (-not [bool]$settings.Range("B9").Value2) "${Edition}: bulk edit setting remained ON after weekly sheet"
-            $weekly = $workbook.Worksheets.Item("今週作業")
-            $found = @{}
-            $lastRank = 0
-            $weeklyLastRow = [int]$weekly.Cells.Item($weekly.Rows.Count, 1).End(-4162).Row
-            for ($row = 6; $row -le $weeklyLastRow; $row++) {
-                $category = [string]$weekly.Cells.Item($row, 1).Text
-                $task = [string]$weekly.Cells.Item($row, 6).Text
-                if ([string]::IsNullOrWhiteSpace($category)) { continue }
-                $rank = switch ($category) {
-                    "進行中" { 1 }
-                    "未着手かつ遅延" { 2 }
-                    "今週するはずの未着手" { 3 }
-                    default { 99 }
-                }
-                Assert-True ($rank -ge $lastRank) "${Edition}: weekly categories are not sorted"
-                $lastRank = $rank
-                if ($task -like "Weekly *") {
-                    $found[$task] = $category
-                }
+            $Excel.Run(("'{0}'!RefreshInazumaGantt" -f $workbook.Name))
+            Assert-Near ([double](Get-CellValue $worksheet "L977")) ([double]$base.AddDays(2).ToOADate()) 0.001 "${Edition}: LV2 parent start was not auto-filled"
+            Assert-Near ([double](Get-CellValue $worksheet "M977")) ([double]$base.AddDays(8).ToOADate()) 0.001 "${Edition}: LV2 parent end was not auto-filled"
+            Assert-Near ([double](Get-CellValue $worksheet "L976")) ([double]$base.AddDays(2).ToOADate()) 0.001 "${Edition}: LV1 parent start was not auto-filled"
+            Assert-Near ([double](Get-CellValue $worksheet "M976")) ([double]$base.AddDays(8).ToOADate()) 0.001 "${Edition}: LV1 parent end was not auto-filled"
+
+            $previousEvents = $Excel.EnableEvents
+            try {
+                $Excel.EnableEvents = $false
+                Set-CellValue $worksheet "L978" ($base.AddDays(1).ToOADate())
+                Set-CellValue $worksheet "M979" ($base.AddDays(9).ToOADate())
+            }
+            finally {
+                $Excel.EnableEvents = $previousEvents
             }
 
-            Assert-True ($found.ContainsKey("Weekly In Progress")) "${Edition}: in-progress task missing from weekly sheet"
-            Assert-True ($found["Weekly In Progress"] -eq "進行中") "${Edition}: in-progress category mismatch"
-            Assert-True ($found.ContainsKey("Weekly Late Not Started")) "${Edition}: delayed task missing from weekly sheet"
-            Assert-True ($found["Weekly Late Not Started"] -eq "未着手かつ遅延") "${Edition}: delayed category mismatch"
-            Assert-True ($found.ContainsKey("Weekly This Week Not Started")) "${Edition}: this-week task missing from weekly sheet"
-            Assert-True ($found["Weekly This Week Not Started"] -eq "今週するはずの未着手") "${Edition}: this-week category mismatch"
-            Assert-True (-not $found.ContainsKey("Weekly Next Week Not Started")) "${Edition}: next-week task should not be listed"
-            Assert-True (-not $found.ContainsKey("Weekly Completed")) "${Edition}: completed task should not be listed"
-            Test-ButtonLayout $worksheet $Edition
+            $Excel.Run(("'{0}'!RefreshInazumaGantt" -f $workbook.Name))
+            Assert-Near ([double](Get-CellValue $worksheet "L977")) ([double]$base.AddDays(1).ToOADate()) 0.001 "${Edition}: auto-filled start did not follow child changes"
+            Assert-Near ([double](Get-CellValue $worksheet "M977")) ([double]$base.AddDays(9).ToOADate()) 0.001 "${Edition}: auto-filled end did not follow child changes"
+
+            Set-CellValue $worksheet "L977" ($base.AddDays(-3).ToOADate())
+            $previousEvents = $Excel.EnableEvents
+            try {
+                $Excel.EnableEvents = $false
+                Set-CellValue $worksheet "L978" ($base.AddDays(6).ToOADate())
+                Set-CellValue $worksheet "L979" ($base.AddDays(4).ToOADate())
+                Set-CellValue $worksheet "M979" ($base.AddDays(10).ToOADate())
+            }
+            finally {
+                $Excel.EnableEvents = $previousEvents
+            }
+
+            $Excel.Run(("'{0}'!RefreshInazumaGantt" -f $workbook.Name))
+            Assert-Near ([double](Get-CellValue $worksheet "L977")) ([double]$base.AddDays(-3).ToOADate()) 0.001 "${Edition}: manual parent start was overwritten"
+            Assert-Near ([double](Get-CellValue $worksheet "M977")) ([double]$base.AddDays(10).ToOADate()) 0.001 "${Edition}: non-manual parent end did not keep following children"
+
+            $previousEvents = $Excel.EnableEvents
+            try {
+                $Excel.EnableEvents = $false
+                $worksheet.Range("L977").ClearContents() | Out-Null
+            }
+            finally {
+                $Excel.EnableEvents = $previousEvents
+            }
+
+            $Excel.Run(("'{0}'!RefreshInazumaGantt" -f $workbook.Name))
+            Assert-Near ([double](Get-CellValue $worksheet "L977")) ([double]$base.AddDays(4).ToOADate()) 0.001 "${Edition}: cleared manual parent start did not return to auto"
         }
+
     }
     finally {
         if ($null -ne $workbook) {

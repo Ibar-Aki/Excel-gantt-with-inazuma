@@ -175,9 +175,9 @@
 <header id="title-block-header">
 <h1 class="title">進捗管理表 利用マニュアル</h1>
 </header>
-<h1 id="進捗管理表-利用マニュアル-v3--lite">進捗管理表 利用マニュアル
-(v3 / Lite)</h1>
-<p>更新日: 2026-04-24</p>
+<h1 id="進捗管理表-利用マニュアル-v3-lite">進捗管理表 利用マニュアル (v3
+/ Lite)</h1>
+<p>更新日: 2026-05-11</p>
 <h2 id="バージョン選択">バージョン選択</h2>
 <table>
 <thead>
@@ -199,6 +199,11 @@
 </table>
 <h2 id="表の見方">表の見方</h2>
 <table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
 <thead>
 <tr>
 <th>列</th>
@@ -220,7 +225,7 @@
 <tr>
 <td>C-F</td>
 <td>TASK</td>
-<td>階層に応じたタスク名。LV2-LV4 は C列に注意マーク表示あり</td>
+<td>階層に応じたタスク名。下位タスクの注意マークは上位タスクへも伝播</td>
 </tr>
 <tr>
 <td>G</td>
@@ -236,7 +241,7 @@
 <td>I</td>
 <td>進捗率</td>
 <td><code>70%</code> <code>70</code> <code>0.7</code>
-のいずれでも入力可</td>
+のいずれでも入力可。セル選択時の入力メッセージは表示しません</td>
 </tr>
 <tr>
 <td>J</td>
@@ -303,7 +308,7 @@
 </tr>
 </tbody>
 </table>
-<p>入力した列に応じて LV と No. が自動設定されます。既定の入力範囲は
+<p>入力した列に応じて LV と No. が自動設定されます。既定の入力範囲は
 No.1000 までです。</p>
 <h2 id="日付と進捗の入力">日付と進捗の入力</h2>
 <ol type="1">
@@ -314,12 +319,20 @@ No.1000 までです。</p>
 列ダブルクリックで完了にします。</li>
 </ol>
 <p><code>H:状況</code> と <code>I:進捗率</code>
-は自動で同期されます。<code>H</code> が空欄なら
-<code>未着手</code>、<code>I</code> が空欄なら <code>0%</code>
-になります。<code>完了</code> は <code>100%</code>、<code>未着手</code>
-は <code>0%</code> にそろいます。</p>
+は自動で同期されます。進捗率を入力した場合は、<code>0%</code> が
+<code>未着手</code>、<code>1%</code> から <code>99%</code> が
+<code>進行中</code>、<code>100%</code> が <code>完了</code>
+になります。状況を直接選んだ場合は、<code>完了</code> が
+<code>100%</code>、<code>未着手</code> が
+<code>0%</code>、<code>進行中</code> が未入力または端数値のとき
+<code>50%</code> にそろいます。<code>保留</code>
+は入力済みの進捗率を保持し、未入力なら <code>0%</code> になります。</p>
 <h2 id="よく使う操作">よく使う操作</h2>
 <table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
 <thead>
 <tr>
 <th>操作</th>
@@ -374,6 +387,16 @@ No.1000 までです。</p>
 <li>親タスクの状態は、遅延、完了、進行中、予定前、未着手の順で自動判定されます。</li>
 <li>LV2 配下に末端タスク LT が無い場合だけ、LV2 の K 列手入力値を代表 LT
 として扱います。</li>
+<li>親タスクの <code>L:開始予定</code> と <code>M:完了予定</code>
+が空欄の場合、<code>ガント更新</code>
+で配下タスクの最小開始日と最大完了日が入ります。</li>
+<li>親タスクの <code>L:M</code>
+を手で直した場合、そのセルは手入力値として保持されます。開始予定と完了予定は別々に判定されます。</li>
+<li>手入力した親タスク日付を空欄に戻すと、次回の <code>ガント更新</code>
+で自動計算へ戻ります。</li>
+<li>親予定日の自動値と手入力判定は非表示シート
+<code>_InazumaParentDateState</code>
+に保持されます。通常操作で編集する必要はありません。</li>
 </ol>
 <h2 id="一括編集モード">一括編集モード</h2>
 <ol type="1">
@@ -382,8 +405,10 @@ No.1000 までです。</p>
 <li>ON にすると <code>Worksheet_Change</code>
 ベースの自動更新を止めるため、Excel 標準の <code>Ctrl+Z</code>
 を使いやすくなります。</li>
-<li>ON 中は LV、No.、親再計算、C
-列アラート、階層色分け、ガント再描画を自動では更新しません。</li>
+<li>ON 中でも、空き行の C-F 列にタスク名を入力した場合は A 列の LV
+だけ即時表示されます。</li>
+<li>ON 中は No.、親再計算、C
+列アラート、階層色分け、ガント再描画は自動では更新しません。</li>
 <li>必要なら ON 中でも <code>ガント更新</code>
 を押して、現時点の表示だけを手動で反映できます。</li>
 <li>作業が終わったら <code>一括編集 OFF</code> に戻します。</li>
@@ -391,7 +416,19 @@ No.1000 までです。</p>
 に戻したタイミングで、LV、No.、親タスク、アラート、色分け、ガントがまとめて再整合されます。</li>
 <li>Excel 再起動や VBA リセットで <code>設定マスタ</code>
 の高速入力表示と実際のイベント状態がずれた場合は、シート変更時または主要マクロ実行時に通常モードへ自動修復します。</li>
+<li>高速入力の ON/OFF と状況・進捗率の詳しい仕様は
+<code>docs/高速入力_状況_進捗率仕様レポート.md</code>
+を参照してください。</li>
 </ol>
+<h2 id="設定マスタの保守項目">設定マスタの保守項目</h2>
+<p>通常利用では、<code>設定マスタ</code> の
+<code>自動テストモード</code> は <code>FALSE</code>
+のまま使います。これは Excel COM
+などの無人テスト時に確認メッセージをログ化するための保守用設定です。</p>
+<p><code>CheckInazumaRuntimeState</code>
+を実行すると、高速入力状態、イベント状態、ボタン重複、A3
+インジケータの整合をまとめて確認できます。ガント更新や不正入力の保守ログは、非表示シート
+<code>_InazumaGantt_Log</code> に記録されます。</p>
 <h2 id="wbsバックアップ">WBSバックアップ</h2>
 <ol type="1">
 <li><code>WBS退避</code> を押すと、見出し付き <code>A:O</code>
@@ -413,10 +450,21 @@ No.1000 までです。</p>
 </ol>
 <h2 id="c列の注意マーク">C列の注意マーク</h2>
 <ol type="1">
-<li>LV1 には注意マークは表示しません。</li>
-<li><code>!!</code> は期限超過の業務です。</li>
-<li><code>!</code> は今日着手または今日完了予定の業務です。</li>
-<li>今週着手予定だけでは、C列に追加の記号や塗りつぶしは出しません。</li>
+<li><code>!!</code> は未完了のまま完了予定日を過ぎている業務です。</li>
+<li><code>!</code>
+は開始予定から完了予定までの期間が今週と重なる未完了業務です。</li>
+<li>下位タスクに <code>!!</code> または <code>!</code>
+が付いた場合、上位タスクにも同じ注意マークが付きます。</li>
+<li><code>!!</code> と <code>!</code>
+が同じ配下に混在する場合は、より強い <code>!!</code>
+が上位タスクへ表示されます。</li>
+<li>LV1 のように C
+列へタスク名が入っている行は、<code>!! タスク名</code>
+のようにタスク名の前へ表示されます。LV2-LV4 のように D-F
+列へタスク名がある行は、C 列に <code>!!</code> または <code>!</code>
+だけが表示されます。</li>
+<li>予定日は通常の日付入力だけでなく、Excel
+シリアル値として入った日付も判定対象です。</li>
 </ol>
 <h2 id="俯瞰シートの使い分け">俯瞰シートの使い分け</h2>
 <table>
@@ -438,8 +486,18 @@ No.1000 までです。</p>
 の詳細行も追加されます。LV2
 行は初期状態では折りたたまれ、左端のアウトラインから展開できます。合計や全体進捗は
 LV1 行だけを対象にするため、LV2 行を表示しても二重計上されません。</p>
+<p>WBSサマリの月次表示は、月を前半・後半の 2
+枠で表します。片側だけ予定がある月では、予定がない半月を白い
+<code>□</code> で表示します。予定が全くない月は空欄のままです。</p>
+<p>親予定日の詳しい仕様は
+<code>docs/親タスク予定日_仕様レポート.md</code>
+を参照してください。</p>
 <h2 id="よく使うマクロ">よく使うマクロ</h2>
 <table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
 <thead>
 <tr>
 <th>マクロ</th>
@@ -458,6 +516,14 @@ LV1 行だけを対象にするため、LV2 行を表示しても二重計上さ
 <tr>
 <td><code>ToggleBulkEditMode</code></td>
 <td>Ctrl+Z 優先の高速入力 ON / OFF</td>
+</tr>
+<tr>
+<td><code>SetAutomationMode</code></td>
+<td>保守用。自動テストモードを TRUE / FALSE に切り替え</td>
+</tr>
+<tr>
+<td><code>CheckInazumaRuntimeState</code></td>
+<td>保守用。高速入力とイベント状態の整合を確認</td>
 </tr>
 <tr>
 <td><code>CreateWbsBackupSheet</code></td>
@@ -492,6 +558,10 @@ LV1 行だけを対象にするため、LV2 行を表示しても二重計上さ
 </ol>
 <h2 id="困ったとき">困ったとき</h2>
 <table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
 <thead>
 <tr>
 <th>症状</th>
@@ -504,7 +574,7 @@ LV1 行だけを対象にするため、LV2 行を表示しても二重計上さ
 <td><code>RefreshInazumaGantt</code> を実行</td>
 </tr>
 <tr>
-<td>行挿入後に No. がずれた</td>
+<td>行挿入後に No. がずれた</td>
 <td>複数セル貼り付けやタスク有無の変化では自動再採番されます。文言だけの単一セル編集では高速化のため全体再採番しないため、必要なら
 <code>RenumberRows</code> を実行</td>
 </tr>

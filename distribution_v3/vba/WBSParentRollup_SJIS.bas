@@ -4,6 +4,7 @@ Option Explicit
 Public Const ALERT_MARK_TODAY As String = "!"
 Public Const ALERT_MARK_DELAY As String = "!!"
 Public Const ALERT_COLOR_RED As Long = 255
+Private Const PARENT_DATE_STATE_SHEET_NAME As String = "_InazumaParentDateState"
 
 Private Function GetRollupWorksheet(ByVal ws As Worksheet, ByVal operationName As String) As Worksheet
     If Not ws Is Nothing Then
@@ -34,6 +35,295 @@ Private Function GetHierarchyLevel(ByVal ws As Worksheet, ByVal targetRow As Lon
         GetHierarchyLevel = CLng(ws.Cells(targetRow, InazumaGantt_v3.COL_HIERARCHY).Value)
     End If
 End Function
+
+Private Function GetParentDateStateWorksheet(Optional ByVal createIfMissing As Boolean = True) As Worksheet
+    Dim wsState As Worksheet
+
+    On Error Resume Next
+    Set wsState = ThisWorkbook.Worksheets(PARENT_DATE_STATE_SHEET_NAME)
+    On Error GoTo 0
+
+    If wsState Is Nothing And createIfMissing Then
+        Set wsState = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
+        wsState.Name = PARENT_DATE_STATE_SHEET_NAME
+    End If
+
+    If Not wsState Is Nothing Then
+        wsState.Cells(1, 1).Value = "Key"
+        wsState.Cells(1, 2).Value = "AutoStart"
+        wsState.Cells(1, 3).Value = "AutoEnd"
+        wsState.Cells(1, 4).Value = "ManualStart"
+        wsState.Cells(1, 5).Value = "ManualEnd"
+        wsState.Cells(1, 6).Value = "UpdatedAt"
+        wsState.Visible = xlSheetVeryHidden
+    End If
+
+    Set GetParentDateStateWorksheet = wsState
+End Function
+
+Private Function DictionaryText(ByVal source As Object, ByVal key As String) As String
+    If source Is Nothing Then Exit Function
+    If source.Exists(key) Then DictionaryText = CStr(source(key))
+End Function
+
+Private Function DictionaryBool(ByVal source As Object, ByVal key As String) As Boolean
+    If source Is Nothing Then Exit Function
+    If source.Exists(key) Then DictionaryBool = CBool(source(key))
+End Function
+
+Private Function ParseStateBool(ByVal rawValue As Variant) As Boolean
+    Dim textValue As String
+
+    If IsError(rawValue) Or IsEmpty(rawValue) Or IsNull(rawValue) Then Exit Function
+
+    textValue = UCase$(Trim$(CStr(rawValue)))
+    ParseStateBool = (textValue = "TRUE" Or textValue = "1" Or textValue = "-1")
+End Function
+
+Private Function IsBlankValue(ByVal rawValue As Variant) As Boolean
+    If IsError(rawValue) Then Exit Function
+    If IsEmpty(rawValue) Or IsNull(rawValue) Then
+        IsBlankValue = True
+    Else
+        IsBlankValue = (Trim$(CStr(rawValue)) = "")
+    End If
+End Function
+
+Private Function TryNormalizeDateValue(ByVal rawValue As Variant, ByRef parsedDate As Date) As Boolean
+    If IsError(rawValue) Then Exit Function
+    TryNormalizeDateValue = InazumaGantt_v3.TryGetDateValue(rawValue, parsedDate)
+End Function
+
+Private Function DateStateText(ByVal rawValue As Variant) As String
+    Dim parsedDate As Date
+
+    If TryNormalizeDateValue(rawValue, parsedDate) Then
+        DateStateText = Format$(parsedDate, "yyyy-mm-dd")
+    End If
+End Function
+
+Private Function DateValuesMatch(ByVal leftValue As Variant, ByVal rightValue As Variant) As Boolean
+    Dim leftDate As Date
+    Dim rightDate As Date
+
+    If Not TryNormalizeDateValue(leftValue, leftDate) Then Exit Function
+    If Not TryNormalizeDateValue(rightValue, rightDate) Then Exit Function
+    DateValuesMatch = (CLng(leftDate) = CLng(rightDate))
+End Function
+
+Private Sub LoadParentDateState(ByRef startAutoByKey As Object, ByRef endAutoByKey As Object, _
+                                ByRef startManualByKey As Object, ByRef endManualByKey As Object)
+    Dim wsState As Worksheet
+    Dim lastRow As Long
+    Dim r As Long
+    Dim key As String
+
+    Set startAutoByKey = CreateObject("Scripting.Dictionary")
+    Set endAutoByKey = CreateObject("Scripting.Dictionary")
+    Set startManualByKey = CreateObject("Scripting.Dictionary")
+    Set endManualByKey = CreateObject("Scripting.Dictionary")
+
+    Set wsState = GetParentDateStateWorksheet(False)
+    If wsState Is Nothing Then Exit Sub
+
+    lastRow = wsState.Cells(wsState.Rows.Count, 1).End(xlUp).Row
+    If lastRow < 2 Then Exit Sub
+
+    For r = 2 To lastRow
+        key = Trim$(CStr(wsState.Cells(r, 1).Value))
+        If key <> "" Then
+            startAutoByKey(key) = Trim$(CStr(wsState.Cells(r, 2).Value))
+            endAutoByKey(key) = Trim$(CStr(wsState.Cells(r, 3).Value))
+            startManualByKey(key) = ParseStateBool(wsState.Cells(r, 4).Value)
+            endManualByKey(key) = ParseStateBool(wsState.Cells(r, 5).Value)
+        End If
+    Next r
+End Sub
+
+Private Sub SaveParentDateState(ByVal startAutoByKey As Object, ByVal endAutoByKey As Object, _
+                                ByVal startManualByKey As Object, ByVal endManualByKey As Object, _
+                                Optional ByVal activeKeys As Object = Nothing)
+    Dim wsState As Worksheet
+    Dim key As Variant
+    Dim outputRow As Long
+
+    Set wsState = GetParentDateStateWorksheet(True)
+    If wsState Is Nothing Then Exit Sub
+
+    wsState.Cells.ClearContents
+    wsState.Cells(1, 1).Value = "Key"
+    wsState.Cells(1, 2).Value = "AutoStart"
+    wsState.Cells(1, 3).Value = "AutoEnd"
+    wsState.Cells(1, 4).Value = "ManualStart"
+    wsState.Cells(1, 5).Value = "ManualEnd"
+    wsState.Cells(1, 6).Value = "UpdatedAt"
+
+    outputRow = 2
+    If activeKeys Is Nothing Then
+        For Each key In startAutoByKey.Keys
+            WriteParentDateStateRow wsState, outputRow, CStr(key), startAutoByKey, endAutoByKey, startManualByKey, endManualByKey
+            outputRow = outputRow + 1
+        Next key
+    Else
+        For Each key In activeKeys.Keys
+            WriteParentDateStateRow wsState, outputRow, CStr(key), startAutoByKey, endAutoByKey, startManualByKey, endManualByKey
+            outputRow = outputRow + 1
+        Next key
+    End If
+
+    wsState.Visible = xlSheetVeryHidden
+End Sub
+
+Private Sub WriteParentDateStateRow(ByVal wsState As Worksheet, ByVal outputRow As Long, ByVal key As String, _
+                                    ByVal startAutoByKey As Object, ByVal endAutoByKey As Object, _
+                                    ByVal startManualByKey As Object, ByVal endManualByKey As Object)
+    wsState.Cells(outputRow, 1).Value = key
+    wsState.Cells(outputRow, 2).Value = DictionaryText(startAutoByKey, key)
+    wsState.Cells(outputRow, 3).Value = DictionaryText(endAutoByKey, key)
+    wsState.Cells(outputRow, 4).Value = DictionaryBool(startManualByKey, key)
+    wsState.Cells(outputRow, 5).Value = DictionaryBool(endManualByKey, key)
+    wsState.Cells(outputRow, 6).Value = Now
+End Sub
+
+Private Function GetTaskLabelForStateKey(ByVal ws As Worksheet, ByVal targetRow As Long) As String
+    Dim taskLevel As Long
+    Dim taskColumn As String
+    Dim labelText As String
+
+    taskLevel = GetHierarchyLevel(ws, targetRow)
+    taskColumn = InazumaGantt_v3.GetTaskColumnByLevel(taskLevel)
+    If taskColumn <> "" Then labelText = Trim$(CStr(ws.Cells(targetRow, taskColumn).Value))
+    If labelText = "" Then labelText = Trim$(InazumaGantt_v3.GetVisibleTaskLabelForRow(ws, targetRow))
+
+    GetTaskLabelForStateKey = RemoveAlertMarkerPrefix(labelText)
+End Function
+
+Private Function BuildTaskPathForStateKey(ByVal ws As Worksheet, ByVal targetRow As Long) As String
+    Const MAX_TRACKED_LEVEL As Long = 32
+
+    Dim taskStack(1 To MAX_TRACKED_LEVEL) As String
+    Dim r As Long
+    Dim levelIndex As Long
+    Dim taskLevel As Long
+    Dim labelText As String
+    Dim pathText As String
+
+    If ws Is Nothing Then Exit Function
+    If targetRow < InazumaGantt_v3.ROW_DATA_START Then Exit Function
+
+    For r = InazumaGantt_v3.ROW_DATA_START To targetRow
+        taskLevel = GetHierarchyLevel(ws, r)
+        If taskLevel >= 1 And taskLevel <= MAX_TRACKED_LEVEL Then
+            labelText = GetTaskLabelForStateKey(ws, r)
+            If labelText <> "" Then
+                taskStack(taskLevel) = labelText
+                For levelIndex = taskLevel + 1 To MAX_TRACKED_LEVEL
+                    taskStack(levelIndex) = ""
+                Next levelIndex
+            End If
+        End If
+    Next r
+
+    For levelIndex = 1 To MAX_TRACKED_LEVEL
+        If Trim$(taskStack(levelIndex)) <> "" Then
+            If pathText <> "" Then pathText = pathText & " > "
+            pathText = pathText & Trim$(taskStack(levelIndex))
+        End If
+    Next levelIndex
+
+    BuildTaskPathForStateKey = pathText
+End Function
+
+Private Function BuildParentDateStateKey(ByVal ws As Worksheet, ByVal targetRow As Long) As String
+    Dim targetPath As String
+    Dim currentPath As String
+    Dim duplicateIndex As Long
+    Dim r As Long
+
+    targetPath = BuildTaskPathForStateKey(ws, targetRow)
+    If targetPath = "" Then targetPath = "(row " & CStr(targetRow) & ")"
+
+    For r = InazumaGantt_v3.ROW_DATA_START To targetRow
+        If HasTaskName(ws, r) Then
+            currentPath = BuildTaskPathForStateKey(ws, r)
+            If currentPath = "" Then currentPath = "(row " & CStr(r) & ")"
+            If currentPath = targetPath Then duplicateIndex = duplicateIndex + 1
+        End If
+    Next r
+
+    If duplicateIndex < 1 Then duplicateIndex = 1
+    BuildParentDateStateKey = CStr(Len(targetPath)) & ":" & targetPath & "#" & CStr(duplicateIndex)
+End Function
+
+Private Function ResolveParentDateValue(ByVal currentValue As Variant, ByVal autoValue As Variant, _
+                                        ByVal previousAutoText As String, ByRef resolvedValue As Variant) As Boolean
+    If IsBlankValue(currentValue) Then
+        resolvedValue = autoValue
+        Exit Function
+    End If
+
+    If previousAutoText <> "" Then
+        If DateValuesMatch(currentValue, previousAutoText) Then
+            resolvedValue = autoValue
+            Exit Function
+        End If
+    ElseIf DateValuesMatch(currentValue, autoValue) Then
+        resolvedValue = autoValue
+        Exit Function
+    End If
+
+    resolvedValue = currentValue
+    ResolveParentDateValue = True
+End Function
+
+Private Sub ApplyParentDateState(ByVal ws As Worksheet, ByVal targetRow As Long, _
+                                 ByRef planStart As Variant, ByRef planEnd As Variant, _
+                                 ByVal startAutoByKey As Object, ByVal endAutoByKey As Object, _
+                                 ByVal startManualByKey As Object, ByVal endManualByKey As Object, _
+                                 Optional ByVal activeKeys As Object = Nothing)
+    Dim stateKey As String
+    Dim autoStart As Variant
+    Dim autoEnd As Variant
+    Dim resolvedStart As Variant
+    Dim resolvedEnd As Variant
+    Dim isManualStart As Boolean
+    Dim isManualEnd As Boolean
+
+    If ws Is Nothing Then Exit Sub
+
+    autoStart = planStart
+    autoEnd = planEnd
+    stateKey = BuildParentDateStateKey(ws, targetRow)
+    If Not activeKeys Is Nothing Then activeKeys(stateKey) = True
+
+    isManualStart = ResolveParentDateValue(ws.Cells(targetRow, InazumaGantt_v3.COL_START_PLAN).Value, _
+                                           autoStart, DictionaryText(startAutoByKey, stateKey), resolvedStart)
+    isManualEnd = ResolveParentDateValue(ws.Cells(targetRow, InazumaGantt_v3.COL_END_PLAN).Value, _
+                                         autoEnd, DictionaryText(endAutoByKey, stateKey), resolvedEnd)
+
+    planStart = resolvedStart
+    planEnd = resolvedEnd
+
+    If Not isManualStart Then SetDateCell ws.Cells(targetRow, InazumaGantt_v3.COL_START_PLAN), planStart
+    If Not isManualEnd Then SetDateCell ws.Cells(targetRow, InazumaGantt_v3.COL_END_PLAN), planEnd
+
+    startAutoByKey(stateKey) = DateStateText(autoStart)
+    endAutoByKey(stateKey) = DateStateText(autoEnd)
+    startManualByKey(stateKey) = isManualStart
+    endManualByKey(stateKey) = isManualEnd
+End Sub
+
+Private Sub ApplyParentDateStateForRow(ByVal ws As Worksheet, ByVal targetRow As Long, _
+                                       ByRef planStart As Variant, ByRef planEnd As Variant)
+    Dim startAutoByKey As Object
+    Dim endAutoByKey As Object
+    Dim startManualByKey As Object
+    Dim endManualByKey As Object
+
+    LoadParentDateState startAutoByKey, endAutoByKey, startManualByKey, endManualByKey
+    ApplyParentDateState ws, targetRow, planStart, planEnd, startAutoByKey, endAutoByKey, startManualByKey, endManualByKey
+    SaveParentDateState startAutoByKey, endAutoByKey, startManualByKey, endManualByKey
+End Sub
 
 Private Function HasChildTaskRows(ByVal ws As Worksheet, ByVal startRow As Long, ByVal endRow As Long, ByVal currentLevel As Long) As Boolean
     Dim r As Long
@@ -133,28 +423,36 @@ Private Function SubtreeHasLeafHours(ByVal ws As Worksheet, ByVal startRow As Lo
 End Function
 
 Private Sub UpdateMinDate(ByRef currentValue As Variant, ByVal candidateValue As Variant)
-    If Not IsDate(candidateValue) Then Exit Sub
+    Dim candidateDate As Date
+    Dim currentDate As Date
 
-    If Not IsDate(currentValue) Then
-        currentValue = CDate(candidateValue)
-    ElseIf CDate(candidateValue) < CDate(currentValue) Then
-        currentValue = CDate(candidateValue)
+    If Not TryNormalizeDateValue(candidateValue, candidateDate) Then Exit Sub
+
+    If Not TryNormalizeDateValue(currentValue, currentDate) Then
+        currentValue = candidateDate
+    ElseIf candidateDate < currentDate Then
+        currentValue = candidateDate
     End If
 End Sub
 
 Private Sub UpdateMaxDate(ByRef currentValue As Variant, ByVal candidateValue As Variant)
-    If Not IsDate(candidateValue) Then Exit Sub
+    Dim candidateDate As Date
+    Dim currentDate As Date
 
-    If Not IsDate(currentValue) Then
-        currentValue = CDate(candidateValue)
-    ElseIf CDate(candidateValue) > CDate(currentValue) Then
-        currentValue = CDate(candidateValue)
+    If Not TryNormalizeDateValue(candidateValue, candidateDate) Then Exit Sub
+
+    If Not TryNormalizeDateValue(currentValue, currentDate) Then
+        currentValue = candidateDate
+    ElseIf candidateDate > currentDate Then
+        currentValue = candidateDate
     End If
 End Sub
 
 Private Sub SetDateCell(ByVal targetCell As Range, ByVal dateValue As Variant)
-    If IsDate(dateValue) Then
-        targetCell.Value = CDate(dateValue)
+    Dim parsedDate As Date
+
+    If TryNormalizeDateValue(dateValue, parsedDate) Then
+        targetCell.Value = parsedDate
     Else
         targetCell.ClearContents
     End If
@@ -202,6 +500,8 @@ Private Sub RecalculateParentRow(ByVal ws As Worksheet, ByVal targetRow As Long,
     Dim childEndRow As Long
     Dim targetManualHours As Double
     Dim subtreeHasHours As Boolean
+    Dim rowPlanStartDate As Date
+    Dim rowPlanEndDate As Date
 
     targetLevel = GetHierarchyLevel(ws, targetRow)
     If targetLevel <= 0 Then Exit Sub
@@ -244,14 +544,14 @@ Private Sub RecalculateParentRow(ByVal ws As Worksheet, ByVal targetRow As Long,
                         anyInProgress = True
                     End If
 
-                    If IsDate(ws.Cells(r, InazumaGantt_v3.COL_END_PLAN).Value) Then
-                        If CDate(ws.Cells(r, InazumaGantt_v3.COL_END_PLAN).Value) < referenceDate Then
+                    If TryNormalizeDateValue(ws.Cells(r, InazumaGantt_v3.COL_END_PLAN).Value, rowPlanEndDate) Then
+                        If rowPlanEndDate < referenceDate Then
                             anyOverdueIncomplete = True
                         End If
                     End If
 
-                    If Not (IsDate(ws.Cells(r, InazumaGantt_v3.COL_START_PLAN).Value) And _
-                            CDate(ws.Cells(r, InazumaGantt_v3.COL_START_PLAN).Value) > referenceDate) Then
+                    If Not (TryNormalizeDateValue(ws.Cells(r, InazumaGantt_v3.COL_START_PLAN).Value, rowPlanStartDate) And _
+                            rowPlanStartDate > referenceDate) Then
                         allFutureOnly = False
                     End If
                 End If
@@ -295,8 +595,7 @@ Private Sub RecalculateParentRow(ByVal ws As Worksheet, ByVal targetRow As Long,
     ws.Cells(targetRow, InazumaGantt_v3.COL_DEV_LT).Value = totalHours
     ws.Cells(targetRow, InazumaGantt_v3.COL_DEV_LT).NumberFormat = InazumaGantt_v3.DEV_HOURS_NUMBER_FORMAT
 
-    SetDateCell ws.Cells(targetRow, InazumaGantt_v3.COL_START_PLAN), planStart
-    SetDateCell ws.Cells(targetRow, InazumaGantt_v3.COL_END_PLAN), planEnd
+    ApplyParentDateStateForRow ws, targetRow, planStart, planEnd
     SetDateCell ws.Cells(targetRow, InazumaGantt_v3.COL_START_ACTUAL), actualStart
     SetDateCell ws.Cells(targetRow, InazumaGantt_v3.COL_END_ACTUAL), actualEnd
 End Sub
@@ -518,6 +817,16 @@ Public Sub RefreshAllParentTasks(ByVal ws As Worksheet)
     Dim hoursValue As Double
     Dim rowStatus As String
     Dim isComplete As Boolean
+    Dim targetRow As Long
+    Dim rowPlanStartDate As Date
+    Dim rowPlanEndDate As Date
+    Dim rowActualStartDate As Date
+    Dim rowActualEndDate As Date
+    Dim startAutoByKey As Object
+    Dim endAutoByKey As Object
+    Dim startManualByKey As Object
+    Dim endManualByKey As Object
+    Dim activeParentDateKeys As Object
 
     Set workingWs = GetRollupWorksheet(ws, "親タスク再計算")
     If workingWs Is Nothing Then Exit Sub
@@ -548,6 +857,8 @@ Public Sub RefreshAllParentTasks(ByVal ws As Worksheet)
     ReDim planEnd(1 To rowCount)
     ReDim actualStart(1 To rowCount)
     ReDim actualEnd(1 To rowCount)
+    LoadParentDateState startAutoByKey, endAutoByKey, startManualByKey, endManualByKey
+    Set activeParentDateKeys = CreateObject("Scripting.Dictionary")
 
     For i = 1 To rowCount
         allComplete(i) = True
@@ -597,16 +908,17 @@ Public Sub RefreshAllParentTasks(ByVal ws As Worksheet)
                 End If
             End If
 
-            workingWs.Cells(i + InazumaGantt_v3.ROW_DATA_START - 1, InazumaGantt_v3.COL_STATUS).Value = _
+            targetRow = i + InazumaGantt_v3.ROW_DATA_START - 1
+            workingWs.Cells(targetRow, InazumaGantt_v3.COL_STATUS).Value = _
                 DetermineParentStatus(allComplete(i), anyInProgress(i), anyOverdueIncomplete(i), allFutureOnly(i))
-            workingWs.Cells(i + InazumaGantt_v3.ROW_DATA_START - 1, InazumaGantt_v3.COL_PROGRESS).Value = progressValue
-            workingWs.Cells(i + InazumaGantt_v3.ROW_DATA_START - 1, InazumaGantt_v3.COL_DEV_LT).Value = totalHours(i)
-            workingWs.Cells(i + InazumaGantt_v3.ROW_DATA_START - 1, InazumaGantt_v3.COL_DEV_LT).NumberFormat = InazumaGantt_v3.DEV_HOURS_NUMBER_FORMAT
-            SetDateCell workingWs.Cells(i + InazumaGantt_v3.ROW_DATA_START - 1, InazumaGantt_v3.COL_START_PLAN), planStart(i)
-            SetDateCell workingWs.Cells(i + InazumaGantt_v3.ROW_DATA_START - 1, InazumaGantt_v3.COL_END_PLAN), planEnd(i)
+            workingWs.Cells(targetRow, InazumaGantt_v3.COL_PROGRESS).Value = progressValue
+            workingWs.Cells(targetRow, InazumaGantt_v3.COL_DEV_LT).Value = totalHours(i)
+            workingWs.Cells(targetRow, InazumaGantt_v3.COL_DEV_LT).NumberFormat = InazumaGantt_v3.DEV_HOURS_NUMBER_FORMAT
+            ApplyParentDateState workingWs, targetRow, planStart(i), planEnd(i), startAutoByKey, endAutoByKey, _
+                                 startManualByKey, endManualByKey, activeParentDateKeys
             If colCount >= 15 Then
-                SetDateCell workingWs.Cells(i + InazumaGantt_v3.ROW_DATA_START - 1, 14), actualStart(i)
-                SetDateCell workingWs.Cells(i + InazumaGantt_v3.ROW_DATA_START - 1, 15), actualEnd(i)
+                SetDateCell workingWs.Cells(targetRow, 14), actualStart(i)
+                SetDateCell workingWs.Cells(targetRow, 15), actualEnd(i)
             End If
         Else
             leafCount(i) = 1
@@ -620,11 +932,11 @@ Public Sub RefreshAllParentTasks(ByVal ws As Worksheet)
                 leafHoursExists(i) = True
             End If
 
-            If IsDate(data(i, 12)) Then planStart(i) = CDate(data(i, 12))
-            If IsDate(data(i, 13)) Then planEnd(i) = CDate(data(i, 13))
+            If TryNormalizeDateValue(data(i, 12), rowPlanStartDate) Then planStart(i) = rowPlanStartDate
+            If TryNormalizeDateValue(data(i, 13), rowPlanEndDate) Then planEnd(i) = rowPlanEndDate
             If colCount >= 15 Then
-                If IsDate(data(i, 14)) Then actualStart(i) = CDate(data(i, 14))
-                If IsDate(data(i, 15)) Then actualEnd(i) = CDate(data(i, 15))
+                If TryNormalizeDateValue(data(i, 14), rowActualStartDate) Then actualStart(i) = rowActualStartDate
+                If TryNormalizeDateValue(data(i, 15), rowActualEndDate) Then actualEnd(i) = rowActualEndDate
             End If
 
             rowStatus = DataText(data(i, 8))
@@ -632,10 +944,10 @@ Public Sub RefreshAllParentTasks(ByVal ws As Worksheet)
             allComplete(i) = isComplete
             If Not isComplete Then
                 If rowStatus = "進行中" Or rowProgress > 0 Then anyInProgress(i) = True
-                If IsDate(data(i, 13)) Then
-                    If CDate(data(i, 13)) < referenceDate Then anyOverdueIncomplete(i) = True
+                If TryNormalizeDateValue(data(i, 13), rowPlanEndDate) Then
+                    If rowPlanEndDate < referenceDate Then anyOverdueIncomplete(i) = True
                 End If
-                allFutureOnly(i) = (IsDate(data(i, 12)) And CDate(data(i, 12)) > referenceDate)
+                allFutureOnly(i) = (TryNormalizeDateValue(data(i, 12), rowPlanStartDate) And rowPlanStartDate > referenceDate)
             End If
         End If
 
@@ -661,6 +973,8 @@ Public Sub RefreshAllParentTasks(ByVal ws As Worksheet)
 
 ContinueRow:
     Next i
+
+    SaveParentDateState startAutoByKey, endAutoByKey, startManualByKey, endManualByKey, activeParentDateKeys
 End Sub
 
 Private Function IsThisWeek(ByVal targetDate As Date, ByVal referenceDate As Date) As Boolean

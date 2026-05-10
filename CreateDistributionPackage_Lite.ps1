@@ -20,6 +20,13 @@ function Resolve-ConverterRoot {
         $candidates += $env:INAZUMA_BUNDLE_CONVERTER_ROOT
     }
 
+    if (-not [string]::IsNullOrWhiteSpace($env:CODEX_PROJECT_BUNDLER_ROOT)) {
+        $candidates += $env:CODEX_PROJECT_BUNDLER_ROOT
+    }
+
+    $candidates += "C:\Work_Codex\Reversible-Script-Bundler"
+    $candidates += (Join-Path $BaseDir "Reversible-Script-Bundler")
+    $candidates += (Join-Path (Split-Path -Parent $BaseDir) "Reversible-Script-Bundler")
     $candidates += (Join-Path $BaseDir "ps1,batの変換器")
     $candidates += (Join-Path (Split-Path -Parent $BaseDir) "ps1,batの変換器")
 
@@ -75,7 +82,8 @@ function Invoke-BuildScriptWithWatchdog {
             -WorkingDirectory $WorkingDirectory `
             -TimeoutSeconds 120 `
             -CaptureIntervalSeconds 15 `
-            -MaxCaptures 8
+            -MaxCaptures 8 `
+            -CommandTimeoutSeconds 600
     }
     else {
         & $powerShellPath -File $BuildScriptPath
@@ -129,6 +137,45 @@ function Remove-PathWithRetry {
             }
             Start-Sleep -Milliseconds $DelayMilliseconds
         }
+    }
+}
+
+function Assert-DistributionWorkbookFilesAvailable {
+    param(
+        [Parameter(Mandatory)]
+        [string]$TargetPath
+    )
+
+    if (-not (Test-Path -LiteralPath $TargetPath)) {
+        return
+    }
+
+    $lockedFiles = [System.Collections.Generic.List[string]]::new()
+    $workbookFiles = Get-ChildItem -LiteralPath $TargetPath -Recurse -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.Extension -ieq ".xlsm" -or $_.Name -like '~$*.xlsm' }
+
+    foreach ($file in @($workbookFiles)) {
+        if ($file.Name -like '~$*.xlsm') {
+            $lockedFiles.Add(("{0}: Excel lock file exists" -f $file.FullName))
+            continue
+        }
+
+        $stream = $null
+        try {
+            $stream = [System.IO.File]::Open($file.FullName, [System.IO.FileMode]::Open, [System.IO.FileAccess]::ReadWrite, [System.IO.FileShare]::None)
+        }
+        catch {
+            $lockedFiles.Add(("{0}: {1}" -f $file.FullName, $_.Exception.Message))
+        }
+        finally {
+            if ($null -ne $stream) {
+                $stream.Dispose()
+            }
+        }
+    }
+
+    if ($lockedFiles.Count -gt 0) {
+        throw ("Distribution workbook file is locked. Close Excel or preview panes and retry.`n" + ($lockedFiles -join "`n"))
     }
 }
 
@@ -244,6 +291,8 @@ $bundleFolderName = "InazumaGantt_Lite_Distribution"
 $workbookPayloadPath = Join-Path $excelDir "WorkbookPayload.json"
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 
+Assert-DistributionWorkbookFilesAvailable -TargetPath $distributionDir
+
 $activeVbaFiles = @(
     "InazumaGantt_Lite_UTF8.bas",
     "InazumaGantt_Lite_SJIS.bas",
@@ -278,8 +327,8 @@ $docFiles = @(
     "利用者ガイド.md",
     "新規機能一覧.md",
     "高速入力_状況_進捗率_受入テストケース集.md",
-    "警告伝播_今週作業_受入テスト結果_20260510.md",
-    "高速入力_状況_進捗率仕様レポート.md"
+    "高速入力_状況_進捗率仕様レポート.md",
+    "親タスク予定日_仕様レポート.md"
 )
 
 $fixEncodingScript = Join-Path $scriptDir "FixEncoding.ps1"
