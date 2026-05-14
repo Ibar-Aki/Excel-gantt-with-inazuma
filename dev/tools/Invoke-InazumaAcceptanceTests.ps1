@@ -699,7 +699,7 @@ function Invoke-WorkbookAcceptance {
 
         Invoke-TestCase "TC-19" $Edition "下位タスク警告の上位伝播" {
             Set-BulkEditState $Excel $workbook $settings $false
-            Clear-TestRows $Excel $worksheet 970 974
+            Clear-TestRows $Excel $worksheet 970 975
             $today = (Get-Date).Date
             $previousEvents = $Excel.EnableEvents
             try {
@@ -718,6 +718,12 @@ function Invoke-WorkbookAcceptance {
                 Set-CellValue $worksheet "M974" ($today.ToOADate())
                 Set-CellValue $worksheet "H974" "未着手"
                 Set-CellValue $worksheet "I974" 0
+
+                Set-CellValue $worksheet "C975" "Standalone LV1 Delayed"
+                Set-CellValue $worksheet "L975" ($today.AddDays(-4).ToOADate())
+                Set-CellValue $worksheet "M975" ($today.AddDays(-2).ToOADate())
+                Set-CellValue $worksheet "H975" "未着手"
+                Set-CellValue $worksheet "I975" 0
             }
             finally {
                 $Excel.EnableEvents = $previousEvents
@@ -726,9 +732,10 @@ function Invoke-WorkbookAcceptance {
             $Excel.Run(("'{0}'!RefreshInazumaGantt" -f $workbook.Name))
             Assert-True ((Get-CellText $worksheet "C972") -eq "!!") "${Edition}: delayed child did not get !!"
             Assert-True ((Get-CellText $worksheet "C971") -eq "!!") "${Edition}: LV2 parent did not inherit !!"
-            Assert-True ((Get-CellText $worksheet "C970") -like "!! *") "${Edition}: LV1 parent did not inherit !! prefix"
+            Assert-True ((Get-CellText $worksheet "C970") -eq "Alert Parent LV1") "${Edition}: LV1 parent should not show !! prefix"
             Assert-True ((Get-CellText $worksheet "C974") -eq "!") "${Edition}: this-week child did not get !"
-            Assert-True ((Get-CellText $worksheet "C973") -like "! *") "${Edition}: LV1 parent did not inherit ! prefix"
+            Assert-True ((Get-CellText $worksheet "C973") -eq "This Week Parent LV1") "${Edition}: LV1 parent should not show ! prefix"
+            Assert-True ((Get-CellText $worksheet "C975") -eq "Standalone LV1 Delayed") "${Edition}: standalone LV1 should not show !! prefix"
         }
 
         Invoke-TestCase "TC-20" $Edition "親予定日の自動入力と手入力保持" {
@@ -802,6 +809,48 @@ function Invoke-WorkbookAcceptance {
 
             $Excel.Run(("'{0}'!RefreshInazumaGantt" -f $workbook.Name))
             Assert-Near ([double](Get-CellValue $worksheet "L977")) ([double]$base.AddDays(4).ToOADate()) 0.001 "${Edition}: cleared manual parent start did not return to auto"
+        }
+
+        Invoke-TestCase "TC-21" $Edition "親ステータス遅延判定と連続更新復帰" {
+            Set-BulkEditState $Excel $workbook $settings $false
+            Clear-TestRows $Excel $worksheet 982 988
+            $today = (Get-Date).Date
+            $previousEvents = $Excel.EnableEvents
+            try {
+                $Excel.EnableEvents = $false
+                Set-CellValue $worksheet "C982" "Visible Future Root LV1"
+                Set-CellValue $worksheet "D983" "Visible Future Parent LV2"
+                Set-CellValue $worksheet "E984" "Past Child Under Future Parent"
+                Set-CellValue $worksheet "L983" ($today.AddDays(2).ToOADate())
+                Set-CellValue $worksheet "M983" ($today.AddDays(5).ToOADate())
+                Set-CellValue $worksheet "L984" ($today.AddDays(-5).ToOADate())
+                Set-CellValue $worksheet "M984" ($today.AddDays(-2).ToOADate())
+                Set-CellValue $worksheet "H984" "未着手"
+                Set-CellValue $worksheet "I984" 0
+
+                Set-CellValue $worksheet "C986" "Auto Overdue Root LV1"
+                Set-CellValue $worksheet "D987" "Auto Overdue Parent LV2"
+                Set-CellValue $worksheet "E988" "Auto Overdue Child"
+                Set-CellValue $worksheet "L988" ($today.AddDays(-5).ToOADate())
+                Set-CellValue $worksheet "M988" ($today.AddDays(-2).ToOADate())
+                Set-CellValue $worksheet "H988" "未着手"
+                Set-CellValue $worksheet "I988" 0
+            }
+            finally {
+                $Excel.EnableEvents = $previousEvents
+            }
+
+            $previousCalculation = $Excel.Calculation
+            $previousScreenUpdating = [bool]$Excel.ScreenUpdating
+            $Excel.Run(("'{0}'!RefreshInazumaGantt" -f $workbook.Name))
+            $Excel.Run(("'{0}'!RefreshInazumaGantt" -f $workbook.Name))
+
+            Assert-True ((Get-CellText $worksheet "C982") -eq "Visible Future Root LV1") "${Edition}: LV1 future parent should not show alert marker"
+            Assert-True ((Get-CellText $worksheet "H983") -ne "遅延") "${Edition}: future visible parent end was marked delayed"
+            Assert-True ((Get-CellText $worksheet "H987") -eq "遅延") "${Edition}: overdue visible parent end was not marked delayed"
+            Assert-True ($Excel.EnableEvents) "${Edition}: EnableEvents was not restored after repeated refresh"
+            Assert-True ([int]$Excel.Calculation -eq [int]$previousCalculation) "${Edition}: Calculation mode was not restored after repeated refresh"
+            Assert-True ([bool]$Excel.ScreenUpdating -eq $previousScreenUpdating) "${Edition}: ScreenUpdating was not restored after repeated refresh"
         }
 
     }

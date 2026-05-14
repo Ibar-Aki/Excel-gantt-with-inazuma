@@ -1,11 +1,23 @@
 # Changelog
 
-更新日: 2026-05-11
+更新日: 2026-05-14
 
 All notable changes to InazumaGantt will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [3.2.7] - 2026-05-14
+
+### Changed
+
+- **LV1注意マーク抑止**: LV1 行には `!` / `!!` を表示せず、LV2-LV4 の注意マーク伝播だけを維持
+- **親タスク遅延判定**: 親行に表示される完了予定日を基準に `遅延` を判定し、手入力で未来日に調整した親行が不要に遅延化しないよう変更
+- **ガント更新の応答維持**: `RefreshInazumaGantt` の二重実行を抑止し、長めの更新中はステータスバー表示と `DoEvents` で Excel の応答を維持
+
+### Tests
+
+- **受入テスト拡張**: LV1警告非表示、LV2警告伝播、親遅延判定、連続ガント更新後の `EnableEvents` / `Calculation` / `ScreenUpdating` 復帰を `TC-19` / `TC-21` で確認
 
 ## [3.2.6] - 2026-05-11
 
@@ -23,7 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **下位注意マークの上位伝播**: 下位タスクの `!!` / `!` を上位タスクへ伝播し、混在時は `!!` を優先
+- **下位注意マークの上位伝播**: 下位タスクの `!!` / `!` を LV2-LV4 の上位タスクへ伝播し、混在時は `!!` を優先
 
 ### Fixed
 

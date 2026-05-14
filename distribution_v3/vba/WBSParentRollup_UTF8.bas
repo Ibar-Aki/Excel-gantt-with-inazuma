@@ -458,12 +458,21 @@ Private Sub SetDateCell(ByVal targetCell As Range, ByVal dateValue As Variant)
     End If
 End Sub
 
+Private Function IsDisplayedPlanEndOverdue(ByVal planEndValue As Variant, ByVal referenceDate As Date) As Boolean
+    Dim planEndDate As Date
+
+    If TryNormalizeDateValue(planEndValue, planEndDate) Then
+        IsDisplayedPlanEndOverdue = (planEndDate < referenceDate)
+    End If
+End Function
+
 Private Function DetermineParentStatus(ByVal allComplete As Boolean, ByVal anyInProgress As Boolean, _
-                                       ByVal anyOverdueIncomplete As Boolean, ByVal allFutureOnly As Boolean) As String
-    If anyOverdueIncomplete Then
-        DetermineParentStatus = "遅延"
-    ElseIf allComplete Then
+                                       ByVal allFutureOnly As Boolean, ByVal displayedPlanEnd As Variant, _
+                                       ByVal referenceDate As Date) As String
+    If allComplete Then
         DetermineParentStatus = "完了"
+    ElseIf IsDisplayedPlanEndOverdue(displayedPlanEnd, referenceDate) Then
+        DetermineParentStatus = "遅延"
     ElseIf anyInProgress Then
         DetermineParentStatus = "進行中"
     ElseIf allFutureOnly Then
@@ -590,12 +599,12 @@ Private Sub RecalculateParentRow(ByVal ws As Worksheet, ByVal targetRow As Long,
         End If
     End If
 
-    ws.Cells(targetRow, InazumaGantt_v3.COL_STATUS).Value = DetermineParentStatus(allComplete, anyInProgress, anyOverdueIncomplete, allFutureOnly)
+    ApplyParentDateStateForRow ws, targetRow, planStart, planEnd
+    ws.Cells(targetRow, InazumaGantt_v3.COL_STATUS).Value = DetermineParentStatus(allComplete, anyInProgress, allFutureOnly, planEnd, referenceDate)
     ws.Cells(targetRow, InazumaGantt_v3.COL_PROGRESS).Value = progressValue
     ws.Cells(targetRow, InazumaGantt_v3.COL_DEV_LT).Value = totalHours
     ws.Cells(targetRow, InazumaGantt_v3.COL_DEV_LT).NumberFormat = InazumaGantt_v3.DEV_HOURS_NUMBER_FORMAT
 
-    ApplyParentDateStateForRow ws, targetRow, planStart, planEnd
     SetDateCell ws.Cells(targetRow, InazumaGantt_v3.COL_START_ACTUAL), actualStart
     SetDateCell ws.Cells(targetRow, InazumaGantt_v3.COL_END_ACTUAL), actualEnd
 End Sub
@@ -861,6 +870,7 @@ Public Sub RefreshAllParentTasks(ByVal ws As Worksheet)
     Set activeParentDateKeys = CreateObject("Scripting.Dictionary")
 
     For i = 1 To rowCount
+        InazumaGantt_v3.MaybeYieldDuringGanttRefresh i, rowCount, "親タスク準備"
         allComplete(i) = True
         allFutureOnly(i) = True
         If IsNumeric(data(i, 1)) Then levels(i) = CLng(data(i, 1))
@@ -885,6 +895,7 @@ Public Sub RefreshAllParentTasks(ByVal ws As Worksheet)
     Next i
 
     For i = rowCount To 1 Step -1
+        InazumaGantt_v3.MaybeYieldDuringGanttRefresh rowCount - i + 1, rowCount, "親タスク集計"
         If Not hasTask(i) Or levels(i) <= 0 Then GoTo ContinueRow
 
         If hasChild(i) Then
@@ -909,13 +920,13 @@ Public Sub RefreshAllParentTasks(ByVal ws As Worksheet)
             End If
 
             targetRow = i + InazumaGantt_v3.ROW_DATA_START - 1
+            ApplyParentDateState workingWs, targetRow, planStart(i), planEnd(i), startAutoByKey, endAutoByKey, _
+                                 startManualByKey, endManualByKey, activeParentDateKeys
             workingWs.Cells(targetRow, InazumaGantt_v3.COL_STATUS).Value = _
-                DetermineParentStatus(allComplete(i), anyInProgress(i), anyOverdueIncomplete(i), allFutureOnly(i))
+                DetermineParentStatus(allComplete(i), anyInProgress(i), allFutureOnly(i), planEnd(i), referenceDate)
             workingWs.Cells(targetRow, InazumaGantt_v3.COL_PROGRESS).Value = progressValue
             workingWs.Cells(targetRow, InazumaGantt_v3.COL_DEV_LT).Value = totalHours(i)
             workingWs.Cells(targetRow, InazumaGantt_v3.COL_DEV_LT).NumberFormat = InazumaGantt_v3.DEV_HOURS_NUMBER_FORMAT
-            ApplyParentDateState workingWs, targetRow, planStart(i), planEnd(i), startAutoByKey, endAutoByKey, _
-                                 startManualByKey, endManualByKey, activeParentDateKeys
             If colCount >= 15 Then
                 SetDateCell workingWs.Cells(targetRow, 14), actualStart(i)
                 SetDateCell workingWs.Cells(targetRow, 15), actualEnd(i)
@@ -1135,6 +1146,7 @@ Private Sub ApplyResolvedAlertMarkerState(ByVal ws As Worksheet, ByVal targetRow
     rowLevel = GetHierarchyLevel(ws, targetRow)
     Set markerCell = ws.Cells(targetRow, "C")
     currentValue = Trim$(CStr(markerCell.Value))
+    If rowLevel = 1 Then markerText = ""
 
     If rowLevel <= 0 Then
         If IsMarkerOnlyText(currentValue) Then
@@ -1192,6 +1204,7 @@ Public Sub RefreshTaskAlertMarkers(ByVal ws As Worksheet)
     referenceDate = Date
 
     For r = InazumaGantt_v3.ROW_DATA_START To lastRow
+        InazumaGantt_v3.MaybeYieldDuringGanttRefresh r - InazumaGantt_v3.ROW_DATA_START + 1, rowCount, "警告判定"
         rowIndex = r - InazumaGantt_v3.ROW_DATA_START + 1
         If IsNumeric(workingWs.Cells(r, InazumaGantt_v3.COL_HIERARCHY).Value) Then
             levels(rowIndex) = CLng(workingWs.Cells(r, InazumaGantt_v3.COL_HIERARCHY).Value)
@@ -1222,6 +1235,7 @@ Public Sub RefreshTaskAlertMarkers(ByVal ws As Worksheet)
     Next rowIndex
 
     For r = InazumaGantt_v3.ROW_DATA_START To lastRow
+        InazumaGantt_v3.MaybeYieldDuringGanttRefresh r - InazumaGantt_v3.ROW_DATA_START + 1, rowCount, "警告表示更新"
         rowIndex = r - InazumaGantt_v3.ROW_DATA_START + 1
         ApplyResolvedAlertMarkerState workingWs, r, resolvedMarkers(rowIndex)
     Next r

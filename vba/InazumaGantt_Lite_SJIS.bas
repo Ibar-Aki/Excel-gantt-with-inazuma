@@ -77,6 +77,8 @@ Public Const SETTINGS_ROW_WBS_SUMMARY_DEPTH As Long = 11
 Public Const SETTINGS_ROW_AUTOMATION_MODE As Long = 12
 Private Const BULK_EDIT_STATUS_RANGE As String = "A3:J3"
 Private Const LOG_SHEET_NAME As String = "_InazumaGantt_Log"
+Private Const GANTT_DOEVENTS_INTERVAL As Long = 25
+Private mIsRefreshingGantt As Boolean
 Private Const LOG_MAX_ROWS As Long = 2000
 
 Private Function GetMainWorksheet() As Worksheet
@@ -416,7 +418,9 @@ Private Sub ReconcileDeferredTaskState(ByVal ws As Worksheet)
     lastRow = GetLastDataRow(ws)
     If lastRow < ROW_DATA_START Then lastRow = ROW_DATA_START
 
+    SetGanttRefreshStatus "ガント更新: 入力値を整えています..."
     NormalizeTaskStatusAndProgressRange ws, ROW_DATA_START, lastRow
+    SetGanttRefreshStatus "ガント更新: LVとNo.を整えています..."
     AutoDetectTaskLevelsInRange ws, ROW_DATA_START, lastRow
     RenumberRowsForWorksheet ws
     ganttStartCol = ws.Columns(COL_GANTT_START).Column
@@ -426,6 +430,7 @@ Private Sub ReconcileDeferredTaskState(ByVal ws As Worksheet)
         ganttStartDate = Date
     End If
 
+    SetGanttRefreshStatus "ガント更新: 日付と罫線を整えています..."
     RegenerateDateHeaders ws
     ClearGanttColors ws, lastRow, ganttStartCol
     ApplyGanttBorders ws, lastRow
@@ -433,8 +438,11 @@ Private Sub ReconcileDeferredTaskState(ByVal ws As Worksheet)
     ApplyWeekendColors ws, lastRow, ganttStartDate, ganttStartCol
     ApplyDataValidationAndFormats ws, lastRow
     ApplyHolidayColors ws, lastRow
+    SetGanttRefreshStatus "ガント更新: 親タスクを集計しています..."
     WBSParentRollup.RefreshAllDerivedTaskData ws
+    SetGanttRefreshStatus "ガント更新: 表示を整えています..."
     ApplyHierarchyColorsSilently
+    SetGanttRefreshStatus "ガント更新: ガント線を描画しています..."
     DrawGanttBars True
 End Sub
 
@@ -967,6 +975,25 @@ Private Function MaxRow(ByVal a As Long, ByVal b As Long) As Long
     End If
 End Function
 
+Private Sub SetGanttRefreshStatus(ByVal phaseText As String)
+    Application.StatusBar = phaseText
+    DoEvents
+End Sub
+
+Public Sub MaybeYieldDuringGanttRefresh(ByVal currentIndex As Long, ByVal totalCount As Long, Optional ByVal phaseText As String = "ガント更新")
+    If currentIndex <= 0 Then Exit Sub
+    If totalCount <= 0 Then totalCount = currentIndex
+    If (currentIndex Mod GANTT_DOEVENTS_INTERVAL) <> 0 And currentIndex < totalCount Then Exit Sub
+
+    If Not mIsRefreshingGantt Then
+        DoEvents
+        Exit Sub
+    End If
+
+    Application.StatusBar = phaseText & " " & Format$(currentIndex / totalCount, "0%")
+    DoEvents
+End Sub
+
 ' ==========================================
 '  説明シートの作成
 ' ==========================================
@@ -1280,6 +1307,7 @@ Sub DrawGanttBars(Optional ByVal skipRuntimeStateRepair As Boolean = False)
     inazumaCount = 0
 
     For r = ROW_DATA_START To lastRow
+        MaybeYieldDuringGanttRefresh r - ROW_DATA_START + 1, lastRow - ROW_DATA_START + 1, "ガントバー描画"
         ' 日付を取得
         startPlan = ws.Cells(r, COL_START_PLAN).Value
         endPlan = ws.Cells(r, COL_END_PLAN).Value
@@ -1468,26 +1496,37 @@ Sub RefreshInazumaGantt()
     Dim ws As Worksheet
     Set ws = RequireMainWorksheet("ガント更新")
     If ws Is Nothing Then Exit Sub
-    Call RepairBulkEditRuntimeState(ws)
-    CancelDeferredBulkEditReconcile
+    If mIsRefreshingGantt Then
+        Application.StatusBar = "ガント更新はすでに実行中です。"
+        DoEvents
+        Exit Sub
+    End If
 
     ' P2修正: 元の設定を保存
     Dim prevCalc As XlCalculation
     Dim prevEvents As Boolean
+    Dim prevScreenUpdating As Boolean
     prevCalc = Application.Calculation
     prevEvents = Application.EnableEvents
+    prevScreenUpdating = Application.ScreenUpdating
+
+    mIsRefreshingGantt = True
+    Call RepairBulkEditRuntimeState(ws)
+    CancelDeferredBulkEditReconcile
 
     Application.ScreenUpdating = False
     Application.Calculation = xlCalculationManual
     Application.EnableEvents = False
 
+    SetGanttRefreshStatus "ガント更新を開始しています..."
     ReconcileDeferredTaskState ws
 
     Application.Calculation = prevCalc  ' P2修正: 元設定に復元
     Application.EnableEvents = prevEvents
-    Application.ScreenUpdating = True
+    Application.ScreenUpdating = prevScreenUpdating
 
     Application.StatusBar = False
+    mIsRefreshingGantt = False
     UpdateBulkEditModeIndicator ws, "最新状態へ更新しました。"
     Exit Sub
 
@@ -1495,7 +1534,8 @@ ErrorHandler:
     Application.StatusBar = False
     Application.Calculation = prevCalc  ' P2修正: 元設定に復元
     Application.EnableEvents = prevEvents
-    Application.ScreenUpdating = True
+    Application.ScreenUpdating = prevScreenUpdating
+    mIsRefreshingGantt = False
     MsgBox "更新中にエラーが発生しました: " & Err.Description, vbCritical, "エラー"
 End Sub
 
