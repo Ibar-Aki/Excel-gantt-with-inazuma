@@ -81,6 +81,11 @@ Private Const LOG_SHEET_NAME As String = "_InazumaGantt_Log"
 Private Const GANTT_DOEVENTS_INTERVAL As Long = 25
 Private mIsRefreshingGantt As Boolean
 Private Const LOG_MAX_ROWS As Long = 2000
+Private Const BULK_EDIT_STATE_SHEET_NAME As String = "_InazumaBulkEditState"
+Private Const BULK_EDIT_RECONCILE_FULL_THRESHOLD As Long = 80
+Private Const BULK_EDIT_SIGNATURE_FIRST_COLUMN As Long = 1
+Private Const BULK_EDIT_SIGNATURE_LAST_COLUMN As Long = 15
+Private mIsTogglingBulkEdit As Boolean
 
 Private Function GetMainWorksheet() As Worksheet
     On Error Resume Next
@@ -408,12 +413,22 @@ CleanUp:
     If Err.Number <> 0 Then Err.Raise Err.Number, Err.Source, Err.Description
 End Sub
 
-Private Sub ReconcileDeferredTaskState(ByVal ws As Worksheet)
+Private Sub ReconcileDeferredTaskState(ByVal ws As Worksheet, Optional ByVal affectedRows As Object = Nothing)
     Dim lastRow As Long
     Dim ganttStartDate As Date
     Dim ganttStartCol As Long
+    Dim startedAt As Double
+    Dim changedRowCount As Long
+    Dim reconcileMode As String
 
     If ws Is Nothing Then Exit Sub
+
+    startedAt = Timer
+    If affectedRows Is Nothing Then
+        changedRowCount = -1
+    Else
+        changedRowCount = affectedRows.Count
+    End If
 
     ClearLiveTaskLevelHintFormulas ws
     lastRow = GetLastDataRow(ws)
@@ -439,12 +454,36 @@ Private Sub ReconcileDeferredTaskState(ByVal ws As Worksheet)
     ApplyWeekendColors ws, lastRow, ganttStartDate, ganttStartCol
     ApplyDataValidationAndFormats ws, lastRow
     ApplyHolidayColors ws, lastRow
+
     SetGanttRefreshStatus "ガント更新: 親タスクを集計しています..."
-    WBSParentRollup.RefreshAllDerivedTaskData ws
-    SetGanttRefreshStatus "ガント更新: 表示を整えています..."
-    ApplyHierarchyColorsSilently
-    SetGanttRefreshStatus "ガント更新: ガント線を描画しています..."
-    DrawGanttBars True
+    If affectedRows Is Nothing Then
+        reconcileMode = "full"
+        WBSParentRollup.RefreshAllDerivedTaskData ws
+    ElseIf affectedRows.Count = 0 Then
+        reconcileMode = "nochange"
+    ElseIf affectedRows.Count <= BULK_EDIT_RECONCILE_FULL_THRESHOLD Then
+        reconcileMode = "incremental"
+        WBSParentRollup.RecalculateTaskRowsAndAncestors ws, affectedRows
+        WBSParentRollup.RefreshTaskAlertMarkersForRowsAndAncestors ws, affectedRows
+    Else
+        reconcileMode = "full-threshold"
+        WBSParentRollup.RefreshAllDerivedTaskData ws
+    End If
+
+    If reconcileMode = "incremental" Then
+        SetGanttRefreshStatus "ガント更新: 変更行の表示を整えています..."
+        RefreshAffectedRowsAfterBulkEdit ws, affectedRows
+    ElseIf reconcileMode <> "nochange" Then
+        SetGanttRefreshStatus "ガント更新: 表示を整えています..."
+        ApplyHierarchyColorsSilently
+    End If
+
+    If reconcileMode <> "nochange" Then
+        SetGanttRefreshStatus "ガント更新: ガント線を描画しています..."
+        DrawGanttBars True
+    End If
+
+    LogGanttReconcile ws, reconcileMode, changedRowCount, lastRow, startedAt
 End Sub
 
 Private Function BuildLiveTaskLevelFormulaR1C1() As String
@@ -477,6 +516,261 @@ Private Sub ClearLiveTaskLevelHintFormulas(ByVal ws As Worksheet)
     lastSupportedRow = ROW_DATA_START + DATA_ROWS_DEFAULT - 1
     Set levelRange = ws.Range(COL_HIERARCHY & ROW_DATA_START & ":" & COL_HIERARCHY & lastSupportedRow)
     levelRange.Value = levelRange.Value
+End Sub
+
+Private Function GetBulkEditStateWorksheet(Optional ByVal createIfMissing As Boolean = False) As Worksheet
+    Dim wsState As Worksheet
+
+    On Error Resume Next
+    Set wsState = ThisWorkbook.Worksheets(BULK_EDIT_STATE_SHEET_NAME)
+    On Error GoTo 0
+
+    If wsState Is Nothing And createIfMissing Then
+        Set wsState = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
+        wsState.Name = BULK_EDIT_STATE_SHEET_NAME
+    End If
+
+    If Not wsState Is Nothing Then
+        On Error Resume Next
+        wsState.Visible = xlSheetVeryHidden
+        On Error GoTo 0
+    End If
+
+    Set GetBulkEditStateWorksheet = wsState
+End Function
+
+Private Function GetBulkEditSnapshotLastRow() As Long
+    Dim wsState As Worksheet
+    Dim storedValue As Variant
+
+    Set wsState = GetBulkEditStateWorksheet(False)
+    If wsState Is Nothing Then Exit Function
+
+    storedValue = wsState.Range("B2").Value
+    If IsNumeric(storedValue) Then GetBulkEditSnapshotLastRow = CLng(storedValue)
+End Function
+
+Private Function GetBulkEditScanEndRow(ByVal ws As Worksheet) As Long
+    Dim snapshotLastRow As Long
+
+    If ws Is Nothing Then Exit Function
+
+    GetBulkEditScanEndRow = MaxRow(GetLastDataRow(ws), ROW_DATA_START + DATA_ROWS_DEFAULT - 1)
+    snapshotLastRow = GetBulkEditSnapshotLastRow()
+    If snapshotLastRow > GetBulkEditScanEndRow Then GetBulkEditScanEndRow = snapshotLastRow
+End Function
+
+Private Function BulkEditValueText(ByVal targetCell As Range) As String
+    Dim cellValue As Variant
+
+    On Error GoTo ErrorHandler
+    cellValue = targetCell.Value2
+
+    If IsError(cellValue) Then
+        BulkEditValueText = "#ERR:" & CStr(targetCell.Text)
+    ElseIf IsEmpty(cellValue) Then
+        BulkEditValueText = ""
+    Else
+        BulkEditValueText = CStr(cellValue)
+    End If
+
+    BulkEditValueText = Replace(BulkEditValueText, Chr$(29), " ")
+    BulkEditValueText = Replace(BulkEditValueText, Chr$(30), " ")
+    Exit Function
+
+ErrorHandler:
+    BulkEditValueText = "#ERR"
+End Function
+
+Private Function BuildBulkEditRowSignature(ByVal ws As Worksheet, ByVal targetRow As Long) As String
+    Dim colIndex As Long
+    Dim signatureText As String
+
+    If ws Is Nothing Then Exit Function
+    If targetRow < ROW_DATA_START Then Exit Function
+
+    For colIndex = BULK_EDIT_SIGNATURE_FIRST_COLUMN To BULK_EDIT_SIGNATURE_LAST_COLUMN
+        signatureText = signatureText & Chr$(30) & BulkEditValueText(ws.Cells(targetRow, colIndex))
+    Next colIndex
+
+    BuildBulkEditRowSignature = signatureText
+End Function
+
+Private Sub CaptureBulkEditSnapshot(ByVal ws As Worksheet)
+    On Error GoTo ErrorHandler
+
+    Dim wsState As Worksheet
+    Dim lastRow As Long
+    Dim rowCount As Long
+    Dim snapshotData() As Variant
+    Dim r As Long
+    Dim rowIndex As Long
+    Dim targetName As String
+
+    If ws Is Nothing Then Exit Sub
+    targetName = ws.Name
+
+    Set wsState = GetBulkEditStateWorksheet(True)
+    If wsState Is Nothing Then Exit Sub
+
+    lastRow = GetBulkEditScanEndRow(ws)
+    If lastRow < ROW_DATA_START Then lastRow = ROW_DATA_START
+    rowCount = lastRow - ROW_DATA_START + 1
+    ReDim snapshotData(1 To rowCount, 1 To 2)
+
+    Application.StatusBar = "高速入力: 差分確認用スナップショットを作成しています..."
+    For r = ROW_DATA_START To lastRow
+        MaybeYieldDuringGanttRefresh r - ROW_DATA_START + 1, rowCount, "高速入力スナップショット"
+        rowIndex = r - ROW_DATA_START + 1
+        snapshotData(rowIndex, 1) = r
+        snapshotData(rowIndex, 2) = BuildBulkEditRowSignature(ws, r)
+    Next r
+
+    wsState.Cells.Clear
+    wsState.Range("A1:B1").Value = Array("capturedAt", Now)
+    wsState.Range("A2:B2").Value = Array("lastRow", lastRow)
+    wsState.Range("A4:B4").Value = Array("row", "signature")
+    wsState.Range("A5").Resize(rowCount, 2).Value = snapshotData
+    wsState.Visible = xlSheetVeryHidden
+
+    LogAutomationEvent "BulkEditSnapshot", "rows=" & CStr(rowCount) & ", lastRow=" & CStr(lastRow), targetName
+    Exit Sub
+
+ErrorHandler:
+    On Error Resume Next
+    LogAutomationEvent "BulkEditSnapshotError", Err.Description, targetName
+End Sub
+
+Private Sub AddBulkEditAffectedRow(ByVal affectedRows As Object, ByVal targetRow As Long, ByVal scanEndRow As Long)
+    If affectedRows Is Nothing Then Exit Sub
+    If targetRow < ROW_DATA_START Then Exit Sub
+    If scanEndRow >= ROW_DATA_START And targetRow > scanEndRow Then Exit Sub
+    affectedRows(CStr(targetRow)) = True
+End Sub
+
+Private Function DetectBulkEditAffectedRows(ByVal ws As Worksheet) As Object
+    On Error GoTo ErrorHandler
+
+    Dim wsState As Worksheet
+    Dim previousByRow As Object
+    Dim affectedRows As Object
+    Dim stateData As Variant
+    Dim lastSnapshotRow As Long
+    Dim scanEndRow As Long
+    Dim scanCount As Long
+    Dim i As Long
+    Dim r As Long
+    Dim rowKey As String
+    Dim currentSignature As String
+    Dim previousSignature As String
+    Dim targetName As String
+
+    If ws Is Nothing Then Exit Function
+    targetName = ws.Name
+
+    Set wsState = GetBulkEditStateWorksheet(False)
+    If wsState Is Nothing Then Exit Function
+
+    lastSnapshotRow = wsState.Cells(wsState.Rows.Count, "A").End(xlUp).Row
+    If lastSnapshotRow < 5 Then Exit Function
+
+    Set previousByRow = CreateObject("Scripting.Dictionary")
+    Set affectedRows = CreateObject("Scripting.Dictionary")
+    stateData = wsState.Range("A5:B" & lastSnapshotRow).Value2
+
+    For i = 1 To UBound(stateData, 1)
+        If IsNumeric(stateData(i, 1)) Then
+            previousByRow(CStr(CLng(stateData(i, 1)))) = CStr(stateData(i, 2))
+        End If
+    Next i
+
+    scanEndRow = GetBulkEditScanEndRow(ws)
+    If scanEndRow < ROW_DATA_START Then scanEndRow = ROW_DATA_START
+    scanCount = scanEndRow - ROW_DATA_START + 1
+
+    Application.StatusBar = "高速入力OFF: 変更行を確認しています..."
+    For r = ROW_DATA_START To scanEndRow
+        MaybeYieldDuringGanttRefresh r - ROW_DATA_START + 1, scanCount, "高速入力差分確認"
+        rowKey = CStr(r)
+        currentSignature = BuildBulkEditRowSignature(ws, r)
+        previousSignature = ""
+        If previousByRow.Exists(rowKey) Then previousSignature = CStr(previousByRow(rowKey))
+
+        If (Not previousByRow.Exists(rowKey)) Or previousSignature <> currentSignature Then
+            AddBulkEditAffectedRow affectedRows, r - 1, scanEndRow
+            AddBulkEditAffectedRow affectedRows, r, scanEndRow
+            AddBulkEditAffectedRow affectedRows, r + 1, scanEndRow
+        End If
+    Next r
+
+    LogAutomationEvent "BulkEditChangedRows", "affectedRows=" & CStr(affectedRows.Count) & ", scanRows=" & CStr(scanCount), targetName
+    Set DetectBulkEditAffectedRows = affectedRows
+    Exit Function
+
+ErrorHandler:
+    On Error Resume Next
+    LogAutomationEvent "BulkEditDiffError", Err.Description, targetName
+End Function
+
+Private Sub ClearBulkEditSnapshot()
+    On Error GoTo Fallback
+
+    Dim wsState As Worksheet
+    Dim prevAlerts As Boolean
+
+    Set wsState = GetBulkEditStateWorksheet(False)
+    If wsState Is Nothing Then Exit Sub
+
+    prevAlerts = Application.DisplayAlerts
+    Application.DisplayAlerts = False
+    wsState.Visible = xlSheetVisible
+    wsState.Delete
+    Application.DisplayAlerts = prevAlerts
+    Exit Sub
+
+Fallback:
+    On Error Resume Next
+    Application.DisplayAlerts = prevAlerts
+    If Not wsState Is Nothing Then
+        wsState.Cells.Clear
+        wsState.Visible = xlSheetVeryHidden
+    End If
+End Sub
+
+Private Function ElapsedSeconds(ByVal startedAt As Double) As Double
+    ElapsedSeconds = Timer - startedAt
+    If ElapsedSeconds < 0 Then ElapsedSeconds = ElapsedSeconds + 86400#
+End Function
+
+Private Sub RefreshAffectedRowsAfterBulkEdit(ByVal ws As Worksheet, ByVal affectedRows As Object)
+    Dim rowKey As Variant
+    Dim rowIndex As Long
+    Dim rowCount As Long
+
+    If ws Is Nothing Then Exit Sub
+    If affectedRows Is Nothing Then Exit Sub
+    If affectedRows.Count = 0 Then Exit Sub
+
+    rowCount = affectedRows.Count
+    For Each rowKey In affectedRows.Keys
+        rowIndex = rowIndex + 1
+        MaybeYieldDuringGanttRefresh rowIndex, rowCount, "変更行の表示更新"
+        RefreshTaskRowDisplayState ws, CLng(rowKey)
+    Next rowKey
+End Sub
+
+Private Sub LogGanttReconcile(ByVal ws As Worksheet, ByVal reconcileMode As String, _
+                              ByVal changedRowCount As Long, ByVal lastRow As Long, _
+                              ByVal startedAt As Double)
+    Dim details As String
+    Dim targetName As String
+
+    If Not ws Is Nothing Then targetName = ws.Name
+    details = "mode=" & reconcileMode & _
+              ", changedRows=" & CStr(changedRowCount) & _
+              ", lastRow=" & CStr(lastRow) & _
+              ", elapsedSec=" & Format$(ElapsedSeconds(startedAt), "0.00")
+    LogAutomationEvent "GanttReconcile", details, targetName
 End Sub
 
 Public Sub CancelDeferredBulkEditReconcile()
@@ -1508,22 +1802,22 @@ Sub DrawGanttBars(Optional ByVal skipRuntimeStateRepair As Boolean = False)
 
     ' イナズマ線を描画（複数ポイントがある場合）
     If inazumaCount >= 2 Then
-        Dim freeformBuilder As FreeformBuilder
-        Set freeformBuilder = ws.Shapes.BuildFreeform(msoEditingAuto, inazumaPoints(1, 1), inazumaPoints(1, 2))
+        DeleteShapeIfExists ws, "Inazuma_Line"
 
         Dim p As Long
+        Dim segmentName As String
         For p = 2 To inazumaCount
-            freeformBuilder.AddNodes msoSegmentLine, msoEditingAuto, inazumaPoints(p, 1), inazumaPoints(p, 2)
+            segmentName = "Inazuma_Line_" & CStr(p - 1)
+            DeleteShapeIfExists ws, segmentName
+            Set shp = ws.Shapes.AddLine(inazumaPoints(p - 1, 1), inazumaPoints(p - 1, 2), _
+                                        inazumaPoints(p, 1), inazumaPoints(p, 2))
+            shp.Name = segmentName
+            shp.Line.ForeColor.RGB = COLOR_INAZUMA
+            shp.Line.Weight = INAZUMA_LINE_WEIGHT
+            shp.Placement = xlMoveAndSize
+            shp.ZOrder msoBringToFront
+            touchedShapes(shp.Name) = True
         Next p
-
-        DeleteShapeIfExists ws, "Inazuma_Line"
-        Set shp = freeformBuilder.ConvertToShape
-        shp.Name = "Inazuma_Line"
-        shp.Line.ForeColor.RGB = COLOR_INAZUMA
-        shp.Line.Weight = INAZUMA_LINE_WEIGHT
-        shp.Fill.Visible = msoFalse
-        shp.Placement = xlMoveAndSize
-        touchedShapes(shp.Name) = True
     End If
 
     Dim deletedShapeCount As Long
@@ -1556,7 +1850,7 @@ Private Function ClampGanttXPosition(ByVal ws As Worksheet, ByVal targetRow As L
     Dim rightBound As Double
     Dim edgePadding As Double
 
-    edgePadding = INAZUMA_LINE_WEIGHT / 2
+    edgePadding = INAZUMA_LINE_WEIGHT + 48
     leftBound = ws.Cells(targetRow, ganttStartCol).Left + edgePadding
     rightBound = ws.Cells(targetRow, ganttStartCol + GANTT_DAYS - 1).Left + _
                  ws.Cells(targetRow, ganttStartCol + GANTT_DAYS - 1).Width - edgePadding
@@ -2218,10 +2512,18 @@ Public Sub ToggleBulkEditMode()
     Dim prevCalc As XlCalculation
     Dim prevScreenUpdating As Boolean
     Dim targetEnabled As Boolean
+    Dim affectedRows As Object
+
+    If mIsTogglingBulkEdit Or mIsRefreshingGantt Then
+        Application.StatusBar = "高速入力モードの切替またはガント更新がすでに実行中です。"
+        DoEvents
+        Exit Sub
+    End If
 
     Set ws = RequireMainWorksheet("一括編集モード切替")
     If ws Is Nothing Then Exit Sub
 
+    mIsTogglingBulkEdit = True
     prevCalc = Application.Calculation
     prevScreenUpdating = Application.ScreenUpdating
     targetEnabled = Not IsBulkEditModeEnabled()
@@ -2234,15 +2536,21 @@ Public Sub ToggleBulkEditMode()
     CreateControlButtons ws, True
 
     If targetEnabled Then
+        CaptureBulkEditSnapshot ws
         PrepareLiveTaskLevelHintsForBulkEdit ws
         Application.Calculation = prevCalc
         Application.ScreenUpdating = prevScreenUpdating
         Application.StatusBar = False
         UpdateBulkEditModeIndicator ws, "Ctrl+Z を優先しつつ、TASK入力時のLV表示だけ有効にしました。"
+        mIsTogglingBulkEdit = False
         Exit Sub
     End If
 
-    ReconcileDeferredTaskState ws
+    Set affectedRows = DetectBulkEditAffectedRows(ws)
+    mIsRefreshingGantt = True
+    ReconcileDeferredTaskState ws, affectedRows
+    mIsRefreshingGantt = False
+    ClearBulkEditSnapshot
 
     Application.EnableEvents = True
     Application.Calculation = prevCalc
@@ -2250,9 +2558,12 @@ Public Sub ToggleBulkEditMode()
     CreateControlButtons ws, True
     Application.StatusBar = False
     UpdateBulkEditModeIndicator ws, "再整合済み。"
+    mIsTogglingBulkEdit = False
     Exit Sub
 
 ErrorHandler:
+    mIsRefreshingGantt = False
+    mIsTogglingBulkEdit = False
     If targetEnabled Then
         SetBulkEditMode False
         Application.EnableEvents = True

@@ -853,6 +853,37 @@ function Invoke-WorkbookAcceptance {
             Assert-True ([bool]$Excel.ScreenUpdating -eq $previousScreenUpdating) "${Edition}: ScreenUpdating was not restored after repeated refresh"
         }
 
+        Invoke-TestCase "TC-22" $Edition "高速入力OFFの差分再整合と復帰ログ" {
+            Set-BulkEditState $Excel $workbook $settings $false
+            Clear-TestRows $Excel $worksheet 989 994
+            $beforeDiffEvents = Count-LogEvents $workbook "BulkEditChangedRows"
+            $beforeReconcileEvents = Count-LogEvents $workbook "GanttReconcile"
+            $today = (Get-Date).Date
+
+            $Excel.Run(("'{0}'!ToggleBulkEditMode" -f $workbook.Name))
+            Assert-True (-not $Excel.EnableEvents) "${Edition}: EnableEvents should be false while bulk edit is ON"
+
+            Set-CellValue $worksheet "C989" "Bulk Diff Root LV1"
+            Set-CellValue $worksheet "D990" "Bulk Diff Parent LV2"
+            Set-CellValue $worksheet "E991" "Bulk Diff Child LV3"
+            Set-CellValue $worksheet "L991" ($today.AddDays(-4).ToOADate())
+            Set-CellValue $worksheet "M991" ($today.AddDays(-1).ToOADate())
+            Set-CellValue $worksheet "H991" "未着手"
+            Set-CellValue $worksheet "I991" 0
+            $worksheet.Calculate()
+
+            Set-BulkEditState $Excel $workbook $settings $false
+            Assert-True ($Excel.EnableEvents) "${Edition}: EnableEvents was not restored after bulk diff OFF"
+            Assert-Near ([double](Get-CellValue $worksheet "A989")) 1 0.001 "${Edition}: LV1 after bulk diff OFF"
+            Assert-Near ([double](Get-CellValue $worksheet "A990")) 2 0.001 "${Edition}: LV2 after bulk diff OFF"
+            Assert-Near ([double](Get-CellValue $worksheet "A991")) 3 0.001 "${Edition}: LV3 after bulk diff OFF"
+            Assert-True (-not [bool]$worksheet.Range("A989").HasFormula) "${Edition}: LV1 formula remained after bulk diff OFF"
+            Assert-True ((Get-CellText $worksheet "C990") -eq "!!") "${Edition}: changed LV2 parent did not inherit delayed marker"
+            Assert-True ((Get-CellText $worksheet "H990") -eq "遅延") "${Edition}: changed LV2 parent status was not recalculated"
+            Assert-True ((Count-LogEvents $workbook "BulkEditChangedRows") -gt $beforeDiffEvents) "${Edition}: bulk diff log was not written"
+            Assert-True ((Count-LogEvents $workbook "GanttReconcile") -gt $beforeReconcileEvents) "${Edition}: reconcile log was not written"
+        }
+
     }
     finally {
         if ($null -ne $workbook) {

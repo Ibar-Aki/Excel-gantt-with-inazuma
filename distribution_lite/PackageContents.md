@@ -1,14 +1,14 @@
 # InazumaGantt Lite distribution package
 
-Created at: 2026-05-14 23:35:57 JST
+Created at: 2026-05-17 16:48:57 JST
 Author: Codex (GPT-5)
 
-Generated at: 2026-05-14 23:35:57 +09:00
+Generated at: 2026-05-17 16:48:57 +09:00
 Package root: .
 Converter root: set at runtime
 
 [Workbook]
-excel\InazumaGantt_Lite_20260514_2333.xlsm
+excel\InazumaGantt_Lite_20260517_1647.xlsm
 
 [One-click launchers]
 scripts\Run_OneClick_CreateLiteWorkbook.bat
@@ -56,6 +56,6 @@ Refresh *_SJIS.bas with scripts\\FixEncoding.ps1, then use them only for Excel V
 
 [Usage]
 1. Double-click scripts\Run_OneClick_CreateLiteWorkbook.bat to generate the latest workbook.
-2. Open excel\InazumaGantt_Lite_20260514_2333.xlsm to review the generated sample workbook.
+2. Open excel\InazumaGantt_Lite_20260517_1647.xlsm to review the generated sample workbook.
 3. If you restore from the converter bundle, run scripts\Run_RestoreWorkbookFromPayload.bat to recreate the xlsm from WorkbookPayload.json.
 4. Use scripts\Run_CreateDistributionPackage_Lite.bat to rebuild this distribution folder.

@@ -42,6 +42,14 @@ function Resolve-ConverterRoot {
 }
 
 function Get-AvailablePowerShellPath {
+    # Prefer PowerShell 7 so UTF-8 build scripts keep smoke-test literals intact.
+    foreach ($candidate in @("pwsh.exe", "powershell.exe")) {
+        $command = Get-Command $candidate -ErrorAction SilentlyContinue
+        if ($null -ne $command) {
+            return $command.Source
+        }
+    }
+
     try {
         $currentProcess = Get-Process -Id $PID -ErrorAction Stop
         if (-not [string]::IsNullOrWhiteSpace($currentProcess.Path)) {
@@ -49,13 +57,6 @@ function Get-AvailablePowerShellPath {
         }
     }
     catch {
-    }
-
-    foreach ($candidate in @("powershell.exe", "pwsh.exe")) {
-        $command = Get-Command $candidate -ErrorAction SilentlyContinue
-        if ($null -ne $command) {
-            return $command.Source
-        }
     }
 
     throw "PowerShell executable not found."

@@ -397,7 +397,7 @@ try {
         }
         $hasShapes = ($candidate.Shapes.Count -gt 0)
 
-        if ($candidate.Name -ne "InazumaGantt_Lite" -and $isSingleCell -and $cellValue -eq "" -and -not $hasShapes) {
+        if ($candidate.Name -ne "InazumaGantt_Lite" -and $candidate.Visible -eq -1 -and $isSingleCell -and $cellValue -eq "" -and -not $hasShapes) {
             $deleteSheets += $candidate.Name
         }
     }

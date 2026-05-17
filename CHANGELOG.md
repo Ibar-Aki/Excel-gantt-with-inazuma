@@ -1,11 +1,30 @@
 # Changelog
 
-更新日: 2026-05-14
+更新日: 2026-05-17
 
 All notable changes to InazumaGantt will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [3.2.8] - 2026-05-17
+
+### Added
+
+- **高速入力OFF差分再整合**: 高速入力ON時に WBS 行のスナップショットを保持し、OFF時は変更行・近傍行・祖先行を優先して親集計/警告を再計算
+- **更新ログ強化**: `_InazumaGantt_Log` に `BulkEditSnapshot` / `BulkEditChangedRows` / `GanttReconcile` を記録し、変更行数・処理モード・経過秒を追跡可能に変更
+
+### Changed
+
+- **二重実行ガード**: 高速入力切替中やガント更新中の再クリックを抑止し、OFF中の再入で Excel が固まる経路を遮断
+- **高速入力OFFの軽量化**: 変更なしの場合は重い親集計・階層色再設定・ガント線再描画をスキップし、小規模変更では全体親集計を避ける
+- **一時シート掃除の堅牢化**: 差分検出用の内部シートはOFF後に削除し、生成時の空シート掃除では非表示シートを誤削除しないよう変更
+- **イナズマ線の境界クランプ強化**: Freeform 外接矩形に依存せず、ガント領域内にクランプした線分群として描画し、ExcelのLine図形外接矩形ぶんも内側へ余白補正
+- **生成/配布スクリプトの安定化**: UTF-8 の日本語 smoke-test リテラルが崩れないよう、ブック生成時と配布生成時は PowerShell 7 (`pwsh`) を優先
+
+### Tests
+
+- **受入テスト拡張**: `TC-22` で高速入力ON中の編集、OFF時の差分再整合、`EnableEvents` 復帰、差分/再整合ログ出力を確認
 
 ## [3.2.7] - 2026-05-14
 
