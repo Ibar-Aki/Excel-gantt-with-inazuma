@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **一時シート掃除の堅牢化**: 差分検出用の内部シートはOFF後に削除し、生成時の空シート掃除では非表示シートを誤削除しないよう変更
 - **イナズマ線の境界クランプ強化**: Freeform 外接矩形に依存せず、ガント領域内にクランプした線分群として描画し、ExcelのLine図形外接矩形ぶんも内側へ余白補正
 - **生成/配布スクリプトの安定化**: UTF-8 の日本語 smoke-test リテラルが崩れないよう、ブック生成時と配布生成時は PowerShell 7 (`pwsh`) を優先
+- **PowerShell 5互換性強化**: PowerShell 5.1 だけの環境でも日本語リテラルが崩れないよう、配布用 PowerShell スクリプトを UTF-8 BOM 付きで保存
 
 ### Tests
 

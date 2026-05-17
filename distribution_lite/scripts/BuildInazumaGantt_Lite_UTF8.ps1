@@ -1,4 +1,4 @@
-$errorActionPreference = "Stop"
+﻿$errorActionPreference = "Stop"
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $projectDir = $scriptDir
 if (-not (Test-Path (Join-Path $projectDir "vba"))) {

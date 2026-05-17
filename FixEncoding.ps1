@@ -1,4 +1,4 @@
-# FixEncoding.ps1
+﻿# FixEncoding.ps1
 # VBAファイルをUTF-8からShift-JISに確実に変換するスクリプト
 
 $projectDir = $PSScriptRoot

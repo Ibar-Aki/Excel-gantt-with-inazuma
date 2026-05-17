@@ -1,4 +1,4 @@
-$ErrorActionPreference = "Stop"
+﻿$ErrorActionPreference = "Stop"
 
 function Get-AvailablePowerShellPath {
     # Prefer PowerShell 7 so UTF-8 build scripts keep smoke-test literals intact.
