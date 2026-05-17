@@ -417,6 +417,7 @@ Private Sub ReconcileDeferredTaskState(ByVal ws As Worksheet, Optional ByVal aff
     Dim ganttStartDate As Date
     Dim ganttStartCol As Long
     Dim startedAt As Double
+    Dim phaseStartedAt As Double
     Dim changedRowCount As Long
     Dim reconcileMode As String
 
@@ -429,10 +430,13 @@ Private Sub ReconcileDeferredTaskState(ByVal ws As Worksheet, Optional ByVal aff
         changedRowCount = affectedRows.Count
     End If
 
+    phaseStartedAt = Timer
     ClearLiveTaskLevelHintFormulas ws
     lastRow = GetLastDataRow(ws)
     If lastRow < ROW_DATA_START Then lastRow = ROW_DATA_START
+    LogGanttPhase ws, "prepare", phaseStartedAt, "rows=" & CStr(lastRow) & ", changedRows=" & CStr(changedRowCount)
 
+    phaseStartedAt = Timer
     SetGanttRefreshStatus "ガント更新: 入力値を整えています..."
     NormalizeTaskStatusAndProgressRange ws, ROW_DATA_START, lastRow
     SetGanttRefreshStatus "ガント更新: LVとNo.を整えています..."
@@ -444,7 +448,9 @@ Private Sub ReconcileDeferredTaskState(ByVal ws As Worksheet, Optional ByVal aff
     Else
         ganttStartDate = Date
     End If
+    LogGanttPhase ws, "input-normalize", phaseStartedAt, "rows=" & CStr(lastRow)
 
+    phaseStartedAt = Timer
     SetGanttRefreshStatus "ガント更新: 日付と罫線を整えています..."
     RegenerateDateHeaders ws
     ClearGanttColors ws, lastRow, ganttStartCol
@@ -453,33 +459,58 @@ Private Sub ReconcileDeferredTaskState(ByVal ws As Worksheet, Optional ByVal aff
     ApplyWeekendColors ws, lastRow, ganttStartDate, ganttStartCol
     ApplyDataValidationAndFormats ws, lastRow
     ApplyHolidayColors ws, lastRow
+    LogGanttPhase ws, "headers-formats", phaseStartedAt, "rows=" & CStr(lastRow) & ", days=" & CStr(GANTT_DAYS)
 
     SetGanttRefreshStatus "ガント更新: 親タスクを集計しています..."
+    phaseStartedAt = Timer
     If affectedRows Is Nothing Then
         reconcileMode = "full"
-        WBSParentRollup.RefreshAllDerivedTaskData ws
+        WBSParentRollup.RefreshAllParentTasks ws
+        LogGanttPhase ws, "parent-rollup", phaseStartedAt, "mode=" & reconcileMode & ", rows=" & CStr(lastRow)
+        phaseStartedAt = Timer
+        WBSParentRollup.RefreshTaskAlertMarkers ws
+        LogGanttPhase ws, "alert-markers", phaseStartedAt, "mode=" & reconcileMode & ", rows=" & CStr(lastRow)
     ElseIf affectedRows.Count = 0 Then
         reconcileMode = "nochange"
+        LogGanttPhase ws, "parent-rollup", phaseStartedAt, "mode=" & reconcileMode & ", skipped=true"
+        phaseStartedAt = Timer
+        LogGanttPhase ws, "alert-markers", phaseStartedAt, "mode=" & reconcileMode & ", skipped=true"
     ElseIf affectedRows.Count <= BULK_EDIT_RECONCILE_FULL_THRESHOLD Then
         reconcileMode = "incremental"
         WBSParentRollup.RecalculateTaskRowsAndAncestors ws, affectedRows
+        LogGanttPhase ws, "parent-rollup", phaseStartedAt, "mode=" & reconcileMode & ", affectedRows=" & CStr(affectedRows.Count)
+        phaseStartedAt = Timer
         WBSParentRollup.RefreshTaskAlertMarkersForRowsAndAncestors ws, affectedRows
+        LogGanttPhase ws, "alert-markers", phaseStartedAt, "mode=" & reconcileMode & ", affectedRows=" & CStr(affectedRows.Count)
     Else
         reconcileMode = "full-threshold"
-        WBSParentRollup.RefreshAllDerivedTaskData ws
+        WBSParentRollup.RefreshAllParentTasks ws
+        LogGanttPhase ws, "parent-rollup", phaseStartedAt, "mode=" & reconcileMode & ", affectedRows=" & CStr(affectedRows.Count)
+        phaseStartedAt = Timer
+        WBSParentRollup.RefreshTaskAlertMarkers ws
+        LogGanttPhase ws, "alert-markers", phaseStartedAt, "mode=" & reconcileMode & ", affectedRows=" & CStr(affectedRows.Count)
     End If
 
+    phaseStartedAt = Timer
     If reconcileMode = "incremental" Then
         SetGanttRefreshStatus "ガント更新: 変更行の表示を整えています..."
         RefreshAffectedRowsAfterBulkEdit ws, affectedRows
+        LogGanttPhase ws, "row-display", phaseStartedAt, "mode=" & reconcileMode & ", affectedRows=" & CStr(affectedRows.Count)
     ElseIf reconcileMode <> "nochange" Then
         SetGanttRefreshStatus "ガント更新: 表示を整えています..."
         ApplyHierarchyColorsSilently
+        LogGanttPhase ws, "row-display", phaseStartedAt, "mode=" & reconcileMode & ", rows=" & CStr(lastRow)
+    Else
+        LogGanttPhase ws, "row-display", phaseStartedAt, "mode=" & reconcileMode & ", skipped=true"
     End If
 
+    phaseStartedAt = Timer
     If reconcileMode <> "nochange" Then
         SetGanttRefreshStatus "ガント更新: ガント線を描画しています..."
         DrawGanttBars True
+        LogGanttPhase ws, "shape-redraw", phaseStartedAt, "mode=" & reconcileMode & ", rows=" & CStr(lastRow)
+    Else
+        LogGanttPhase ws, "shape-redraw", phaseStartedAt, "mode=" & reconcileMode & ", skipped=true"
     End If
 
     LogGanttReconcile ws, reconcileMode, changedRowCount, lastRow, startedAt
@@ -770,6 +801,18 @@ Private Sub LogGanttReconcile(ByVal ws As Worksheet, ByVal reconcileMode As Stri
               ", lastRow=" & CStr(lastRow) & _
               ", elapsedSec=" & Format$(ElapsedSeconds(startedAt), "0.00")
     LogAutomationEvent "GanttReconcile", details, targetName
+End Sub
+
+Private Sub LogGanttPhase(ByVal ws As Worksheet, ByVal phaseName As String, _
+                          ByVal startedAt As Double, Optional ByVal details As String = "")
+    Dim logDetails As String
+    Dim targetName As String
+
+    If Not ws Is Nothing Then targetName = ws.Name
+    logDetails = "phase=" & phaseName & _
+                 ", elapsedSec=" & Format$(ElapsedSeconds(startedAt), "0.00")
+    If Trim$(details) <> "" Then logDetails = logDetails & ", " & details
+    LogAutomationEvent "GanttPhase", logDetails, targetName
 End Sub
 
 Public Sub CancelDeferredBulkEditReconcile()
